@@ -408,43 +408,71 @@ class PlayerActivity : FragmentActivity() {
     }
 
     // ---------- Menu (MENU / amarelo) ----------
+    /** Menu compacto: 1 linha por tipo (com o valor atual); cada uma abre um submenu curto. */
     private fun showMenu() {
         val video = pc.videoTracks()
         val audio = pc.audioTracks()
         val text = pc.textTracks()
         val options = ArrayList<Pair<String, () -> Unit>>()
 
-        // Qualidade do canal ao vivo (streams HD/FHD/SD diferentes).
         if (variantUrls.size > 1) {
-            variantUrls.indices.forEach { i ->
-                val label = variantLabels.getOrElse(i) { "Opção ${i + 1}" }
-                options += ("${mark(i == variantIdx)}Qualidade do canal: $label") to { switchVariant(i) }
-            }
+            options += "Qualidade: ${variantLabels.getOrElse(variantIdx) { "—" }}" to { showQualityMenu() }
+        } else if (video.size > 1) {
+            options += "Qualidade" to { showVideoTrackMenu() }
         }
+        if (audio.size > 1) {
+            val cur = audio.firstOrNull { it.isSelected }?.label ?: "—"
+            options += "Áudio: $cur" to { showAudioMenu() }
+        }
+        val curSub = text.firstOrNull { it.isSelected }?.label ?: "desligada"
+        options += "Legenda: $curSub" to { showSubtitleMenu() }
+        options += "Tamanho da legenda" to { showSubtitleSizeMenu() }
+        if (!isLive) options += "Velocidade" to { showSpeedMenu() }
+        options += "Aspecto: ${aspectModes[aspectIdx].second}" to { cycleAspect() }
+        options += "Timer de desligar" to { showSleepMenu() }
+        options += "Picture-in-Picture" to { enterPip() }
 
-        if (video.size > 1) {
-            options += "Qualidade: Automática" to { pc.setAutoQuality(); showBadge("Qualidade automática", true) }
-            video.sortedByDescending { it.label }.forEach { t ->
-                options += ("${mark(t.isSelected)}Qualidade: ${t.label}") to { pc.selectTrack(t) }
-            }
-        }
-        audio.forEach { t ->
-            options += ("${mark(t.isSelected)}Áudio: ${t.label}") to { pc.selectTrack(t) }
-        }
-        options += "Legenda: Desligar" to { pc.disableSubtitles(); showBadge("Legenda desligada", true) }
-        text.forEach { t ->
-            options += ("${mark(t.isSelected)}Legenda: ${t.label}") to { pc.selectTrack(t) }
-        }
-        options += "Tamanho da legenda…" to { showSubtitleSizeMenu() }
-        if (!isLive) options += "Velocidade…" to { showSpeedMenu() }
-        options += "Aspecto: ${aspectModes[aspectIdx].second} (vermelho)" to { cycleAspect() }
-        options += "Timer de desligar…" to { showSleepMenu() }
-        options += "Picture-in-Picture (verde)" to { enterPip() }
+        menu("Opções", options)
+    }
 
-        AlertDialog.Builder(this)
-            .setTitle("Opções")
+    /** Helper para montar um diálogo de lista a partir de pares (rótulo, ação). */
+    private fun menu(title: String, options: List<Pair<String, () -> Unit>>) {
+        AlertDialog.Builder(this).setTitle(title)
             .setItems(options.map { it.first }.toTypedArray()) { _, i -> options[i].second() }
             .show()
+    }
+
+    private fun showQualityMenu() {
+        val options = variantUrls.indices.map { i ->
+            "${mark(i == variantIdx)}${variantLabels.getOrElse(i) { "Opção ${i + 1}" }}" to { switchVariant(i) }
+        }
+        menu("Qualidade do canal", options)
+    }
+
+    private fun showVideoTrackMenu() {
+        val options = ArrayList<Pair<String, () -> Unit>>()
+        options += "Automática" to { pc.setAutoQuality(); showBadge("Qualidade automática", true) }
+        pc.videoTracks().sortedByDescending { it.label }.forEach { t ->
+            options += "${mark(t.isSelected)}${t.label}" to { pc.selectTrack(t); showBadge("Qualidade: ${t.label}", true) }
+        }
+        menu("Qualidade", options)
+    }
+
+    private fun showAudioMenu() {
+        val options = pc.audioTracks().map { t ->
+            "${mark(t.isSelected)}${t.label}" to { pc.selectTrack(t); showBadge("Áudio: ${t.label}", true) }
+        }
+        menu("Áudio", options)
+    }
+
+    private fun showSubtitleMenu() {
+        val options = ArrayList<Pair<String, () -> Unit>>()
+        val text = pc.textTracks()
+        options += "${mark(text.none { it.isSelected })}Desligar" to { pc.disableSubtitles(); showBadge("Legenda desligada", true) }
+        text.forEach { t ->
+            options += "${mark(t.isSelected)}${t.label}" to { pc.selectTrack(t); showBadge("Legenda: ${t.label}", true) }
+        }
+        menu("Legenda", options)
     }
 
     private fun showSubtitleSizeMenu() {
