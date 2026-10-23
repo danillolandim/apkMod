@@ -61,4 +61,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("androidx.leanback:leanback:1.0.0")
+    // Carregamento de imagens (pôsteres de filmes/séries)
+    implementation("io.coil-kt:coil:2.7.0")
 }

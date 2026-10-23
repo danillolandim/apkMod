@@ -31,6 +31,7 @@ class ChannelListActivity : FragmentActivity() {
 
     private lateinit var groupsView: ListView
     private lateinit var channelsView: ListView
+    private lateinit var gridView: android.widget.GridView
     private lateinit var status: TextView
     private lateinit var search: EditText
     private lateinit var store: PlaylistStore
@@ -45,6 +46,7 @@ class ChannelListActivity : FragmentActivity() {
         setContentView(R.layout.activity_channels)
         groupsView = findViewById(R.id.groups)
         channelsView = findViewById(R.id.channels)
+        gridView = findViewById(R.id.channels_grid)
         status = findViewById(R.id.status)
         search = findViewById(R.id.search)
         store = PlaylistStore(this)
@@ -52,28 +54,34 @@ class ChannelListActivity : FragmentActivity() {
         groupsView.setOnItemClickListener { _, _, pos, _ -> selectGroup(groups[pos]) }
         channelsView.setOnItemClickListener { _, _, pos, _ -> play(shown[pos]) }
         channelsView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
-        search.setOnEditorActionListener { _, _, _ -> applyFilter(); channelsView.requestFocus(); true }
+        gridView.setOnItemClickListener { _, _, pos, _ -> play(shown[pos]) }
+        gridView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
+        search.setOnEditorActionListener { _, _, _ -> applyFilter(); true }
 
         val fromSettings = intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)
         val force = intent.getBooleanExtra(EXTRA_FORCE_REFRESH, false)
 
         status.text = "Carregando…"
 
-        // 1) Cache: se veio das configurações e está fresco, parseia em 2º plano.
-        if (fromSettings && !force && store.cacheFresh()) {
-            thread(name = "playlist-cache") {
-                val cached = store.readCache()
-                val res = cached?.let { M3uParser.parse(it) }
-                if (res is M3uParser.Result.Playlist) {
-                    runOnUiThread { show(res.channels); status.text = "${res.channels.size} canais (cache)" }
-                } else {
-                    runOnUiThread { resolveAndLoad() }   // cache inválido -> rede
+        if (fromSettings) {
+            // 1) Tem cache? Mostra IMEDIATAMENTE (parse em 2º plano).
+            val hasCache = store.readCache() != null
+            if (hasCache && !force) {
+                thread(name = "playlist-cache") {
+                    val cached = store.readCache()
+                    val res = cached?.let { M3uParser.parse(it) }
+                    if (res is M3uParser.Result.Playlist) {
+                        runOnUiThread { show(res.channels); status.text = "${res.channels.size} canais (cache)" }
+                        // 2) Se o cache está velho, atualiza em silêncio por trás.
+                        if (!store.cacheFresh()) resolveAndLoad(silent = true)
+                    } else {
+                        runOnUiThread { resolveAndLoad() }
+                    }
                 }
+            } else {
+                resolveAndLoad()
             }
-            return
-        }
-
-        if (fromSettings) resolveAndLoad() else {
+        } else {
             val url = intent.getStringExtra(EXTRA_URL).orEmpty().trim()
             if (url.isBlank()) { finish(); return }
             load(url, cacheIt = false)
@@ -81,7 +89,7 @@ class ChannelListActivity : FragmentActivity() {
     }
 
     /** Resolve a URL da lista a partir das configurações (config URL -> lista). */
-    private fun resolveAndLoad() {
+    private fun resolveAndLoad(silent: Boolean = false) {
         thread(name = "playlist-resolve") {
             val configUrl = store.configUrl
             val resolved = if (!configUrl.isNullOrBlank()) {
@@ -91,10 +99,10 @@ class ChannelListActivity : FragmentActivity() {
                     .getOrNull() ?: store.playlistUrl
             } else store.playlistUrl
             if (resolved.isNullOrBlank()) {
-                runOnUiThread { status.text = "Configure a URL da lista nas Configurações." }
+                if (!silent) runOnUiThread { status.text = "Configure a URL da lista nas Configurações." }
                 return@thread
             }
-            load(resolved, cacheIt = true)
+            load(resolved, cacheIt = true, silent = silent)
         }
     }
 
@@ -139,7 +147,7 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun fetchText(url: String): String = readBody(connect(url))
 
-    private fun load(url: String, cacheIt: Boolean) {
+    private fun load(url: String, cacheIt: Boolean, silent: Boolean = false) {
         thread(name = "playlist-load") {
             try {
                 val lower = url.substringBefore('?').lowercase()
@@ -160,18 +168,25 @@ class ChannelListActivity : FragmentActivity() {
 
                 when (val res = M3uParser.parse(text)) {
                     is M3uParser.Result.HlsStream ->
-                        runOnUiThread { openPlayer(finalUrl, live = true, title = null); finish() }
-                    is M3uParser.Result.Empty -> runOnUiThread {
-                        status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)."
-                    }
+                        if (!silent) runOnUiThread { openPlayer(finalUrl, live = true, title = null); finish() }
+                    is M3uParser.Result.Empty ->
+                        if (!silent) runOnUiThread { status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)." }
                     is M3uParser.Result.Playlist -> {
                         store.lastUrl = url
                         if (cacheIt) store.writeCache(text)
-                        runOnUiThread { show(res.channels) }
+                        runOnUiThread {
+                            if (silent) {
+                                // Atualização por trás: só troca os dados se mudou, mantém a categoria.
+                                if (res.channels.size != all.size) {
+                                    show(res.channels)
+                                    status.text = "${res.channels.size} canais (atualizado)"
+                                }
+                            } else show(res.channels)
+                        }
                     }
                 }
             } catch (e: Exception) {
-                runOnUiThread { status.text = "Erro ao carregar: ${e.message}" }
+                if (!silent) runOnUiThread { status.text = "Erro ao carregar: ${e.message}" }
             }
         }
     }
@@ -190,7 +205,7 @@ class ChannelListActivity : FragmentActivity() {
         groupsView.requestFocus()
     }
 
-    private fun selectGroup(g: String) { currentGroup = g; applyFilter() }
+    private fun selectGroup(g: String) { currentGroup = g; gridForced = null; applyFilter() }
 
     @Volatile private var filterGen = 0
 
@@ -220,10 +235,64 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun publish(list: List<M3uParser.Channel>, favs: Set<String>) {
         shown = list
-        if (channelsView.adapter !== channelAdapter) channelsView.adapter = channelAdapter
-        channelAdapter.submit(list, favs)
-        channelsView.setSelectionAfterHeaderView()
         findViewById<View>(R.id.empty).visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+
+        // Grade de pôsteres para categorias de filmes/séries (ou quando forçado);
+        // lista para canais ao vivo.
+        val useGrid = gridForced ?: isVodCategory(currentGroup, list)
+        if (useGrid) {
+            channelsView.visibility = View.GONE
+            gridView.visibility = View.VISIBLE
+            if (gridView.adapter !== posterAdapter) gridView.adapter = posterAdapter
+            posterAdapter.submit(list)
+            gridView.setSelection(0)
+        } else {
+            gridView.visibility = View.GONE
+            channelsView.visibility = View.VISIBLE
+            if (channelsView.adapter !== channelAdapter) channelsView.adapter = channelAdapter
+            channelAdapter.submit(list, favs)
+            channelsView.setSelectionAfterHeaderView()
+        }
+    }
+
+    /** null = automático (detecta por categoria); true/false = forçado pelo usuário. */
+    private var gridForced: Boolean? = null
+
+    private fun isVodCategory(group: String, sample: List<M3uParser.Channel>): Boolean {
+        val g = group.uppercase()
+        if (listOf("FILME", "MOVIE", "SERIE", "SÉRIE", "VOD", "CINEMA", "NETFLIX", "PRIME", "DISNEY", "HBO", "MAX ")
+                .any { g.contains(it) }) return true
+        if (group == ALL || group == FAV) return false
+        // Se a maioria dos itens tem logo/pôster, trata como grade.
+        val probe = sample.take(40)
+        val withLogo = probe.count { !it.logo.isNullOrBlank() }
+        return probe.isNotEmpty() && withLogo >= probe.size * 0.6
+    }
+
+    private val posterAdapter by lazy { PosterAdapter() }
+
+    private inner class PosterAdapter : android.widget.BaseAdapter() {
+        private var items: List<M3uParser.Channel> = emptyList()
+        fun submit(list: List<M3uParser.Channel>) { items = list; notifyDataSetChanged() }
+        override fun getCount() = items.size
+        override fun getItem(position: Int) = items[position]
+        override fun getItemId(position: Int) = position.toLong()
+        override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
+            val v = convertView ?: layoutInflater.inflate(R.layout.item_poster, parent, false)
+            val ch = items[position]
+            v.findViewById<TextView>(R.id.poster_title).text = ch.name
+            val img = v.findViewById<android.widget.ImageView>(R.id.poster)
+            val logo = ch.logo
+            if (logo.isNullOrBlank()) {
+                img.setImageDrawable(null)
+            } else {
+                coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
+                    coil.request.ImageRequest.Builder(this@ChannelListActivity)
+                        .data(logo).target(img).crossfade(true).build()
+                )
+            }
+            return v
+        }
     }
 
     /** Adapter leve: não recria lista a cada filtro, só troca os dados e recicla as views. */
@@ -274,11 +343,17 @@ class ChannelListActivity : FragmentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         when (keyCode) {
             KeyEvent.KEYCODE_PROG_RED -> {
-                val pos = channelsView.selectedItemPosition
-                if (pos in shown.indices) { toggleFav(shown[pos]); return true }
+                val lv = if (gridView.visibility == View.VISIBLE) gridView.selectedItemPosition else channelsView.selectedItemPosition
+                if (lv in shown.indices) { toggleFav(shown[lv]); return true }
+            }
+            KeyEvent.KEYCODE_PROG_YELLOW -> {
+                // Alternar lista <-> grade (pôsteres)
+                gridForced = !(if (gridForced != null) gridForced!! else gridView.visibility == View.VISIBLE)
+                publish(shown, store.favorites())
+                Toast.makeText(this, if (gridForced == true) "Grade de pôsteres" else "Lista", Toast.LENGTH_SHORT).show()
+                return true
             }
             KeyEvent.KEYCODE_PROG_GREEN, KeyEvent.KEYCODE_MENU -> {
-                // Atualizar agora (ignora cache)
                 status.text = "Atualizando…"
                 if (intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)) resolveAndLoad()
                 else load(intent.getStringExtra(EXTRA_URL).orEmpty().trim(), cacheIt = false)

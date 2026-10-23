@@ -36,16 +36,27 @@ object M3uParser {
         data object Empty : Result()
     }
 
-    private val attrRegex = Regex("""([\w-]+)="([^"]*)"""")
     private val hlsTags = listOf(
         "#EXT-X-STREAM-INF", "#EXT-X-TARGETDURATION", "#EXT-X-MEDIA-SEQUENCE",
         "#EXT-X-VERSION", "#EXT-X-MEDIA:", "#EXT-X-ENDLIST", "#EXT-X-PLAYLIST-TYPE",
     )
 
-    fun parse(text: String): Result {
-        if (hlsTags.any { text.contains(it) }) return Result.HlsStream
+    /** Extrai attr="valor" manualmente (sem regex — bem mais rápido em listas grandes). */
+    private fun attr(s: String, key: String): String? {
+        val k = "$key=\""
+        val i = s.indexOf(k, ignoreCase = true)
+        if (i < 0) return null
+        val start = i + k.length
+        val end = s.indexOf('"', start)
+        return if (end < 0) null else s.substring(start, end)
+    }
 
-        val out = ArrayList<Channel>()
+    fun parse(text: String): Result {
+        // Tags HLS aparecem no topo; checa só o começo (não varre 30 MB).
+        val head = text.take(2000)
+        if (hlsTags.any { head.contains(it) }) return Result.HlsStream
+
+        val out = ArrayList<Channel>(50_000)
         var name = ""
         var group = ""
         var logo: String? = null
@@ -62,15 +73,13 @@ object M3uParser {
                 line.startsWith("#EXTINF:", ignoreCase = true) -> {
                     val body = line.substring(8)
                     duration = body.takeWhile { it != ' ' && it != ',' }.toIntOrNull() ?: -1
-                    val attrs = attrRegex.findAll(body)
-                        .associate { it.groupValues[1].lowercase() to it.groupValues[2] }
-                    group = attrs["group-title"] ?: pendingExtGrp ?: ""
-                    logo = attrs["tvg-logo"]
-                    tvgId = attrs["tvg-id"]
+                    group = attr(body, "group-title") ?: pendingExtGrp ?: ""
+                    logo = attr(body, "tvg-logo")
+                    tvgId = attr(body, "tvg-id")
                     val lastQuote = body.lastIndexOf('"')
                     val comma = body.indexOf(',', startIndex = if (lastQuote >= 0) lastQuote else 0)
                     name = (if (comma >= 0) body.substring(comma + 1) else "").trim()
-                    if (name.isEmpty()) name = attrs["tvg-name"] ?: "Sem nome"
+                    if (name.isEmpty()) name = attr(body, "tvg-name") ?: "Sem nome"
                 }
                 line.startsWith("#EXTGRP:", ignoreCase = true) ->
                     pendingExtGrp = line.substring(8).trim()

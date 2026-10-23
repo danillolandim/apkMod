@@ -68,12 +68,25 @@
                 android:background="#161C22"
                 android:nextFocusLeft="@+id/groups" />
 
+            <GridView
+                android:id="@+id/channels_grid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#161C22"
+                android:numColumns="5"
+                android:horizontalSpacing="12dp"
+                android:verticalSpacing="12dp"
+                android:padding="12dp"
+                android:clipToPadding="false"
+                android:nextFocusLeft="@+id/groups"
+                android:visibility="gone" />
+
             <TextView
                 android:id="@+id/empty"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="Nenhum canal nessa categoria/busca"
+                android:text="Nenhum item nessa categoria/busca"
                 android:textColor="#667080"
                 android:visibility="gone" />
         </FrameLayout>
