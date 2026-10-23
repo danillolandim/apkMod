@@ -20,6 +20,9 @@ class VodIndex(context: Context) {
 
     private val file = File(context.filesDir, "vod_index.json")
     private val map = ConcurrentHashMap<String, Entry>()
+    // Contagem de cada gênero, mantida incrementalmente (evita varrer o índice
+    // inteiro — que tem dezenas de milhares de itens — a cada atualização).
+    private val tally = ConcurrentHashMap<Int, Int>()
     @Volatile private var dirty = false
 
     init { load() }
@@ -34,15 +37,15 @@ class VodIndex(context: Context) {
     fun size() = map.size
 
     fun put(title: String, genreIds: List<Int>, year: Int?) {
-        map[keyOf(title)] = Entry(genreIds, year); dirty = true
+        val k = keyOf(title)
+        if (map.put(k, Entry(genreIds, year)) == null) {        // só conta na 1ª vez
+            genreIds.forEach { id -> tally.merge(id, 1) { a, b -> a + b } }
+        }
+        dirty = true
     }
 
-    /** Contagem de cada gênero presente no índice (para ordenar as subcategorias). */
-    fun genreCounts(): Map<Int, Int> {
-        val c = HashMap<Int, Int>()
-        map.values.forEach { e -> e.genreIds.forEach { c[it] = (c[it] ?: 0) + 1 } }
-        return c
-    }
+    /** Contagem de cada gênero presente no índice (barato: ~27 entradas). */
+    fun genreCounts(): Map<Int, Int> = HashMap(tally)
 
     @Synchronized
     fun saveIfDirty() {
@@ -69,6 +72,7 @@ class VodIndex(context: Context) {
                 val ids = o.optString("g").split(",").mapNotNull { it.toIntOrNull() }
                 val y = if (o.has("y")) o.optInt("y") else null
                 map[k] = Entry(ids, y)
+                ids.forEach { id -> tally.merge(id, 1) { a, b -> a + b } }
             }
         }
     }

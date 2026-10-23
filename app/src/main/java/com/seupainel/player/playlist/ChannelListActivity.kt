@@ -345,16 +345,20 @@ class ChannelListActivity : FragmentActivity() {
         if (currentSection != Sec.FILMES) return
         val newGroups = filmesGroups()
         if (newGroups == groups) return
+        // Se o usuário está navegando a lista de categorias, preserva a posição.
+        val keepPos = if (groupsView.hasFocus()) groupsView.selectedItemPosition else -1
         groups = newGroups
-        val selIdx = newGroups.indexOf(currentSub ?: ALL_SEC).coerceAtLeast(0)
         groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
-        groupsView.setSelection(selIdx)
+        val sel = if (keepPos in newGroups.indices) keepPos
+                  else newGroups.indexOf(currentSub ?: ALL_SEC).coerceAtLeast(0)
+        groupsView.setSelection(sel)
     }
 
     /** Busca gênero+ano de cada filme no TMDB (uma vez), em segundo plano. */
     private fun ensureFilmesIndexed() {
         if (indexing || tmdbKey.isBlank()) return
         indexing = true
+        indexStarted = true
         thread(name = "index-dispatch") {
             val movies = all.filter { secOfChannel(it) == Sec.FILMES }
             // já indexados (disco) e os que falharam nesta sessão ficam de fora.
@@ -364,6 +368,9 @@ class ChannelListActivity : FragmentActivity() {
             val done = java.util.concurrent.atomic.AtomicInteger(0)
             for (ch in todo) {
                 indexExec.execute {
+                    if (Thread.currentThread().isInterrupted) return@execute
+                    awaitIndexResume()                 // espera se o app estiver em 2º plano
+                    if (Thread.currentThread().isInterrupted) return@execute
                     val cat = runCatching { com.seupainel.player.meta.Tmdb.categorize(tmdbKey, ch.name) }.getOrNull()
                     if (cat != null) {
                         vodIndex.put(ch.name, cat.genreIds, cat.year)
@@ -373,7 +380,7 @@ class ChannelListActivity : FragmentActivity() {
                         indexMiss.add(ch.name)
                     }
                     val d = done.incrementAndGet()
-                    if (d % 40 == 0 || d == total) {
+                    if (d % 200 == 0 || d == total) {
                         vodIndex.saveIfDirty()
                         runOnUiThread { onIndexProgress(d, total, movies.size) }
                     }
@@ -538,10 +545,23 @@ class ChannelListActivity : FragmentActivity() {
     // para não travar o enriquecimento dos cartazes (tmdbExec).
     private val vodIndex by lazy { com.seupainel.player.meta.VodIndex(this) }
     private val indexMiss = java.util.Collections.synchronizedSet(HashSet<String>())
-    private val indexExec = java.util.concurrent.Executors.newFixedThreadPool(3)
+    private val indexExec = java.util.concurrent.Executors.newFixedThreadPool(6)
     @Volatile private var indexing = false
-    @Volatile private var indexGenre = 0     // muda quando as subcategorias de gênero mudam
+    @Volatile private var indexStarted = false      // Filmes já foi aberto nesta sessão?
+    @Volatile private var indexPaused = false       // pausa a indexação durante a reprodução
+    private val indexGate = Object()
     private val lancCutoff = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 2
+
+    /** Segura os workers de indexação enquanto o app está em 2º plano. */
+    private fun awaitIndexResume() {
+        synchronized(indexGate) {
+            while (indexPaused) {
+                try { indexGate.wait() } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt(); return
+                }
+            }
+        }
+    }
 
     /** Canal clicado: filme/série abre detalhes; ao vivo toca direto. */
     private fun onChannelClick(ch: M3uParser.Channel) {
@@ -611,11 +631,23 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        // Em 2º plano (assistindo/detalhes): pausa a indexação e salva o progresso.
+        if (indexStarted) { indexPaused = true; vodIndex.saveIfDirty() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (indexStarted) synchronized(indexGate) { indexPaused = false; indexGate.notifyAll() }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         tmdbExec.shutdownNow()
         indexExec.shutdownNow()
-        vodIndex.saveIfDirty()
+        synchronized(indexGate) { indexPaused = false; indexGate.notifyAll() }
+        if (indexStarted) vodIndex.saveIfDirty()
     }
 
     /** Adapter leve: não recria lista a cada filtro, só troca os dados e recicla as views. */
