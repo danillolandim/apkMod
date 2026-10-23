@@ -5,12 +5,14 @@
     android:orientation="vertical"
     android:padding="6dp"
     android:background="@drawable/card_bg"
-    android:focusable="true">
+    android:defaultFocusHighlightEnabled="false"
+    android:focusable="true"
+    android:clickable="true">
 
     <ImageView
         android:id="@+id/poster"
         android:layout_width="match_parent"
-        android:layout_height="220dp"
+        android:layout_height="230dp"
         android:scaleType="centerCrop"
         android:background="#0E141B"
         android:contentDescription="Cartaz" />
@@ -20,9 +22,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:maxLines="2"
+        android:lines="2"
         android:ellipsize="end"
-        android:textColor="@color/card_text"
+        android:textColor="#FFFFFF"
         android:textSize="13sp"
         android:gravity="center" />
 </LinearLayout>
