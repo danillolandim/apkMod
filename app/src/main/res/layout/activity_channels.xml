@@ -53,14 +53,14 @@
             android:id="@+id/groups"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_weight="0.7"
             android:background="#121A26"
             android:nextFocusRight="@+id/channels" />
 
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="2.6"
+            android:layout_weight="3.4"
             android:layout_marginStart="14dp">
 
             <ListView
@@ -75,7 +75,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="#121A26"
-                android:numColumns="5"
+                android:numColumns="4"
                 android:horizontalSpacing="12dp"
                 android:verticalSpacing="12dp"
                 android:padding="12dp"

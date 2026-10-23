@@ -226,15 +226,34 @@ class ChannelListActivity : FragmentActivity() {
         groupsView.requestFocus()
     }
 
+    private enum class SubMode { GROUPS, ALPHA }
+    private var subMode = SubMode.GROUPS
+
+    private fun firstKey(name: String): String {
+        val c = name.trimStart().firstOrNull { it.isLetterOrDigit() } ?: return "#"
+        val u = c.uppercaseChar()
+        return if (u in 'A'..'Z') u.toString() else "#"
+    }
+
     private fun selectSection(sec: Sec) {
         currentSection = sec
         search.setText("")
         search.visibility = View.GONE
         val subs = (sectionGroups[sec] ?: emptyList()).sortedBy { it.lowercase() }
-        groups = when {
-            sec == Sec.FAV -> emptyList()
-            subs.size > 1 -> buildList { add(ALL_SEC); addAll(subs) }
-            else -> subs
+
+        if (sec == Sec.FAV) {
+            subMode = SubMode.GROUPS
+            groups = emptyList()
+        } else if ((sec == Sec.FILMES || sec == Sec.SERIES) && subs.size <= 1) {
+            // Sem subcategorias reais na lista -> índice A-Z + Recentes.
+            subMode = SubMode.ALPHA
+            val present = all.asSequence()
+                .filter { secOf(it.group) == sec }
+                .map { firstKey(it.name) }.distinct().toSortedSet()
+            groups = buildList { add(ALL_SEC); add(RECENTES); addAll(present) }
+        } else {
+            subMode = SubMode.GROUPS
+            groups = if (subs.size > 1) buildList { add(ALL_SEC); addAll(subs) } else subs
         }
         groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
         currentSub = if (groups.isNotEmpty() && groups[0] != ALL_SEC) groups[0] else null
@@ -261,13 +280,20 @@ class ChannelListActivity : FragmentActivity() {
         val favs = store.favorites()
         val sec = currentSection
         val sub = currentSub
+        val mode = subMode
         val gen = ++filterGen
         thread(name = "filter") {
-            val result = all.filter { ch ->
+            var result = all.filter { ch ->
                 val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOf(ch.group) == sec
-                val inSub = sub == null || ch.group == sub
+                val inSub = when {
+                    sub == null || sub == RECENTES -> true
+                    mode == SubMode.ALPHA -> firstKey(ch.name) == sub
+                    else -> ch.group == sub
+                }
                 inSec && inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
             }
+            // "Recentes": últimos adicionados (ordem da lista), proxy de lançamentos.
+            if (sub == RECENTES) result = result.takeLast(200).reversed()
             if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs, sec) }
         }
     }
@@ -537,6 +563,7 @@ class ChannelListActivity : FragmentActivity() {
         const val EXTRA_FROM_SETTINGS = "from_settings"
         const val EXTRA_FORCE_REFRESH = "force_refresh"
         private const val ALL_SEC = "Tudo"
+        private const val RECENTES = "Recentes"
         private const val MAX_CHARS = 12_000_000
         private const val UA = "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 Chrome/120 Safari/537.36"
         private val DIRECT_EXT = listOf(".mp4", ".mkv", ".ts", ".avi", ".mov", ".webm", ".mp3", ".aac", ".flac")
