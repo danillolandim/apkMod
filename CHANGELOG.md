@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Nova categoria "Aclamadas" (bem avaliadas no TMDB, com votos suficientes) em Filmes e Séries, ordenada pela nota.
 - Séries agora têm categorias de gênero (Ação, Comédia, Terror…) como os Filmes, além de Tudo/Lançamentos/A-Z.
 - Cartaz do filme/série é o mesmo no grid e na tela de detalhes (pôster do TMDB), em vez da capa trocada/antiga da lista.
 - Menu único no player: a engrenagem na tela abre todas as opções do app (qualidade, áudio, legenda, tamanho da legenda, aspecto, velocidade, timer, PiP).

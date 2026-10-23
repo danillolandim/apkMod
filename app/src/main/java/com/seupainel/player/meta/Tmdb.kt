@@ -37,6 +37,7 @@ object Tmdb {
         val genreIds: List<Int>,
         val year: Int?,
         val rating: Double,
+        val votes: Int,
         val posterUrl: String?,
     )
 
@@ -64,7 +65,8 @@ object Tmdb {
                 val ids = if (arr != null) (0 until arr.length()).map { arr.optInt(it) } else emptyList()
                 val date = o.optString(if (mt == "tv") "first_air_date" else "release_date", "")
                 val poster = o.optString("poster_path", "").takeIf { it.isNotBlank() }?.let { IMG + it }
-                return CatRes.Found(Cat(ids, date.take(4).toIntOrNull(), o.optDouble("vote_average", 0.0), poster))
+                return CatRes.Found(Cat(ids, date.take(4).toIntOrNull(),
+                    o.optDouble("vote_average", 0.0), o.optInt("vote_count", 0), poster))
             }
         }
         return CatRes.NotFound

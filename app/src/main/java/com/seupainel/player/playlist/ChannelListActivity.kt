@@ -51,8 +51,10 @@ class ChannelListActivity : FragmentActivity() {
     @Volatile private var filmesByGenre: Map<Int, List<M3uParser.Channel>>? = null
     @Volatile private var filmesLancamentos: List<M3uParser.Channel>? = null
     @Volatile private var filmesGenreCounts: Map<Int, Int> = emptyMap()
+    @Volatile private var filmesAclamadas: List<M3uParser.Channel>? = null
     @Volatile private var seriesByGenre: Map<Int, List<M3uParser.Channel>>? = null
     @Volatile private var seriesLancamentos: List<M3uParser.Channel>? = null
+    @Volatile private var seriesAclamadas: List<M3uParser.Channel>? = null
     @Volatile private var seriesGenreCounts: Map<Int, Int> = emptyMap()
     @Volatile private var buildingFilmes = false
     private var shown: List<M3uParser.Channel> = emptyList()
@@ -380,21 +382,26 @@ class ChannelListActivity : FragmentActivity() {
             val movies = secLists?.get(Sec.FILMES) ?: all.filter { secOfChannel(it) == Sec.FILMES }
             val mByGenre = HashMap<Int, ArrayList<M3uParser.Channel>>()
             val mYear = ArrayList<Pair<M3uParser.Channel, Int>>()
+            val mAcl = ArrayList<Pair<M3uParser.Channel, Double>>()
             for (ch in movies) {
                 val e = vodIndex.get(ch.name) ?: continue
                 e.genreIds.forEach { mByGenre.getOrPut(it) { ArrayList() }.add(ch) }
                 val y = e.year
                 if (y != null && y >= lancCutoff) mYear.add(ch to y)
+                if (!e.rating.isNaN() && e.rating >= ACLAMADA_MIN_RATING && e.votes >= ACLAMADA_MIN_VOTES)
+                    mAcl.add(ch to e.rating)
             }
             filmesByGenre = mByGenre
             filmesGenreCounts = mByGenre.mapValues { it.value.size }
             filmesLancamentos = mYear.sortedByDescending { it.second }.map { it.first }
+            filmesAclamadas = mAcl.sortedByDescending { it.second }.map { it.first }
 
             // Séries (episódios herdam o gênero/ano da série pelo título)
             val series = secLists?.get(Sec.SERIES) ?: all.filter { secOfChannel(it) == Sec.SERIES }
             val sByGenre = HashMap<Int, ArrayList<M3uParser.Channel>>()
             val sTitles = HashMap<Int, HashSet<String>>()
             val sYear = ArrayList<Pair<M3uParser.Channel, Int>>()
+            val sAcl = ArrayList<Pair<M3uParser.Channel, Double>>()
             for (ch in series) {
                 val e = vodIndex.get(ch.name) ?: continue
                 val tkey = vodIndex.keyFor(ch.name)
@@ -404,10 +411,13 @@ class ChannelListActivity : FragmentActivity() {
                 }
                 val y = e.year
                 if (y != null && y >= lancCutoff) sYear.add(ch to y)
+                if (!e.rating.isNaN() && e.rating >= ACLAMADA_MIN_RATING && e.votes >= ACLAMADA_MIN_VOTES)
+                    sAcl.add(ch to e.rating)
             }
             seriesByGenre = sByGenre
             seriesGenreCounts = sTitles.mapValues { it.value.size }   // séries distintas por gênero
             seriesLancamentos = sYear.sortedByDescending { it.second }.map { it.first }
+            seriesAclamadas = sAcl.sortedByDescending { it.second }.map { it.first }
 
             buildingFilmes = false
         }
@@ -419,8 +429,10 @@ class ChannelListActivity : FragmentActivity() {
         val genreNames = com.seupainel.player.meta.VodIndex.GENRES.entries
             .filter { (counts[it.key] ?: 0) >= 3 }      // só gêneros com conteúdo
             .map { it.value }
+        val aclamadas = if (sec == Sec.SERIES) seriesAclamadas else filmesAclamadas
         return buildList {
             add(ALL_SEC); add(LANCAMENTOS)
+            if (!aclamadas.isNullOrEmpty()) add(ACLAMADAS)
             if (newItems.anyNew()) add(NOVIDADES)
             addAll(genreNames)
             if (genreNames.isEmpty()) {
@@ -463,8 +475,10 @@ class ChannelListActivity : FragmentActivity() {
             val todo = ArrayList<M3uParser.Channel>()
             for (ch in vod.sortedByDescending { if (newItems.isNew(it.url)) 1 else 0 }) {
                 val key = vodIndex.keyFor(ch.name)
-                if (key.isBlank() || vodIndex.hasKey(key) || indexMiss.contains(ch.name)) continue
-                if (seenKeys.add(key)) todo.add(ch)
+                if (key.isBlank() || indexMiss.contains(ch.name)) continue
+                val e = vodIndex.getByKey(key)
+                val needs = e == null || e.rating.isNaN()   // novo OU sem nota (formato antigo)
+                if (needs && seenKeys.add(key)) todo.add(ch)
             }
             if (todo.isEmpty()) { indexing = false; runOnUiThread { rebuildFilmesGroups() }; return@thread }
             val movies = vod   // só para o texto de progresso
@@ -478,12 +492,12 @@ class ChannelListActivity : FragmentActivity() {
                     when (val r = runCatching { com.seupainel.player.meta.Tmdb.categorize(tmdbKey, ch.name) }
                         .getOrDefault(com.seupainel.player.meta.Tmdb.CatRes.Error)) {
                         is com.seupainel.player.meta.Tmdb.CatRes.Found -> {
-                            vodIndex.put(ch.name, r.cat.genreIds, r.cat.year)
+                            vodIndex.put(ch.name, r.cat.genreIds, r.cat.year, r.cat.rating, r.cat.votes)
                             tmdbCache[ch.name] = com.seupainel.player.meta.Tmdb.Quick(r.cat.rating, r.cat.posterUrl)
                             com.seupainel.player.meta.PosterCache.put(ch.name, r.cat.posterUrl)
                         }
                         com.seupainel.player.meta.Tmdb.CatRes.NotFound ->
-                            vodIndex.put(ch.name, emptyList(), null)   // não existe: guarda de vez
+                            vodIndex.put(ch.name, emptyList(), null, 0.0, 0)   // não existe: guarda de vez
                         com.seupainel.player.meta.Tmdb.CatRes.Error ->
                             indexMiss.add(ch.name)                     // rede: tenta na próxima sessão
                     }
@@ -532,6 +546,8 @@ class ChannelListActivity : FragmentActivity() {
         val fastLanc = when {
             sec == Sec.FILMES && sub == LANCAMENTOS -> filmesLancamentos
             sec == Sec.SERIES && sub == LANCAMENTOS -> seriesLancamentos
+            sec == Sec.FILMES && sub == ACLAMADAS -> filmesAclamadas
+            sec == Sec.SERIES && sub == ACLAMADAS -> seriesAclamadas
             else -> null
         }
         thread(name = "filter") {
@@ -553,6 +569,10 @@ class ChannelListActivity : FragmentActivity() {
                     sub == null || sub == ALL_SEC || sub == RECENTES -> true
                     sub == NOVIDADES -> newItems.isNew(ch.url)            // entrou de novo
                     derivedLive -> LiveGroups.categoryOf(ch.name) == sub  // canais por tema
+                    sub == ACLAMADAS -> {
+                        val r = vodIndex.rating(ch.name)
+                        !r.isNaN() && r >= ACLAMADA_MIN_RATING && vodIndex.votes(ch.name) >= ACLAMADA_MIN_VOTES
+                    }
                     sub == LANCAMENTOS -> (vodIndex.year(ch.name) ?: 0) >= lancCutoff
                     genreId != null -> vodIndex.genres(ch.name).contains(genreId)
                     sub.length == 1 -> firstKey(ch.name) == sub          // índice A-Z
@@ -565,6 +585,7 @@ class ChannelListActivity : FragmentActivity() {
                 RECENTES -> result = result.takeLast(200).reversed()      // últimos adicionados
                 NOVIDADES -> result = result.sortedByDescending { newItems.firstSeen(it.url) }
                 LANCAMENTOS -> result = result.sortedByDescending { vodIndex.year(it.name) ?: 0 }
+                ACLAMADAS -> result = result.sortedByDescending { vodIndex.rating(it.name).let { r -> if (r.isNaN()) 0.0 else r } }
             }
             // Canais ao vivo: junta HD/FHD/SD do mesmo canal num item só.
             if (sec == Sec.CANAIS) result = collapseLive(result)
@@ -602,10 +623,13 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun publishSeries(list: List<M3uParser.Channel>) {
         val gen = filterGen
-        val byYear = currentSub == LANCAMENTOS
+        val sub = currentSub
         thread(name = "series-group") {
             var series = SeriesGrouper.group(list)
-            if (byYear) series = series.sortedByDescending { vodIndex.year(it.title) ?: 0 }
+            when (sub) {
+                LANCAMENTOS -> series = series.sortedByDescending { vodIndex.year(it.title) ?: 0 }
+                ACLAMADAS -> series = series.sortedByDescending { vodIndex.rating(it.title).let { r -> if (r.isNaN()) 0.0 else r } }
+            }
             if (gen != filterGen) return@thread
             runOnUiThread {
                 if (gen != filterGen) return@runOnUiThread
@@ -1016,6 +1040,9 @@ class ChannelListActivity : FragmentActivity() {
         private const val RECENTES = "Recentes"
         private const val NOVIDADES = "Novidades"
         private const val LANCAMENTOS = "Lançamentos"
+        private const val ACLAMADAS = "Aclamadas"
+        private const val ACLAMADA_MIN_RATING = 7.5
+        private const val ACLAMADA_MIN_VOTES = 50
         private const val MAX_CHARS = 12_000_000
         private const val UA = "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 Chrome/120 Safari/537.36"
         private val DIRECT_EXT = listOf(".mp4", ".mkv", ".ts", ".avi", ".mov", ".webm", ".mp3", ".aac", ".flac")

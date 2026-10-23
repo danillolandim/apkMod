@@ -16,7 +16,12 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class VodIndex(context: Context) {
 
-    data class Entry(val genreIds: List<Int>, val year: Int?)
+    data class Entry(
+        val genreIds: List<Int>,
+        val year: Int?,
+        val rating: Double = Double.NaN,   // NaN = nota ainda não buscada (formato antigo)
+        val votes: Int = 0,
+    )
 
     private val file = File(context.filesDir, "vod_index.json")
     private val map = ConcurrentHashMap<String, Entry>()
@@ -40,13 +45,16 @@ class VodIndex(context: Context) {
 
     fun has(title: String) = map.containsKey(keyOf(title))
     fun get(title: String): Entry? = map[keyOf(title)]
+    fun getByKey(key: String): Entry? = map[key]
     fun year(title: String): Int? = map[keyOf(title)]?.year
     fun genres(title: String): List<Int> = map[keyOf(title)]?.genreIds ?: emptyList()
+    fun rating(title: String): Double = map[keyOf(title)]?.rating ?: Double.NaN
+    fun votes(title: String): Int = map[keyOf(title)]?.votes ?: 0
     fun size() = map.size
 
-    fun put(title: String, genreIds: List<Int>, year: Int?) {
+    fun put(title: String, genreIds: List<Int>, year: Int?, rating: Double = Double.NaN, votes: Int = 0) {
         val k = keyOf(title)
-        if (map.put(k, Entry(genreIds, year)) == null) {        // só conta na 1ª vez
+        if (map.put(k, Entry(genreIds, year, rating, votes)) == null) {   // só conta na 1ª vez
             genreIds.forEach { id -> tally.merge(id, 1) { a, b -> a + b } }
         }
         dirty = true
@@ -64,6 +72,8 @@ class VodIndex(context: Context) {
                 val o = JSONObject()
                 o.put("g", v.genreIds.joinToString(","))
                 v.year?.let { o.put("y", it) }
+                if (!v.rating.isNaN()) o.put("r", v.rating)
+                if (v.votes > 0) o.put("v", v.votes)
                 root.put(k, o)
             }
             file.writeText(root.toString())
@@ -79,7 +89,9 @@ class VodIndex(context: Context) {
                 val o = root.getJSONObject(k)
                 val ids = o.optString("g").split(",").mapNotNull { it.toIntOrNull() }
                 val y = if (o.has("y")) o.optInt("y") else null
-                map[k] = Entry(ids, y)
+                val r = if (o.has("r")) o.optDouble("r") else Double.NaN
+                val v = o.optInt("v", 0)
+                map[k] = Entry(ids, y, r, v)
                 ids.forEach { id -> tally.merge(id, 1) { a, b -> a + b } }
             }
         }
