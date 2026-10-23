@@ -291,10 +291,7 @@ class ChannelListActivity : FragmentActivity() {
                         .data(logo).target(img).crossfade(true).build()
                 )
             }
-            // Clique/clique-longo no próprio cartão (item focável não dispara o
-            // onItemClick do GridView).
-            v.setOnClickListener { openDetail(ch) }
-            v.setOnLongClickListener { toggleFav(ch); true }
+            // Item não é focável: o clique vem do onItemClick do GridView.
             return v
         }
     }

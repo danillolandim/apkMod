@@ -78,6 +78,9 @@
                 android:verticalSpacing="12dp"
                 android:padding="12dp"
                 android:clipToPadding="false"
+                android:focusable="true"
+                android:listSelector="@drawable/grid_selector"
+                android:drawSelectorOnTop="true"
                 android:nextFocusLeft="@+id/groups"
                 android:visibility="gone" />
 
