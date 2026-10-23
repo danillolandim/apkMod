@@ -54,19 +54,23 @@
                 android:lineSpacingExtra="4dp"
                 android:scrollbars="vertical" />
 
-            <Button
+            <TextView
                 android:id="@+id/d_watch"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:background="@drawable/card_bg"
+                android:focusable="true"
+                android:clickable="true"
                 android:defaultFocusHighlightEnabled="false"
                 android:stateListAnimator="@animator/card_focus"
+                android:gravity="center"
                 android:paddingLeft="48dp"
                 android:paddingRight="48dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
                 android:text="▶  Assistir"
-                android:textAllCaps="false"
-                android:textColor="@color/card_text"
+                android:textColor="#FFFFFF"
                 android:textSize="20sp" />
         </LinearLayout>
     </LinearLayout>

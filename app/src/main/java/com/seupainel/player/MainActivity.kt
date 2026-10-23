@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Button
+import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
@@ -44,14 +44,14 @@ class MainActivity : FragmentActivity() {
 
         val openSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         findViewById<ImageButton>(R.id.btn_gear).setOnClickListener { openSettings() }
-        findViewById<Button>(R.id.card_settings).setOnClickListener { openSettings() }
-        findViewById<Button>(R.id.card_test).setOnClickListener {
+        findViewById<View>(R.id.card_settings).setOnClickListener { openSettings() }
+        findViewById<View>(R.id.card_test).setOnClickListener {
             startActivity(Intent(this, TestActivity::class.java))
         }
-        findViewById<Button>(R.id.card_channels).setOnClickListener { openChannels() }
+        findViewById<View>(R.id.card_channels).setOnClickListener { openChannels() }
 
         maybeAutoLoad()
-        findViewById<Button>(R.id.card_channels).requestFocus()
+        findViewById<View>(R.id.card_channels).requestFocus()
     }
 
     private fun openChannels() {
