@@ -60,6 +60,11 @@ class PlayerActivity : FragmentActivity() {
     private var startMs: Long = 0
     private var resumeKey: String = ""
     private var title: String = ""
+    private var logoUrl: String = ""
+    private lateinit var channelBar: android.widget.LinearLayout
+    private lateinit var chName: TextView
+    private lateinit var chEpg: TextView
+    private lateinit var chLogo: android.widget.ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,6 +97,11 @@ class PlayerActivity : FragmentActivity() {
             intent.getStringExtra(EXTRA_REFERER),
         )
         title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
+        logoUrl = intent.getStringExtra(EXTRA_LOGO).orEmpty()
+        channelBar = findViewById(R.id.channel_bar)
+        chName = findViewById(R.id.ch_name)
+        chEpg = findViewById(R.id.ch_epg)
+        chLogo = findViewById(R.id.ch_logo)
 
         subs = SubtitleJson.decode(intent.getStringExtra(EXTRA_SUBTITLES_JSON))
             .toExternalList()
@@ -155,8 +165,10 @@ class PlayerActivity : FragmentActivity() {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {
                     retries = 0
-                    val q = pc.shortQualityLabel()
-                    showBadge(if (title.isNotBlank()) "$title\n$q" else q, announce = true)
+                    if (isLive) showChannelBar() else {
+                        val q = pc.shortQualityLabel()
+                        showBadge(if (title.isNotBlank()) "$title\n$q" else q, announce = true)
+                    }
                 }
             }
 
@@ -216,6 +228,29 @@ class PlayerActivity : FragmentActivity() {
     }
 
     private fun announce(text: String) = playerView.announceForAccessibility(text)
+
+    // ---------- Barra de info do canal (live) ----------
+    private val hideChannelBar = Runnable { channelBar.visibility = View.GONE }
+    private var logoLoaded = false
+    private fun showChannelBar() {
+        if (inPip) return
+        chName.text = title.ifBlank { "Canal" }
+        chEpg.text = epgText.ifBlank { pc.shortQualityLabel() }
+        if (logoUrl.isNotBlank() && !logoLoaded) {
+            logoLoaded = true
+            coil.Coil.imageLoader(this).enqueue(
+                coil.request.ImageRequest.Builder(this).data(logoUrl).target(chLogo).crossfade(true).build()
+            )
+        }
+        chLogo.visibility = if (logoUrl.isBlank()) View.GONE else View.VISIBLE
+        channelBar.visibility = View.VISIBLE
+        ui.removeCallbacks(hideChannelBar)
+        ui.postDelayed(hideChannelBar, 5_000)
+        announce(title)
+    }
+
+    /** EPG do canal atual (preenchido quando o EPG estiver ligado — próximo passo). */
+    private var epgText: String = ""
 
     // ---------- Aspecto (vermelho) ----------
     private val aspectModes = PlayerController.ASPECTS
@@ -300,6 +335,9 @@ class PlayerActivity : FragmentActivity() {
         return when (keyCode) {
             KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_PROG_YELLOW, KeyEvent.KEYCODE_CAPTIONS -> { showMenu(); true }
             KeyEvent.KEYCODE_INFO, KeyEvent.KEYCODE_PROG_BLUE -> { toggleHud(); true }
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                if (isLive) { showChannelBar(); true } else super.onKeyDown(keyCode, event)
+            }
             KeyEvent.KEYCODE_PROG_RED -> { cycleAspect(); true }
             KeyEvent.KEYCODE_PROG_GREEN -> { enterPip(); true }
 
@@ -419,6 +457,7 @@ class PlayerActivity : FragmentActivity() {
     companion object {
         const val EXTRA_DIRECT_URL = "direct_url"
         const val EXTRA_TITLE = "title"
+        const val EXTRA_LOGO = "logo"
         const val EXTRA_USER_AGENT = "user_agent"
         const val EXTRA_REFERER = "referer"
         const val EXTRA_P2P_ADDRESS = "p2p_address"

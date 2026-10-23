@@ -339,6 +339,7 @@ class ChannelListActivity : FragmentActivity() {
             putExtra(PlayerActivity.EXTRA_DIRECT_URL, ch.url)
             putExtra(PlayerActivity.EXTRA_IS_LIVE, ch.isLive)
             putExtra(PlayerActivity.EXTRA_TITLE, ch.name)
+            putExtra(PlayerActivity.EXTRA_LOGO, ch.logo ?: "")
             ch.userAgent?.let { putExtra(PlayerActivity.EXTRA_USER_AGENT, it) }
             ch.referer?.let { putExtra(PlayerActivity.EXTRA_REFERER, it) }
         })

@@ -26,7 +26,6 @@ class MainActivity : FragmentActivity() {
     private val ui = Handler(Looper.getMainLooper())
     private lateinit var clockTime: TextView
     private lateinit var clockDate: TextView
-    private var autoLoaded = false
 
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val dateFmt = SimpleDateFormat("EEEE, d 'de' MMMM", Locale("pt", "BR"))
@@ -70,16 +69,20 @@ class MainActivity : FragmentActivity() {
 
     private fun maybeAutoLoad() {
         val store = PlaylistStore(this)
-        if (!autoLoaded && store.autoLoad &&
+        // Só uma vez por execução do app (flag estática), senão a lista volta
+        // por cima toda vez que a MainActivity é recriada pela TV.
+        if (!autoLoadedOnce && store.autoLoad &&
             (!store.playlistUrl.isNullOrBlank() || !store.configUrl.isNullOrBlank())
         ) {
-            autoLoaded = true
+            autoLoadedOnce = true
             startActivity(
                 Intent(this, ChannelListActivity::class.java)
                     .putExtra(ChannelListActivity.EXTRA_FROM_SETTINGS, true)
             )
         }
     }
+
+    private companion object { @JvmStatic var autoLoadedOnce = false }
 
     private val tick = object : Runnable {
         override fun run() {
