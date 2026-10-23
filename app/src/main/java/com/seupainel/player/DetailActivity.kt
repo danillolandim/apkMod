@@ -30,7 +30,8 @@ class DetailActivity : FragmentActivity() {
         val titleView = findViewById<TextView>(R.id.d_title)
         val meta = findViewById<TextView>(R.id.d_meta)
         val overview = findViewById<TextView>(R.id.d_overview)
-        val watch = findViewById<View>(R.id.d_watch)
+        val watch = findViewById<TextView>(R.id.d_watch)
+        val watchLeg = findViewById<TextView>(R.id.d_watch_leg)
 
         titleView.text = title
         meta.text = ""
@@ -39,12 +40,26 @@ class DetailActivity : FragmentActivity() {
         // Capa imediata da lista (se houver)
         if (logo.isNotBlank()) loadImage(poster, logo)
 
-        watch.setOnClickListener {
+        fun go(u: String) {
             startActivity(Intent(this, PlayerActivity::class.java).apply {
-                putExtra(PlayerActivity.EXTRA_DIRECT_URL, url)
+                putExtra(PlayerActivity.EXTRA_DIRECT_URL, u)
                 putExtra(PlayerActivity.EXTRA_IS_LIVE, isLive)
                 putExtra(PlayerActivity.EXTRA_TITLE, title)
             })
+        }
+
+        val dubUrl = intent.getStringExtra(EXTRA_URL_DUB)?.ifBlank { null }
+        val legUrl = intent.getStringExtra(EXTRA_URL_LEG)?.ifBlank { null }
+        if (dubUrl != null && legUrl != null) {
+            // Tem as duas versões -> dois botões.
+            watch.text = "▶  Dublado"
+            watch.setOnClickListener { go(dubUrl) }
+            watchLeg.visibility = View.VISIBLE
+            watchLeg.setOnClickListener { go(legUrl) }
+        } else {
+            watch.text = "▶  Assistir"
+            watch.setOnClickListener { go(dubUrl ?: legUrl ?: url) }
+            watchLeg.visibility = View.GONE
         }
         watch.requestFocus()
 
@@ -94,5 +109,7 @@ class DetailActivity : FragmentActivity() {
         const val EXTRA_LOGO = "logo"
         const val EXTRA_IS_LIVE = "is_live"
         const val EXTRA_IS_SERIES = "is_series"
+        const val EXTRA_URL_DUB = "url_dub"
+        const val EXTRA_URL_LEG = "url_leg"
     }
 }

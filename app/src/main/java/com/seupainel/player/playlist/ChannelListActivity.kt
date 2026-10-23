@@ -47,6 +47,9 @@ class ChannelListActivity : FragmentActivity() {
     private var canaisDerived = false                       // canais agrupados por tema (do nome)
     @Volatile private var secLists: Map<Sec, List<M3uParser.Channel>>? = null  // partição por seção
     @Volatile private var liveVariants: Map<String, List<M3uParser.Channel>> = emptyMap()  // canal -> qualidades
+    @Volatile private var vodVariants: Map<String, DubLeg> = emptyMap()  // filme base -> dub/leg
+
+    private data class DubLeg(val dub: M3uParser.Channel?, val leg: M3uParser.Channel?)
     // Pré-cálculos de Filmes/Séries para seleção instantânea de gênero/lançamentos.
     @Volatile private var filmesByGenre: Map<Int, List<M3uParser.Channel>>? = null
     @Volatile private var filmesLancamentos: List<M3uParser.Channel>? = null
@@ -565,8 +568,10 @@ class ChannelListActivity : FragmentActivity() {
             // Atalho pré-computado p/ Filmes (gênero/lançamentos) -> instantâneo.
             val fast = fastGenre ?: fastLanc
             if (fast != null) {
-                val r = if (q.isEmpty()) fast else fast.filter { it.name.lowercase().contains(q) }
-                if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(r, favs, sec) }
+                var r = if (q.isEmpty()) fast else fast.filter { it.name.lowercase().contains(q) }
+                if (sec == Sec.FILMES) r = collapseDubLeg(r)   // junta dublado+legendado
+                val out = r
+                if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(out, favs, sec) }
                 return@thread
             }
             // Base da seção já particionada (rápido); se ainda não pronta, filtra tudo.
@@ -598,8 +603,9 @@ class ChannelListActivity : FragmentActivity() {
                 LANCAMENTOS -> result = result.sortedByDescending { vodIndex.year(it.name) ?: 0 }
                 ACLAMADAS -> result = result.sortedByDescending { vodIndex.rating(it.name).let { r -> if (r.isNaN()) 0.0 else r } }
             }
-            // Canais ao vivo: junta HD/FHD/SD do mesmo canal num item só.
+            // Junta variações num item só: canais por qualidade; filmes por dub/leg.
             if (sec == Sec.CANAIS) result = collapseLive(result)
+            else if (sec == Sec.FILMES) result = collapseDubLeg(result)
             if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs, sec) }
         }
     }
@@ -873,13 +879,34 @@ class ChannelListActivity : FragmentActivity() {
     /** Abre a tela de detalhes (filmes/séries) antes de assistir. */
     private fun openDetail(ch: M3uParser.Channel) {
         val isSeries = currentSection == Sec.SERIES
+        val variants = if (isSeries) null else vodVariants[ch.name.lowercase()]
         startActivity(Intent(this, com.seupainel.player.DetailActivity::class.java).apply {
             putExtra(com.seupainel.player.DetailActivity.EXTRA_URL, ch.url)
             putExtra(com.seupainel.player.DetailActivity.EXTRA_TITLE, ch.name)
             putExtra(com.seupainel.player.DetailActivity.EXTRA_LOGO, ch.logo ?: "")
             putExtra(com.seupainel.player.DetailActivity.EXTRA_IS_LIVE, ch.isLive)
             putExtra(com.seupainel.player.DetailActivity.EXTRA_IS_SERIES, isSeries)
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_URL_DUB, variants?.dub?.url)
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_URL_LEG, variants?.leg?.url)
         })
+    }
+
+    /** Junta dublado+legendado do mesmo filme num item; guarda as duas versões. */
+    private fun collapseDubLeg(list: List<M3uParser.Channel>): List<M3uParser.Channel> {
+        val groups = LinkedHashMap<String, MutableList<M3uParser.Channel>>()
+        for (ch in list) groups.getOrPut(Dub.base(ch.name).lowercase()) { ArrayList() }.add(ch)
+        val reps = ArrayList<M3uParser.Channel>(groups.size)
+        val vmap = HashMap<String, DubLeg>(groups.size)
+        for (variants in groups.values) {
+            val leg = variants.firstOrNull { Dub.isLeg(it.name) }
+            val dub = variants.firstOrNull { !Dub.isLeg(it.name) }
+            val rep = dub ?: leg ?: variants.first()
+            val repBase = Dub.base(rep.name)
+            reps.add(rep.copy(name = repBase))
+            vmap[repBase.lowercase()] = DubLeg(dub, leg)
+        }
+        vodVariants = vmap
+        return reps
     }
 
     /** Junta variações de qualidade do mesmo canal; guarda as variações p/ o player. */

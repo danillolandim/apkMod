@@ -56,25 +56,46 @@
             android:ellipsize="end"
             android:lineSpacingExtra="3dp" />
 
+        <!-- Dublado / Legendado (aparece só quando há as duas versões) -->
+        <LinearLayout
+            android:id="@+id/s_dubrow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView android:id="@+id/s_dub" style="@style/SeasonChip" android:text="Dublado" />
+            <TextView android:id="@+id/s_leg" style="@style/SeasonChip" android:layout_marginStart="12dp" android:text="Legendado" />
+        </LinearLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:text="Temporada"
+            android:text="Temporadas"
             android:textColor="#64D2FF"
             android:textSize="15sp" />
 
-        <Spinner
-            android:id="@+id/s_season"
-            android:layout_width="240dp"
-            android:layout_height="wrap_content" />
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/s_seasons"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
 
         <ListView
             android:id="@+id/s_episodes"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="14dp"
             android:background="#121A26" />
     </LinearLayout>
 </LinearLayout>

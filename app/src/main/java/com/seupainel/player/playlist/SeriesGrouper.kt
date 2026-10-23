@@ -18,6 +18,7 @@ object SeriesGrouper {
         val season: Int,
         val episode: Int,
         val channel: M3uParser.Channel,
+        val leg: Boolean = false,          // legendado? (senão, dublado)
     )
 
     data class Series(
@@ -50,16 +51,18 @@ object SeriesGrouper {
         val logos = HashMap<String, String?>()
         for (ch in channels) {
             val p = parse(ch.name)
-            val key = (p?.first ?: ch.name).lowercase()
+            // Chave sem a marca de dub/leg -> as duas versões caem na MESMA série.
+            val key = Dub.base(p?.first ?: ch.name).lowercase()
             val season = p?.second ?: 1
             val episode = p?.third ?: 1
-            map.getOrPut(key) { ArrayList() }.add(Ep(season, episode, ch))
+            map.getOrPut(key) { ArrayList() }.add(Ep(season, episode, ch, Dub.isLeg(ch.name)))
             if (logos[key].isNullOrBlank() && !ch.logo.isNullOrBlank()) logos[key] = ch.logo
         }
         return map.entries.map { (key, eps) ->
-            // título "bonito": usa o nome-base do primeiro episódio parseado
-            val title = eps.firstNotNullOfOrNull { parse(it.channel.name)?.first }
+            // título "bonito": nome-base (sem dub/leg) do primeiro episódio parseado
+            val raw = eps.firstNotNullOfOrNull { parse(it.channel.name)?.first }
                 ?: eps.first().channel.name
+            val title = Dub.base(raw)
             Series(title.trim(), logos[key], eps.sortedWith(compareBy({ it.season }, { it.episode })))
         }.sortedBy { it.title.lowercase() }
     }

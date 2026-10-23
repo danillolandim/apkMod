@@ -27,6 +27,23 @@
         <item name="android:layout_marginTop">6dp</item>
     </style>
 
+    <!-- Chip de temporada / dublado-legendado (estilo Apple TV) -->
+    <style name="SeasonChip">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/card_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/card_text</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:paddingLeft">24dp</item>
+        <item name="android:paddingRight">24dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+    </style>
+
     <!-- Lista suspensa (spinner) com fundo escuro arredondado -->
     <style name="TvSpinner" parent="Widget.AppCompat.Spinner">
         <item name="android:popupBackground">@drawable/dialog_bg</item>

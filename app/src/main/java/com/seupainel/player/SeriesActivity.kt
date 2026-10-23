@@ -2,10 +2,11 @@ package com.seupainel.player
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ListView
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import com.seupainel.player.meta.Tmdb
@@ -14,19 +15,23 @@ import org.json.JSONObject
 import kotlin.concurrent.thread
 
 /**
- * Tela da série: pôster + sinopse (TMDB), seletor de temporada e lista de
- * episódios. Selecionar um episódio abre o player.
- *
+ * Tela da série (estilo Apple TV): pôster + sinopse (TMDB), alternância
+ * Dublado/Legendado, abas de temporada e a lista de episódios abaixo.
  * Recebe os episódios já agrupados via EXTRA_EPISODES (JSON).
  */
 class SeriesActivity : FragmentActivity() {
 
-    private data class Ep(val season: Int, val episode: Int, val name: String, val url: String)
+    private data class Ep(val season: Int, val episode: Int, val name: String, val url: String, val leg: Boolean)
 
     private lateinit var episodesView: ListView
+    private lateinit var seasonsRow: LinearLayout
+    private lateinit var dubBtn: TextView
+    private lateinit var legBtn: TextView
+
     private var allEps: List<Ep> = emptyList()
-    private var seasons: List<Int> = emptyList()
     private var shownEps: List<Ep> = emptyList()
+    private var currentLeg = false
+    private var currentSeason = 1
     private var title: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,27 +46,27 @@ class SeriesActivity : FragmentActivity() {
         val titleView = findViewById<TextView>(R.id.s_title)
         val meta = findViewById<TextView>(R.id.s_meta)
         val overview = findViewById<TextView>(R.id.s_overview)
-        val seasonSpin = findViewById<Spinner>(R.id.s_season)
+        seasonsRow = findViewById(R.id.s_seasons)
         episodesView = findViewById(R.id.s_episodes)
+        dubBtn = findViewById(R.id.s_dub)
+        legBtn = findViewById(R.id.s_leg)
 
         titleView.text = title
         overview.text = "Carregando informações…"
         if (logo.isNotBlank()) loadImage(poster, logo)
 
-        seasons = allEps.map { it.season }.distinct().sorted()
-        seasonSpin.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            seasons.map { "Temporada $it" },
-        )
-        seasonSpin.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                showSeason(seasons.getOrElse(pos) { seasons.firstOrNull() ?: 1 })
-            }
-            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-        }
-        if (seasons.isNotEmpty()) showSeason(seasons.first())
-
         episodesView.setOnItemClickListener { _, _, pos, _ -> play(shownEps[pos]) }
+
+        val hasDub = allEps.any { !it.leg }
+        val hasLeg = allEps.any { it.leg }
+        currentLeg = !hasDub && hasLeg      // se só tiver legendado, começa nele
+        if (hasDub && hasLeg) {
+            findViewById<View>(R.id.s_dubrow).visibility = View.VISIBLE
+            dubBtn.setOnClickListener { selectVariant(false) }
+            legBtn.setOnClickListener { selectVariant(true) }
+        }
+        markVariant()
+        buildSeasons()
 
         // TMDB (sinopse/nota/pôster)
         val key = AppSettings(this).tmdbApiKey
@@ -88,8 +93,42 @@ class SeriesActivity : FragmentActivity() {
         }
     }
 
+    private fun selectVariant(leg: Boolean) {
+        if (currentLeg == leg) return
+        currentLeg = leg
+        markVariant()
+        buildSeasons()
+    }
+
+    private fun markVariant() {
+        dubBtn.text = if (!currentLeg) "● Dublado" else "Dublado"
+        legBtn.text = if (currentLeg) "● Legendado" else "Legendado"
+    }
+
+    /** Monta as abas de temporada da versão atual (dublado/legendado). */
+    private fun buildSeasons() {
+        val seasons = allEps.filter { it.leg == currentLeg }.map { it.season }.distinct().sorted()
+        seasonsRow.removeAllViews()
+        if (currentSeason !in seasons) currentSeason = seasons.firstOrNull() ?: 1
+        val d = resources.displayMetrics.density
+        seasons.forEachIndexed { i, s ->
+            val chip = TextView(this, null, 0, R.style.SeasonChip).apply {
+                text = "${s}ª temporada"
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (12 * d).toInt() }
+                setOnFocusChangeListener { _, has -> if (has) showSeason(s) }
+                setOnClickListener { showSeason(s); episodesView.requestFocus() }
+            }
+            seasonsRow.addView(chip)
+            if (i == 0) chip.post { /* primeira temporada visível já listada abaixo */ }
+        }
+        showSeason(currentSeason)
+    }
+
     private fun showSeason(season: Int) {
-        shownEps = allEps.filter { it.season == season }.sortedBy { it.episode }
+        currentSeason = season
+        shownEps = allEps.filter { it.leg == currentLeg && it.season == season }.sortedBy { it.episode }
         episodesView.adapter = ArrayAdapter(
             this, android.R.layout.simple_list_item_1,
             shownEps.map { "Episódio ${it.episode}" },
@@ -116,7 +155,7 @@ class SeriesActivity : FragmentActivity() {
             val arr = JSONArray(json)
             (0 until arr.length()).map {
                 val o = arr.getJSONObject(it)
-                Ep(o.optInt("s", 1), o.optInt("e", 1), o.optString("n"), o.optString("u"))
+                Ep(o.optInt("s", 1), o.optInt("e", 1), o.optString("n"), o.optString("u"), o.optBoolean("l", false))
             }
         } catch (_: Exception) { emptyList() }
     }
@@ -131,7 +170,7 @@ class SeriesActivity : FragmentActivity() {
             eps.forEach { e ->
                 arr.put(JSONObject()
                     .put("s", e.season).put("e", e.episode)
-                    .put("n", e.channel.name).put("u", e.channel.url))
+                    .put("n", e.channel.name).put("u", e.channel.url).put("l", e.leg))
             }
             return arr.toString()
         }

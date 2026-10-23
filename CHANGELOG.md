@@ -1,6 +1,8 @@
 # Novidades
 
 ## Esta versão
+- Dublado + Legendado juntos: filme "X" e "X (LEG)" viram um cartaz só; no detalhe aparecem os botões "Dublado" e "Legendado".
+- Série: tela redesenhada estilo Apple TV — alternar Dublado/Legendado, abas de temporada (1ª, 2ª…) e a lista de episódios abaixo; versões dub/leg da mesma série agora são a mesma série.
 - Zapping mais rápido: conexões mantidas vivas (reuso ao trocar de canal no mesmo servidor), DNS da lista pré-resolvido ao carregar, e cache do DNS-over-HTTPS (não re-consulta a cada troca).
 - Performance: cache de cartazes em disco (300 MB, persistente) e memória maior + RGB_565 — a grade carrega muito mais rápido e não re-baixa pôster.
 - Performance: indexação do TMDB mais rápida (8 tarefas), ABR/buffer afinados para rede com fio (sobe pra alta qualidade antes, sem rebuffer) e opção "Cabo de rede" nas Configurações.
