@@ -68,6 +68,10 @@ jobs:
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk player-mod.apk
 
+      # Marcador de versão para o app saber que há atualização (= nº do build).
+      - name: Version marker
+        run: echo "${GITHUB_RUN_NUMBER}" > version.txt
+
       - name: Upload as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -79,5 +83,7 @@ jobs:
         with:
           tag_name: latest
           name: Player Mod (último build)
-          files: player-mod.apk
+          files: |
+            player-mod.apk
+            version.txt
           prerelease: true

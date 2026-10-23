@@ -2,7 +2,16 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/wallpaper">
+    android:background="#05080D">
+
+    <!-- Papel de parede (vetor ou imagem personalizada carregada em runtime) -->
+    <ImageView
+        android:id="@+id/bg_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/wallpaper"
+        android:contentDescription="Papel de parede" />
 
     <!-- Escurecimento inferior para legibilidade -->
     <View
@@ -51,6 +60,7 @@
         android:layout_marginTop="40dp"
         android:layout_marginStart="48dp"
         android:background="@drawable/card_bg"
+                android:stateListAnimator="@animator/card_focus"
         android:contentDescription="Configurações"
         android:padding="12dp"
         android:src="@drawable/ic_gear" />
@@ -85,6 +95,7 @@
                 android:layout_width="260dp"
                 android:layout_height="120dp"
                 android:background="@drawable/card_bg"
+                android:stateListAnimator="@animator/card_focus"
                 android:fontFamily="sans-serif-medium"
                 android:text="Meus canais"
                 android:textAllCaps="false"
@@ -97,6 +108,7 @@
                 android:layout_height="120dp"
                 android:layout_marginStart="20dp"
                 android:background="@drawable/card_bg"
+                android:stateListAnimator="@animator/card_focus"
                 android:fontFamily="sans-serif-medium"
                 android:text="Configurações"
                 android:textAllCaps="false"
@@ -109,6 +121,7 @@
                 android:layout_height="120dp"
                 android:layout_marginStart="20dp"
                 android:background="@drawable/card_bg"
+                android:stateListAnimator="@animator/card_focus"
                 android:fontFamily="sans-serif-medium"
                 android:text="Testar URL / demos"
                 android:textAllCaps="false"

@@ -50,6 +50,21 @@ class AppSettings(context: Context) {
         get() = p.getBoolean("auto_retry", true)
         set(v) = p.edit().putBoolean("auto_retry", v).apply()
 
+    /** Verificar atualização do app ao abrir. */
+    var autoUpdate: Boolean
+        get() = p.getBoolean("auto_update", true)
+        set(v) = p.edit().putBoolean("auto_update", v).apply()
+
+    /** Papel de parede: chave de tema (ver WALLPAPERS) ou "custom". */
+    var wallpaper: String
+        get() = p.getString("wallpaper", "dusk") ?: "dusk"
+        set(v) = p.edit().putString("wallpaper", v).apply()
+
+    /** URL de imagem personalizada para o papel de parede (ex.: Unsplash). */
+    var wallpaperUrl: String
+        get() = p.getString("wallpaper_url", "") ?: ""
+        set(v) = p.edit().putString("wallpaper_url", v.trim()).apply()
+
     companion object {
         /** Opções de "qualidade da conexão" exibidas (rótulo -> Mbps). */
         val CONNECTION_OPTIONS = listOf(
@@ -64,6 +79,21 @@ class AppSettings(context: Context) {
             "Português" to "pt", "Inglês" to "en", "Espanhol" to "es",
             "Japonês" to "ja", "Original/qualquer" to "",
         )
+
+        /** Papéis de parede embutidos (rótulo -> chave/drawable) + Personalizado. */
+        val WALLPAPERS = listOf(
+            "Entardecer" to "dusk",
+            "Noite" to "night",
+            "Oceano" to "ocean",
+            "Floresta" to "forest",
+            "Imagem personalizada (URL)" to "custom",
+        )
+        fun wallpaperDrawable(key: String): String = when (key) {
+            "night" -> "wallpaper_night"
+            "ocean" -> "wallpaper_ocean"
+            "forest" -> "wallpaper_forest"
+            else -> "wallpaper"   // dusk (padrão)
+        }
 
         /** User-Agents comuns aceitos por provedores IPTV (rótulo -> valor). */
         val UA_PRESETS = listOf(

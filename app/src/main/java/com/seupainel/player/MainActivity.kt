@@ -38,6 +38,11 @@ class MainActivity : FragmentActivity() {
         clockTime = findViewById(R.id.clock_time)
         clockDate = findViewById(R.id.clock_date)
 
+        applyWallpaper()
+
+        // Verifica atualização do app ao abrir (se ativado nas Configurações).
+        if (AppSettings(this).autoUpdate) Updater.check(this, silent = true)
+
         val openSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         findViewById<ImageButton>(R.id.btn_gear).setOnClickListener { openSettings() }
         findViewById<Button>(R.id.card_settings).setOnClickListener { openSettings() }
@@ -85,8 +90,27 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private fun applyWallpaper() {
+        val s = AppSettings(this)
+        val bg = findViewById<android.widget.ImageView>(R.id.bg_image)
+        if (s.wallpaper == "custom" && s.wallpaperUrl.isNotBlank()) {
+            coil.Coil.imageLoader(this).enqueue(
+                coil.request.ImageRequest.Builder(this)
+                    .data(s.wallpaperUrl).target(bg).crossfade(true)
+                    .error(resIdOf(AppSettings.wallpaperDrawable("dusk")))
+                    .build()
+            )
+        } else {
+            bg.setImageResource(resIdOf(AppSettings.wallpaperDrawable(s.wallpaper)))
+        }
+    }
+
+    private fun resIdOf(name: String): Int =
+        resources.getIdentifier(name, "drawable", packageName).let { if (it != 0) it else R.drawable.wallpaper }
+
     override fun onResume() {
         super.onResume()
+        applyWallpaper()   // reflete mudança feita nas Configurações
         ui.post(tick)
     }
 

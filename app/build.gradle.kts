@@ -11,10 +11,15 @@ android {
         applicationId = "com.seupainel.player"
         minSdk = 21
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        // versionCode = número do build no CI (sobe a cada push), permite o app
+        // detectar que há versão nova. Local = 1.
+        val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+        versionCode = run
+        versionName = "1.0.$run"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
+
+    buildFeatures { buildConfig = true }
 
     signingConfigs {
         // Chave de depuração FIXA (versionada no repo). Garante que todas as

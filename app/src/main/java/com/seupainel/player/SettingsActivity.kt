@@ -89,6 +89,18 @@ class SettingsActivity : FragmentActivity() {
         resumeChk.isChecked = app.resumeEnabled
         retryChk.isChecked = app.autoRetry
 
+        // Aparência e atualização
+        val wallpaperSpin = spinner(R.id.set_wallpaper, AppSettings.WALLPAPERS.map { it.first })
+        val wallpaperUrl = findViewById<EditText>(R.id.set_wallpaper_url)
+        val autoUpdate = findViewById<CheckBox>(R.id.set_auto_update)
+        wallpaperSpin.setSelection(AppSettings.WALLPAPERS.indexOfFirst { it.second == app.wallpaper }.coerceAtLeast(0))
+        wallpaperUrl.setText(app.wallpaperUrl)
+        autoUpdate.isChecked = app.autoUpdate
+        findViewById<Button>(R.id.set_check_update).setOnClickListener {
+            Toast.makeText(this, "Verificando…", Toast.LENGTH_SHORT).show()
+            Updater.check(this, silent = false)
+        }
+
         fun save() {
             store.playlistUrl = url.text.toString().trim().ifBlank { null }
             store.configUrl = config.text.toString().trim().ifBlank { null }
@@ -104,6 +116,9 @@ class SettingsActivity : FragmentActivity() {
             app.forceMaxQuality = forceMax.isChecked
             app.resumeEnabled = resumeChk.isChecked
             app.autoRetry = retryChk.isChecked
+            app.wallpaper = AppSettings.WALLPAPERS[wallpaperSpin.selectedItemPosition].second
+            app.wallpaperUrl = wallpaperUrl.text.toString()
+            app.autoUpdate = autoUpdate.isChecked
         }
 
         findViewById<Button>(R.id.set_save).setOnClickListener {
@@ -164,5 +179,8 @@ class SettingsActivity : FragmentActivity() {
         app.forceMaxQuality = forceMax.isChecked
         app.resumeEnabled = resumeChk.isChecked
         app.autoRetry = retryChk.isChecked
+        app.wallpaper = AppSettings.WALLPAPERS[findViewById<Spinner>(R.id.set_wallpaper).selectedItemPosition].second
+        app.wallpaperUrl = findViewById<EditText>(R.id.set_wallpaper_url).text.toString()
+        app.autoUpdate = findViewById<CheckBox>(R.id.set_auto_update).isChecked
     }
 }

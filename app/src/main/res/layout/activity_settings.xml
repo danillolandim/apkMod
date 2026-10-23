@@ -166,6 +166,32 @@
         <CheckBox android:id="@+id/set_retry" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="Reconectar automaticamente em falha" android:textColor="#FFFFFF" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="20dp"
+            android:background="#2A323A" />
+
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="Aparência e atualização"
+            android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Papel de parede" android:textColor="#3DA9FC" />
+        <Spinner android:id="@+id/set_wallpaper" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <EditText android:id="@+id/set_wallpaper_url" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="URL de imagem (ex.: Unsplash) — só para 'Imagem personalizada'"
+            android:inputType="textUri" android:singleLine="true"
+            android:textColor="#FFFFFF" android:textColorHint="#667080" />
+
+        <CheckBox android:id="@+id/set_auto_update" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Buscar atualização ao abrir o app" android:textColor="#FFFFFF" />
+
+        <Button android:id="@+id/set_check_update" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Buscar atualização agora" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
