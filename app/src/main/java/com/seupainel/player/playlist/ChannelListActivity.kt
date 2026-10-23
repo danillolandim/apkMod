@@ -53,6 +53,17 @@ class ChannelListActivity : FragmentActivity() {
             else -> Sec.CANAIS
         }
     }
+    /**
+     * Classifica um item considerando o nome, não só o group-title.
+     * Muitas listas jogam episódios (S01E02, 1x02…) dentro de grupos de
+     * "filmes"; aqui eles voltam para Séries. Canais ao vivo não são tocados.
+     */
+    private fun secOfChannel(ch: M3uParser.Channel): Sec {
+        val byGroup = secOf(ch.group)
+        if (byGroup != Sec.CANAIS && SeriesGrouper.parse(ch.name) != null) return Sec.SERIES
+        return byGroup
+    }
+
     private fun currentIsSeries() = currentSection == Sec.SERIES
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -248,7 +259,7 @@ class ChannelListActivity : FragmentActivity() {
             // Sem subcategorias reais na lista -> índice A-Z + Recentes.
             subMode = SubMode.ALPHA
             val present = all.asSequence()
-                .filter { secOf(it.group) == sec }
+                .filter { secOfChannel(it) == sec }
                 .map { firstKey(it.name) }.distinct().toSortedSet()
             groups = buildList { add(ALL_SEC); add(RECENTES); addAll(present) }
         } else {
@@ -284,7 +295,7 @@ class ChannelListActivity : FragmentActivity() {
         val gen = ++filterGen
         thread(name = "filter") {
             var result = all.filter { ch ->
-                val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOf(ch.group) == sec
+                val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOfChannel(ch) == sec
                 val inSub = when {
                     sub == null || sub == RECENTES -> true
                     mode == SubMode.ALPHA -> firstKey(ch.name) == sub
@@ -407,7 +418,7 @@ class ChannelListActivity : FragmentActivity() {
 
     /** Canal clicado: filme/série abre detalhes; ao vivo toca direto. */
     private fun onChannelClick(ch: M3uParser.Channel) {
-        when (secOf(ch.group)) {
+        when (secOfChannel(ch)) {
             Sec.FILMES, Sec.SERIES -> openDetail(ch)
             else -> play(ch)
         }
