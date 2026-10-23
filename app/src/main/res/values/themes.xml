@@ -8,6 +8,28 @@
         <item name="buttonStyle">@style/TvButton</item>
     </style>
 
+    <!-- Diálogos/menus no estilo do app (escuro, arredondado, destaque azul) -->
+    <style name="Theme.Player.Dialog" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/dialog_bg</item>
+        <item name="colorAccent">#64D2FF</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#C7D0DA</item>
+        <item name="android:textColorAlertDialogListItem">#FFFFFF</item>
+        <item name="android:windowTitleStyle">@style/Player.DialogTitle</item>
+    </style>
+
+    <style name="Player.DialogTitle" parent="@android:style/TextAppearance.DialogWindowTitle">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+
+    <!-- Menu suspenso (PopupMenu) escuro -->
+    <style name="Theme.Player.Popup" parent="Theme.AppCompat">
+        <item name="android:popupBackground">@drawable/dialog_bg</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="colorAccent">#64D2FF</item>
+    </style>
+
     <!-- Botão padrão da TV: seleção por preenchimento sólido, sem círculo nem zoom -->
     <style name="TvButton" parent="Widget.AppCompat.Button">
         <item name="android:background">@drawable/card_bg</item>

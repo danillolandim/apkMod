@@ -1,6 +1,8 @@
 # Novidades
 
 ## Esta versão
+- Menus no estilo do app (escuro, cantos arredondados, destaque azul) — antes usavam o diálogo cinza padrão do Android.
+- Botão de qualidade no player ao vivo: mostra a atual e abre um menu suspenso compacto ali mesmo.
 - Nova categoria "Aclamadas" (bem avaliadas no TMDB, com votos suficientes) em Filmes e Séries, ordenada pela nota.
 - Séries agora têm categorias de gênero (Ação, Comédia, Terror…) como os Filmes, além de Tudo/Lançamentos/A-Z.
 - Cartaz do filme/série é o mesmo no grid e na tela de detalhes (pôster do TMDB), em vez da capa trocada/antiga da lista.

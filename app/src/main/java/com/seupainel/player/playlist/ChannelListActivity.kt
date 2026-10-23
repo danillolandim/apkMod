@@ -1003,7 +1003,7 @@ class ChannelListActivity : FragmentActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 runCatching {
-                    androidx.appcompat.app.AlertDialog.Builder(this)
+                    androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_Player_Dialog)
                         .setTitle(name)
                         .setMessage(msg)
                         .setPositiveButton("OK", null)

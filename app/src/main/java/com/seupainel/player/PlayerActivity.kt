@@ -1,6 +1,5 @@
 package com.seupainel.player
 
-import android.app.AlertDialog
 import android.app.PictureInPictureParams
 import android.content.res.Configuration
 import android.os.Build
@@ -14,6 +13,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentActivity
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -288,7 +288,8 @@ class PlayerActivity : FragmentActivity() {
     private fun showQualityPopup() {
         if (variantUrls.size <= 1) return
         ui.removeCallbacks(hideChannelBar)
-        val pm = android.widget.PopupMenu(this, qualityBtn)
+        val ctx = android.view.ContextThemeWrapper(this, R.style.Theme_Player_Popup)
+        val pm = android.widget.PopupMenu(ctx, qualityBtn)
         variantLabels.forEachIndexed { i, label ->
             pm.menu.add(0, i, i, (if (i == variantIdx) "● " else "○ ") + label)
         }
@@ -466,7 +467,7 @@ class PlayerActivity : FragmentActivity() {
 
     /** Helper para montar um diálogo de lista a partir de pares (rótulo, ação). */
     private fun menu(title: String, options: List<Pair<String, () -> Unit>>) {
-        AlertDialog.Builder(this).setTitle(title)
+        AlertDialog.Builder(this, R.style.Theme_Player_Dialog).setTitle(title)
             .setItems(options.map { it.first }.toTypedArray()) { _, i -> options[i].second() }
             .show()
     }
@@ -506,7 +507,7 @@ class PlayerActivity : FragmentActivity() {
 
     private fun showSubtitleSizeMenu() {
         val sizes = listOf("Pequena" to 16f, "Média" to 20f, "Grande" to 26f, "Enorme" to 34f)
-        AlertDialog.Builder(this).setTitle("Tamanho da legenda")
+        AlertDialog.Builder(this, R.style.Theme_Player_Dialog).setTitle("Tamanho da legenda")
             .setItems(sizes.map { it.first }.toTypedArray()) { _, i ->
                 pc.setSubtitleSizeSp(playerView, sizes[i].second)
                 showBadge("Legenda: ${sizes[i].first}", true)
@@ -515,7 +516,7 @@ class PlayerActivity : FragmentActivity() {
 
     private fun showSpeedMenu() {
         val speeds = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
-        AlertDialog.Builder(this).setTitle("Velocidade")
+        AlertDialog.Builder(this, R.style.Theme_Player_Dialog).setTitle("Velocidade")
             .setItems(speeds.map { "${it}x" }.toTypedArray()) { _, i ->
                 pc.setSpeed(speeds[i]); showBadge("Velocidade ${speeds[i]}x", true)
             }.show()
@@ -523,7 +524,7 @@ class PlayerActivity : FragmentActivity() {
 
     private fun showSleepMenu() {
         val mins = listOf(0, 15, 30, 60, 90)
-        AlertDialog.Builder(this).setTitle("Timer de desligar")
+        AlertDialog.Builder(this, R.style.Theme_Player_Dialog).setTitle("Timer de desligar")
             .setItems(mins.map { if (it == 0) "Desligado" else "$it min" }.toTypedArray()) { _, i ->
                 setSleepTimer(mins[i])
             }.show()
