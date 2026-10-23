@@ -26,8 +26,22 @@ object M3uParser {
         val userAgent: String? = null,
         val referer: String? = null,
     ) {
-        val isLive get() = duration < 0
+        /**
+         * Ao vivo x VOD. Muitas listas (Xtream) usam `#EXTINF:-1` para TUDO,
+         * inclusive filmes/séries, então a duração sozinha não serve. VOD é
+         * reconhecido pela URL: pasta `/movie/` ou `/series/`, ou extensão de
+         * arquivo de vídeo. O resto (`.ts`, `.m3u8`, `/live/`…) é ao vivo.
+         */
+        val isLive: Boolean get() {
+            val u = url.lowercase()
+            if ("/movie/" in u || "/series/" in u) return false
+            val path = u.substringBefore('?')
+            if (VOD_EXT.any { path.endsWith(it) }) return false
+            return duration < 0
+        }
     }
+
+    private val VOD_EXT = listOf(".mp4", ".mkv", ".avi", ".mov", ".webm", ".m4v", ".flv")
 
     sealed class Result {
         /** O texto é um stream HLS (master/media playlist), não uma lista. */
