@@ -42,6 +42,7 @@ class ChannelListActivity : FragmentActivity() {
     private var groups: List<String> = emptyList()          // subcategorias da seção atual
     private var sectionGroups: Map<Sec, List<String>> = emptyMap()
     private var currentSection: Sec = Sec.CANAIS
+    private var startSection: Sec = Sec.CANAIS               // seção escolhida na home
     private var currentSub: String? = null                  // null = tudo da seção
     private var shown: List<M3uParser.Channel> = emptyList()
 
@@ -95,9 +96,16 @@ class ChannelListActivity : FragmentActivity() {
         findViewById<View>(R.id.nav_fav).setOnClickListener { selectSection(Sec.FAV) }
         findViewById<View>(R.id.nav_search).setOnClickListener { openSearch() }
 
+        startSection = when (intent.getStringExtra(EXTRA_SECTION)) {
+            "filmes" -> Sec.FILMES
+            "series" -> Sec.SERIES
+            else -> Sec.CANAIS
+        }
+
         val fromSettings = intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)
         val force = intent.getBooleanExtra(EXTRA_FORCE_REFRESH, false)
 
+        startLoadingAnim()
         status.text = "Carregando…"
 
         if (fromSettings) {
@@ -136,7 +144,7 @@ class ChannelListActivity : FragmentActivity() {
                     .getOrNull() ?: store.playlistUrl
             } else store.playlistUrl
             if (resolved.isNullOrBlank()) {
-                if (!silent) runOnUiThread { status.text = "Configure a URL da lista nas Configurações." }
+                if (!silent) runOnUiThread { hideLoading(); status.text = "Configure a URL da lista nas Configurações." }
                 return@thread
             }
             load(resolved, cacheIt = true, silent = silent)
@@ -207,7 +215,7 @@ class ChannelListActivity : FragmentActivity() {
                     is M3uParser.Result.HlsStream ->
                         if (!silent) runOnUiThread { openPlayer(finalUrl, live = true, title = null); finish() }
                     is M3uParser.Result.Empty ->
-                        if (!silent) runOnUiThread { status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)." }
+                        if (!silent) runOnUiThread { hideLoading(); status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)." }
                     is M3uParser.Result.Playlist -> {
                         store.lastUrl = url
                         if (cacheIt) { store.writeCache(text); store.channelCount = res.channels.size }
@@ -223,9 +231,28 @@ class ChannelListActivity : FragmentActivity() {
                     }
                 }
             } catch (e: Exception) {
-                if (!silent) runOnUiThread { status.text = "Erro ao carregar: ${e.message}" }
+                if (!silent) runOnUiThread { hideLoading(); status.text = "Erro ao carregar: ${e.message}" }
             }
         }
+    }
+
+    /** Animação "aguarde, carregando o conteúdo" até a lista ficar pronta. */
+    private fun startLoadingAnim() {
+        findViewById<View?>(R.id.loading)?.requestFocus()   // segura o foco até carregar
+        val text = findViewById<TextView?>(R.id.loading_text) ?: return
+        text.startAnimation(android.view.animation.AlphaAnimation(0.45f, 1f).apply {
+            duration = 700
+            repeatMode = android.view.animation.Animation.REVERSE
+            repeatCount = android.view.animation.Animation.INFINITE
+        })
+    }
+
+    private fun hideLoading() {
+        val v = findViewById<View>(R.id.loading) ?: return
+        if (v.visibility == View.GONE) return
+        findViewById<View?>(R.id.loading_text)?.clearAnimation()
+        v.animate().alpha(0f).setDuration(250)
+            .withEndAction { v.visibility = View.GONE }.start()
     }
 
     private fun show(channels: List<M3uParser.Channel>) {
@@ -233,8 +260,9 @@ class ChannelListActivity : FragmentActivity() {
         val realGroups = channels.map { it.group }.distinct()
         sectionGroups = realGroups.groupBy { secOf(it) }
         status.text = "${channels.size} itens"
-        selectSection(Sec.CANAIS)
+        selectSection(startSection)
         groupsView.requestFocus()
+        hideLoading()
     }
 
     private enum class SubMode { GROUPS, ALPHA }
@@ -252,24 +280,35 @@ class ChannelListActivity : FragmentActivity() {
         search.visibility = View.GONE
         val subs = (sectionGroups[sec] ?: emptyList()).sortedBy { it.lowercase() }
 
-        if (sec == Sec.FAV) {
-            subMode = SubMode.GROUPS
-            groups = emptyList()
-        } else if (sec == Sec.FILMES && subs.size <= 1) {
-            // Lista sem subcategorias reais -> gênero/lançamento via TMDB.
-            subMode = SubMode.ALPHA
-            groups = filmesGroups()
-            ensureFilmesIndexed()
-        } else if (sec == Sec.SERIES && subs.size <= 1) {
-            // Sem subcategorias reais na lista -> índice A-Z + Recentes.
-            subMode = SubMode.ALPHA
-            val present = all.asSequence()
-                .filter { secOfChannel(it) == sec }
-                .map { firstKey(it.name) }.distinct().toSortedSet()
-            groups = buildList { add(ALL_SEC); add(RECENTES); addAll(present) }
-        } else {
-            subMode = SubMode.GROUPS
-            groups = if (subs.size > 1) buildList { add(ALL_SEC); addAll(subs) } else subs
+        when {
+            sec == Sec.FAV -> {
+                subMode = SubMode.GROUPS
+                groups = emptyList()
+            }
+            subs.size > 1 -> {
+                // A lista já traz categorias reais para esta seção (ex.: canais
+                // ao vivo por tema). Usa-as direto.
+                subMode = SubMode.GROUPS
+                groups = buildList { add(ALL_SEC); addAll(subs) }
+            }
+            sec == Sec.FILMES -> {
+                // Sem categorias reais -> gênero/lançamento via TMDB.
+                subMode = SubMode.ALPHA
+                groups = filmesGroups()
+                ensureFilmesIndexed()
+            }
+            else -> {
+                // Canais/Séries sem categorias reais -> índice A-Z (+ Recentes).
+                subMode = SubMode.ALPHA
+                val present = all.asSequence()
+                    .filter { secOfChannel(it) == sec }
+                    .map { firstKey(it.name) }.distinct().toSortedSet()
+                groups = buildList {
+                    add(ALL_SEC)
+                    if (sec == Sec.SERIES) add(RECENTES)
+                    addAll(present)
+                }
+            }
         }
         groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
         currentSub = if (groups.isNotEmpty() && groups[0] != ALL_SEC) groups[0] else null
@@ -752,6 +791,7 @@ class ChannelListActivity : FragmentActivity() {
         const val EXTRA_URL = "url"
         const val EXTRA_FROM_SETTINGS = "from_settings"
         const val EXTRA_FORCE_REFRESH = "force_refresh"
+        const val EXTRA_SECTION = "section"   // "canais" | "filmes" | "series"
         private const val ALL_SEC = "Tudo"
         private const val RECENTES = "Recentes"
         private const val LANCAMENTOS = "Lançamentos"

@@ -44,17 +44,15 @@ class MainActivity : FragmentActivity() {
 
         val openSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         findViewById<ImageButton>(R.id.btn_gear).setOnClickListener { openSettings() }
-        findViewById<View>(R.id.card_settings).setOnClickListener { openSettings() }
-        findViewById<View>(R.id.card_test).setOnClickListener {
-            startActivity(Intent(this, TestActivity::class.java))
-        }
-        findViewById<View>(R.id.card_channels).setOnClickListener { openChannels() }
+        findViewById<View>(R.id.card_live).setOnClickListener { openSection("canais") }
+        findViewById<View>(R.id.card_filmes).setOnClickListener { openSection("filmes") }
+        findViewById<View>(R.id.card_series).setOnClickListener { openSection("series") }
 
-        maybeAutoLoad()
-        findViewById<View>(R.id.card_channels).requestFocus()
+        findViewById<View>(R.id.card_live).requestFocus()
     }
 
-    private fun openChannels() {
+    /** Abre a lista já na seção escolhida (TV ao vivo / Filmes / Séries). */
+    private fun openSection(section: String) {
         val store = PlaylistStore(this)
         if (store.playlistUrl.isNullOrBlank() && store.configUrl.isNullOrBlank()) {
             Toast.makeText(this, "Configure sua lista primeiro (engrenagem).", Toast.LENGTH_LONG).show()
@@ -64,25 +62,9 @@ class MainActivity : FragmentActivity() {
         startActivity(
             Intent(this, ChannelListActivity::class.java)
                 .putExtra(ChannelListActivity.EXTRA_FROM_SETTINGS, true)
+                .putExtra(ChannelListActivity.EXTRA_SECTION, section)
         )
     }
-
-    private fun maybeAutoLoad() {
-        val store = PlaylistStore(this)
-        // Só uma vez por execução do app (flag estática), senão a lista volta
-        // por cima toda vez que a MainActivity é recriada pela TV.
-        if (!autoLoadedOnce && store.autoLoad &&
-            (!store.playlistUrl.isNullOrBlank() || !store.configUrl.isNullOrBlank())
-        ) {
-            autoLoadedOnce = true
-            startActivity(
-                Intent(this, ChannelListActivity::class.java)
-                    .putExtra(ChannelListActivity.EXTRA_FROM_SETTINGS, true)
-            )
-        }
-    }
-
-    private companion object { @JvmStatic var autoLoadedOnce = false }
 
     private val tick = object : Runnable {
         override fun run() {

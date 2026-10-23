@@ -1,99 +1,141 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0E14"
-    android:orientation="vertical"
-    android:padding="28dp">
-
-    <!-- Barra de navegação (seções) -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <Button android:id="@+id/nav_canais" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Canais" android:textSize="16sp" />
-        <Button android:id="@+id/nav_filmes" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" android:text="Filmes" android:textSize="16sp" />
-        <Button android:id="@+id/nav_series" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" android:text="Séries" android:textSize="16sp" />
-        <Button android:id="@+id/nav_fav" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" android:text="★ Favoritos" android:textSize="16sp" />
-        <Button android:id="@+id/nav_search" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" android:text="🔍 Buscar" android:textSize="16sp" />
-
-        <TextView android:id="@+id/status" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:layout_marginStart="16dp" android:gravity="end"
-            android:textColor="#9AA4AE" android:textSize="13sp" />
-    </LinearLayout>
-
-    <EditText
-        android:id="@+id/search"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:hint="Buscar nesta seção…"
-        android:imeOptions="actionSearch"
-        android:inputType="text"
-        android:singleLine="true"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#667080"
-        android:visibility="gone" />
+    android:background="#0A0E14">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="14dp"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="28dp">
 
-        <ListView
-            android:id="@+id/groups"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="0.7"
-            android:background="#121A26"
-            android:nextFocusRight="@+id/channels" />
+        <!-- Barra de navegação (seções) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <FrameLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="3.4"
-            android:layout_marginStart="14dp">
+            <Button android:id="@+id/nav_canais" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="TV ao vivo" android:textSize="16sp" />
+            <Button android:id="@+id/nav_filmes" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:text="Filmes" android:textSize="16sp" />
+            <Button android:id="@+id/nav_series" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:text="Séries" android:textSize="16sp" />
+            <Button android:id="@+id/nav_fav" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:text="★ Favoritos" android:textSize="16sp" />
+            <Button android:id="@+id/nav_search" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:text="🔍 Buscar" android:textSize="16sp" />
+
+            <TextView android:id="@+id/status" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="16dp" android:gravity="end"
+                android:textColor="#9AA4AE" android:textSize="13sp" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:hint="Buscar nesta seção…"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:singleLine="true"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#667080"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
 
             <ListView
-                android:id="@+id/channels"
-                android:layout_width="match_parent"
+                android:id="@+id/groups"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_weight="0.7"
                 android:background="#121A26"
-                android:nextFocusLeft="@+id/groups" />
+                android:nextFocusRight="@+id/channels" />
 
-            <GridView
-                android:id="@+id/channels_grid"
-                android:layout_width="match_parent"
+            <FrameLayout
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:background="#121A26"
-                android:numColumns="4"
-                android:horizontalSpacing="12dp"
-                android:verticalSpacing="12dp"
-                android:padding="12dp"
-                android:clipToPadding="false"
-                android:focusable="true"
-                android:listSelector="@drawable/grid_selector"
-                android:drawSelectorOnTop="true"
-                android:nextFocusLeft="@+id/groups"
-                android:visibility="gone" />
+                android:layout_weight="3.4"
+                android:layout_marginStart="14dp">
 
-            <TextView
-                android:id="@+id/empty"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="Nada aqui"
-                android:textColor="#667080"
-                android:visibility="gone" />
-        </FrameLayout>
+                <ListView
+                    android:id="@+id/channels"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#121A26"
+                    android:nextFocusLeft="@+id/groups" />
+
+                <GridView
+                    android:id="@+id/channels_grid"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#121A26"
+                    android:numColumns="4"
+                    android:horizontalSpacing="12dp"
+                    android:verticalSpacing="12dp"
+                    android:padding="12dp"
+                    android:clipToPadding="false"
+                    android:focusable="true"
+                    android:listSelector="@drawable/grid_selector"
+                    android:drawSelectorOnTop="true"
+                    android:nextFocusLeft="@+id/groups"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Nada aqui"
+                    android:textColor="#667080"
+                    android:visibility="gone" />
+            </FrameLayout>
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+
+    <!-- Tela de carregamento (sobreposta até a lista ficar pronta) -->
+    <LinearLayout
+        android:id="@+id/loading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0A0E14"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:clickable="true">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-light"
+            android:text="Player Mod"
+            android:textColor="@color/card_text"
+            android:textSize="32sp" />
+
+        <ProgressBar
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginTop="28dp"
+            android:indeterminateTint="#64D2FF" />
+
+        <TextView
+            android:id="@+id/loading_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:fontFamily="sans-serif"
+            android:text="Aguarde, carregando o conteúdo…"
+            android:textColor="#C7D0DA"
+            android:textSize="18sp" />
+    </LinearLayout>
+</FrameLayout>
