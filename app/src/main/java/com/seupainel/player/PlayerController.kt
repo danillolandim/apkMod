@@ -92,6 +92,17 @@ class PlayerController(
         com.seupainel.player.net.Net.client
     )
 
+    // Reentra em silêncio nas primeiras falhas (DNS esquentando / aperto de mão
+    // do provedor) antes de mostrar erro — some com o "erro feio" da 1ª execução.
+    private val handshakeRetryPolicy =
+        object : androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy() {
+            override fun getMinimumLoadableRetryCount(dataType: Int): Int = 6
+            override fun getRetryDelayMsFor(
+                info: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.LoadErrorInfo
+            ): Long = if (info.errorCount <= 6) minOf(800L * info.errorCount, 4000L)
+                      else C.TIME_UNSET
+        }
+
     /** Define cabeçalhos HTTP para os próximos streams (antes de play()). */
     fun setHttpHeaders(userAgent: String?, referer: String?) {
         if (!userAgent.isNullOrBlank()) http.setUserAgent(userAgent)
@@ -127,7 +138,9 @@ class PlayerController(
             .setTrackSelector(trackSelector)
             .setLoadControl(loadControl)
             .setBandwidthMeter(bandwidthMeter)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+            .setMediaSourceFactory(
+                DefaultMediaSourceFactory(http).setLoadErrorHandlingPolicy(handshakeRetryPolicy)
+            )
             .setSeekForwardIncrementMs(60_000)
             .setSeekBackIncrementMs(60_000)
             .setHandleAudioBecomingNoisy(true) // pausa ao tirar HDMI/fone

@@ -195,7 +195,7 @@ class PlayerActivity : FragmentActivity() {
         retries++
         if (retries <= 3) {
             val delay = 2000L * (1 shl (retries - 1))
-            showBadge("Reconectando ($retries)…", announce = true)
+            showBadge("Conectando…", announce = false)
             ui.postDelayed({
                 startMs = pc.player.currentPosition.coerceAtLeast(startMs)
                 if (directUrl.isNotBlank()) {
