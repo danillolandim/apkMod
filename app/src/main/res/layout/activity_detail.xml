@@ -63,7 +63,6 @@
                 android:focusable="true"
                 android:clickable="true"
                 android:defaultFocusHighlightEnabled="false"
-                android:stateListAnimator="@animator/card_focus"
                 android:gravity="center"
                 android:paddingLeft="48dp"
                 android:paddingRight="48dp"
