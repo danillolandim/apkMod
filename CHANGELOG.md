@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Visual Apple TV no app inteiro: Configurações (campos, listas, caixas), menus/diálogos e a tela de carregamento agora seguem o mesmo estilo escuro com destaque azul.
 - Menus no estilo do app (escuro, cantos arredondados, destaque azul) — antes usavam o diálogo cinza padrão do Android.
 - Botão de qualidade no player ao vivo: mostra a atual e abre um menu suspenso compacto ali mesmo.
 - Nova categoria "Aclamadas" (bem avaliadas no TMDB, com votos suficientes) em Filmes e Séries, ordenada pela nota.
