@@ -157,12 +157,12 @@ class SettingsActivity : FragmentActivity() {
     }
 
     private fun statusText(): String {
-        val cache = store.readCache()
+        // Não lê o arquivo de cache (pode ter dezenas de MB) — usa a contagem salva.
         val when_ = if (store.lastRefreshMs > 0)
             SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(store.lastRefreshMs))
         else "nunca"
-        val size = cache?.lineSequence()?.count { it.startsWith("#EXTINF", true) } ?: 0
-        return "Última atualização: $when_" + if (size > 0) " • ~$size canais em cache" else " • sem cache"
+        val size = store.channelCount
+        return "Última atualização: $when_" + if (size > 0) " • $size canais em cache" else " • sem cache"
     }
 
     override fun onPause() {

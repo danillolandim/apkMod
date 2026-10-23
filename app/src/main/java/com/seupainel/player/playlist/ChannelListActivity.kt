@@ -173,7 +173,7 @@ class ChannelListActivity : FragmentActivity() {
                         if (!silent) runOnUiThread { status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)." }
                     is M3uParser.Result.Playlist -> {
                         store.lastUrl = url
-                        if (cacheIt) store.writeCache(text)
+                        if (cacheIt) { store.writeCache(text); store.channelCount = res.channels.size }
                         runOnUiThread {
                             if (silent) {
                                 // Atualização por trás: só troca os dados se mudou, mantém a categoria.

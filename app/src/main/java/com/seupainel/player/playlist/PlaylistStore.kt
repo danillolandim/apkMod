@@ -50,6 +50,11 @@ class PlaylistStore(context: Context) {
         get() = prefs.getLong("last_refresh", 0L)
         set(v) = prefs.edit().putLong("last_refresh", v).apply()
 
+    /** Nº de canais no cache (guardado para não ler o arquivo enorme só p/ contar). */
+    var channelCount: Int
+        get() = prefs.getInt("channel_count", 0)
+        set(v) = prefs.edit().putInt("channel_count", v).apply()
+
     /** Última URL efetivamente carregada (atalho para a tela inicial). */
     var lastUrl: String?
         get() = prefs.getString("last_url", null)
@@ -87,5 +92,5 @@ class PlaylistStore(context: Context) {
         return readCache() != null && cacheAgeMs() < h * 3_600_000L
     }
 
-    fun clearCache() { runCatching { cacheFile.delete() }; lastRefreshMs = 0 }
+    fun clearCache() { runCatching { cacheFile.delete() }; lastRefreshMs = 0; channelCount = 0 }
 }
