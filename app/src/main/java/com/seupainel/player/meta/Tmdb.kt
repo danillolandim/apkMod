@@ -40,15 +40,22 @@ object Tmdb {
         val posterUrl: String?,
     )
 
+    /** Resultado da indexação: achou, não existe no TMDB, ou falhou (rede/HTTP). */
+    sealed class CatRes {
+        data class Found(val cat: Cat) : CatRes()
+        data object NotFound : CatRes()   // TMDB respondeu, sem correspondência -> guarda de vez
+        data object Error : CatRes()      // rede/HTTP/chave -> tenta de novo depois
+    }
+
     /** Uma única chamada /search/multi que devolve gênero + ano + nota + cartaz. */
-    fun categorize(apiKey: String, rawTitle: String): Cat? {
-        if (apiKey.isBlank()) return null
+    fun categorize(apiKey: String, rawTitle: String): CatRes {
+        if (apiKey.isBlank()) return CatRes.Error
         val q = cleanTitle(rawTitle).ifBlank { rawTitle }
         val (code, json) = req(apiKey, "/search/multi", mapOf(
             "query" to q, "language" to "pt-BR", "include_adult" to "false",
         ))
-        if (code !in 200..299 || json == null) return null
-        val results = json.optJSONArray("results") ?: return null
+        if (code !in 200..299 || json == null) return CatRes.Error
+        val results = json.optJSONArray("results") ?: return CatRes.NotFound
         for (i in 0 until results.length()) {
             val o = results.getJSONObject(i)
             val mt = o.optString("media_type")
@@ -57,10 +64,10 @@ object Tmdb {
                 val ids = if (arr != null) (0 until arr.length()).map { arr.optInt(it) } else emptyList()
                 val date = o.optString(if (mt == "tv") "first_air_date" else "release_date", "")
                 val poster = o.optString("poster_path", "").takeIf { it.isNotBlank() }?.let { IMG + it }
-                return Cat(ids, date.take(4).toIntOrNull(), o.optDouble("vote_average", 0.0), poster)
+                return CatRes.Found(Cat(ids, date.take(4).toIntOrNull(), o.optDouble("vote_average", 0.0), poster))
             }
         }
-        return null
+        return CatRes.NotFound
     }
 
     fun quick(apiKey: String, rawTitle: String): Quick? {

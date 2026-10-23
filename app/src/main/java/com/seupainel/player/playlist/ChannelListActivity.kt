@@ -263,6 +263,8 @@ class ChannelListActivity : FragmentActivity() {
         selectSection(startSection)
         groupsView.requestFocus()
         hideLoading()
+        // Lista padrão: indexa tudo em 2º plano, mesmo fora da seção Filmes.
+        ensureFilmesIndexed()
     }
 
     private enum class SubMode { GROUPS, ALPHA }
@@ -371,13 +373,16 @@ class ChannelListActivity : FragmentActivity() {
                     if (Thread.currentThread().isInterrupted) return@execute
                     awaitIndexResume()                 // espera se o app estiver em 2º plano
                     if (Thread.currentThread().isInterrupted) return@execute
-                    val cat = runCatching { com.seupainel.player.meta.Tmdb.categorize(tmdbKey, ch.name) }.getOrNull()
-                    if (cat != null) {
-                        vodIndex.put(ch.name, cat.genreIds, cat.year)
-                        tmdbCache[ch.name] = com.seupainel.player.meta.Tmdb.Quick(cat.rating, cat.posterUrl)
-                    } else {
-                        // falha/não encontrado: não repete nesta sessão; tenta de novo na próxima.
-                        indexMiss.add(ch.name)
+                    when (val r = runCatching { com.seupainel.player.meta.Tmdb.categorize(tmdbKey, ch.name) }
+                        .getOrDefault(com.seupainel.player.meta.Tmdb.CatRes.Error)) {
+                        is com.seupainel.player.meta.Tmdb.CatRes.Found -> {
+                            vodIndex.put(ch.name, r.cat.genreIds, r.cat.year)
+                            tmdbCache[ch.name] = com.seupainel.player.meta.Tmdb.Quick(r.cat.rating, r.cat.posterUrl)
+                        }
+                        com.seupainel.player.meta.Tmdb.CatRes.NotFound ->
+                            vodIndex.put(ch.name, emptyList(), null)   // não existe: guarda de vez
+                        com.seupainel.player.meta.Tmdb.CatRes.Error ->
+                            indexMiss.add(ch.name)                     // rede: tenta na próxima sessão
                     }
                     val d = done.incrementAndGet()
                     if (d % 200 == 0 || d == total) {
