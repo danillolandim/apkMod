@@ -1,7 +1,8 @@
 # Novidades
 
 ## Esta versão
-- Cartaz do filme no grid agora usa o pôster do TMDB (mesmo da tela de detalhes), em vez da capa da lista (que vinha trocada/antiga).
+- Séries agora têm categorias de gênero (Ação, Comédia, Terror…) como os Filmes, além de Tudo/Lançamentos/A-Z.
+- Cartaz do filme/série é o mesmo no grid e na tela de detalhes (pôster do TMDB), em vez da capa trocada/antiga da lista.
 - Menu único no player: a engrenagem na tela abre todas as opções do app (qualidade, áudio, legenda, tamanho da legenda, aspecto, velocidade, timer, PiP).
 - No player ao vivo, o botão OK abre esse menu direto, sem depender da tecla ≡.
 - Canais ao vivo juntados por qualidade: "Globo HD/FHD/SD" vira um só; a troca de qualidade fica no player (OK ou ≡).

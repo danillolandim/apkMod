@@ -47,9 +47,13 @@ class ChannelListActivity : FragmentActivity() {
     private var canaisDerived = false                       // canais agrupados por tema (do nome)
     @Volatile private var secLists: Map<Sec, List<M3uParser.Channel>>? = null  // partição por seção
     @Volatile private var liveVariants: Map<String, List<M3uParser.Channel>> = emptyMap()  // canal -> qualidades
-    // Pré-cálculos de Filmes para seleção instantânea de gênero/lançamentos.
+    // Pré-cálculos de Filmes/Séries para seleção instantânea de gênero/lançamentos.
     @Volatile private var filmesByGenre: Map<Int, List<M3uParser.Channel>>? = null
     @Volatile private var filmesLancamentos: List<M3uParser.Channel>? = null
+    @Volatile private var filmesGenreCounts: Map<Int, Int> = emptyMap()
+    @Volatile private var seriesByGenre: Map<Int, List<M3uParser.Channel>>? = null
+    @Volatile private var seriesLancamentos: List<M3uParser.Channel>? = null
+    @Volatile private var seriesGenreCounts: Map<Int, Int> = emptyMap()
     @Volatile private var buildingFilmes = false
     private var shown: List<M3uParser.Channel> = emptyList()
 
@@ -349,17 +353,11 @@ class ChannelListActivity : FragmentActivity() {
                     addAll(LiveGroups.ORDER.filter { it in present })
                 }
             }
-            else -> {
-                // Séries sem categorias reais -> Lançamentos (por ano) + A-Z.
+            else -> {   // Sec.SERIES sem categorias reais -> gênero/lançamento via TMDB.
                 subMode = SubMode.ALPHA
-                val present = all.asSequence()
-                    .filter { secOfChannel(it) == sec }
-                    .map { firstKey(it.name) }.distinct().toSortedSet()
-                groups = buildList {
-                    add(ALL_SEC); add(LANCAMENTOS)
-                    if (newItems.anyNew()) add(NOVIDADES)
-                    addAll(present)
-                }
+                groups = vodGroups(Sec.SERIES)
+                ensureFilmesIndexed()
+                buildFilmesIndex()
             }
         }
         groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
@@ -373,29 +371,51 @@ class ChannelListActivity : FragmentActivity() {
         applyFilter()
     }
 
-    /** Pré-computa gênero->filmes e a lista de lançamentos (em 2º plano). */
+    /** Pré-computa gênero->conteúdo e lançamentos de Filmes E Séries (em 2º plano). */
     private fun buildFilmesIndex() {
         if (buildingFilmes) return
         buildingFilmes = true
-        thread(name = "filmes-fast") {
+        thread(name = "vod-fast") {
+            // Filmes
             val movies = secLists?.get(Sec.FILMES) ?: all.filter { secOfChannel(it) == Sec.FILMES }
-            val byGenre = HashMap<Int, ArrayList<M3uParser.Channel>>()
-            val withYear = ArrayList<Pair<M3uParser.Channel, Int>>()
+            val mByGenre = HashMap<Int, ArrayList<M3uParser.Channel>>()
+            val mYear = ArrayList<Pair<M3uParser.Channel, Int>>()
             for (ch in movies) {
                 val e = vodIndex.get(ch.name) ?: continue
-                e.genreIds.forEach { byGenre.getOrPut(it) { ArrayList() }.add(ch) }
+                e.genreIds.forEach { mByGenre.getOrPut(it) { ArrayList() }.add(ch) }
                 val y = e.year
-                if (y != null && y >= lancCutoff) withYear.add(ch to y)
+                if (y != null && y >= lancCutoff) mYear.add(ch to y)
             }
-            filmesByGenre = byGenre
-            filmesLancamentos = withYear.sortedByDescending { it.second }.map { it.first }
+            filmesByGenre = mByGenre
+            filmesGenreCounts = mByGenre.mapValues { it.value.size }
+            filmesLancamentos = mYear.sortedByDescending { it.second }.map { it.first }
+
+            // Séries (episódios herdam o gênero/ano da série pelo título)
+            val series = secLists?.get(Sec.SERIES) ?: all.filter { secOfChannel(it) == Sec.SERIES }
+            val sByGenre = HashMap<Int, ArrayList<M3uParser.Channel>>()
+            val sTitles = HashMap<Int, HashSet<String>>()
+            val sYear = ArrayList<Pair<M3uParser.Channel, Int>>()
+            for (ch in series) {
+                val e = vodIndex.get(ch.name) ?: continue
+                val tkey = vodIndex.keyFor(ch.name)
+                e.genreIds.forEach {
+                    sByGenre.getOrPut(it) { ArrayList() }.add(ch)
+                    sTitles.getOrPut(it) { HashSet() }.add(tkey)
+                }
+                val y = e.year
+                if (y != null && y >= lancCutoff) sYear.add(ch to y)
+            }
+            seriesByGenre = sByGenre
+            seriesGenreCounts = sTitles.mapValues { it.value.size }   // séries distintas por gênero
+            seriesLancamentos = sYear.sortedByDescending { it.second }.map { it.first }
+
             buildingFilmes = false
         }
     }
 
-    /** Subcategorias de Filmes: fixos + gêneros presentes (ordem canônica). */
-    private fun filmesGroups(): List<String> {
-        val counts = vodIndex.genreCounts()
+    /** Subcategorias de Filmes/Séries: fixos + gêneros presentes (ordem canônica). */
+    private fun vodGroups(sec: Sec): List<String> {
+        val counts = if (sec == Sec.SERIES) seriesGenreCounts else filmesGenreCounts
         val genreNames = com.seupainel.player.meta.VodIndex.GENRES.entries
             .filter { (counts[it.key] ?: 0) >= 3 }      // só gêneros com conteúdo
             .map { it.value }
@@ -406,17 +426,20 @@ class ChannelListActivity : FragmentActivity() {
             if (genreNames.isEmpty()) {
                 // enquanto o índice ainda está vazio, oferece A-Z
                 val present = all.asSequence()
-                    .filter { secOfChannel(it) == Sec.FILMES }
+                    .filter { secOfChannel(it) == sec }
                     .map { firstKey(it.name) }.distinct().toSortedSet()
                 addAll(present)
             }
         }
     }
+    private fun filmesGroups(): List<String> = vodGroups(Sec.FILMES)
 
-    /** Refaz a lista de subcategorias de Filmes se novos gêneros surgiram. */
+    /** Refaz a lista de subcategorias de Filmes/Séries se novos gêneros surgiram. */
     private fun rebuildFilmesGroups() {
-        if (currentSection != Sec.FILMES) return
-        val newGroups = filmesGroups()
+        if (currentSection != Sec.FILMES && currentSection != Sec.SERIES) return
+        // Em Filmes/Séries sem subcategorias reais (modo gênero/A-Z).
+        if (subMode != SubMode.ALPHA) return
+        val newGroups = vodGroups(currentSection)
         if (newGroups == groups) return
         // Se o usuário está navegando a lista de categorias, preserva a posição.
         val keepPos = if (groupsView.hasFocus()) groupsView.selectedItemPosition else -1
@@ -501,8 +524,16 @@ class ChannelListActivity : FragmentActivity() {
         // Resolve o tipo da subcategoria uma vez (fora do loop).
         val genreId = com.seupainel.player.meta.VodIndex.GENRE_BY_NAME[sub]
         val lists = secLists
-        val fastGenre = if (sec == Sec.FILMES && genreId != null) filmesByGenre?.get(genreId) else null
-        val fastLanc = if (sec == Sec.FILMES && sub == LANCAMENTOS) filmesLancamentos else null
+        val fastGenre = when {
+            sec == Sec.FILMES && genreId != null -> filmesByGenre?.get(genreId)
+            sec == Sec.SERIES && genreId != null -> seriesByGenre?.get(genreId)
+            else -> null
+        }
+        val fastLanc = when {
+            sec == Sec.FILMES && sub == LANCAMENTOS -> filmesLancamentos
+            sec == Sec.SERIES && sub == LANCAMENTOS -> seriesLancamentos
+            else -> null
+        }
         thread(name = "filter") {
             // Atalho pré-computado p/ Filmes (gênero/lançamentos) -> instantâneo.
             val fast = fastGenre ?: fastLanc
