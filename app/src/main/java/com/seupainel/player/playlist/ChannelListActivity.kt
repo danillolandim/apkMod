@@ -190,7 +190,9 @@ class ChannelListActivity : FragmentActivity() {
     private fun applyFilter() {
         val q = search.text.toString().trim().lowercase()
         val favs = store.favorites()
-        shown = all.filter { ch ->
+        // Sem filtro ("Todos" + busca vazia): reaproveita a lista, sem copiar.
+        shown = if (currentGroup == ALL && q.isEmpty()) all
+        else all.filter { ch ->
             val inGroup = when (currentGroup) {
                 ALL -> true
                 FAV -> favs.contains(ch.url)
@@ -198,11 +200,31 @@ class ChannelListActivity : FragmentActivity() {
             }
             inGroup && (q.isEmpty() || ch.name.lowercase().contains(q))
         }
-        channelsView.adapter = ArrayAdapter(
-            this, android.R.layout.simple_list_item_1,
-            shown.map { (if (store.isFavorite(it.url)) "★ " else "") + it.name },
-        )
+        if (channelsView.adapter !== channelAdapter) channelsView.adapter = channelAdapter
+        channelAdapter.submit(shown, favs)
+        channelsView.setSelectionAfterHeaderView()
         findViewById<View>(R.id.empty).visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    /** Adapter leve: não recria lista a cada filtro, só troca os dados e recicla as views. */
+    private val channelAdapter by lazy { ChannelAdapter() }
+
+    private inner class ChannelAdapter : android.widget.BaseAdapter() {
+        private var items: List<M3uParser.Channel> = emptyList()
+        private var favs: Set<String> = emptySet()
+        fun submit(list: List<M3uParser.Channel>, favorites: Set<String>) {
+            items = list; favs = favorites; notifyDataSetChanged()
+        }
+        override fun getCount() = items.size
+        override fun getItem(position: Int) = items[position]
+        override fun getItemId(position: Int) = position.toLong()
+        override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
+            val tv = (convertView as? TextView) ?: layoutInflater
+                .inflate(android.R.layout.simple_list_item_1, parent, false) as TextView
+            val ch = items[position]
+            tv.text = if (favs.contains(ch.url)) "★ ${ch.name}" else ch.name
+            return tv
+        }
     }
 
     private fun toggleFav(ch: M3uParser.Channel) {
