@@ -442,11 +442,16 @@ class ChannelListActivity : FragmentActivity() {
         override fun getItem(position: Int) = items[position]
         override fun getItemId(position: Int) = position.toLong()
         override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
-            val tv = (convertView as? TextView) ?: layoutInflater
-                .inflate(android.R.layout.simple_list_item_1, parent, false) as TextView
+            val v = convertView ?: layoutInflater.inflate(R.layout.item_channel, parent, false)
             val ch = items[position]
-            tv.text = if (favs.contains(ch.url)) "★ ${ch.name}" else ch.name
-            return tv
+            v.findViewById<TextView>(R.id.ch_item_name).text =
+                if (favs.contains(ch.url)) "★ ${ch.name}" else ch.name
+            val logo = v.findViewById<android.widget.ImageView>(R.id.ch_item_logo)
+            if (ch.logo.isNullOrBlank()) logo.setImageDrawable(null)
+            else coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
+                coil.request.ImageRequest.Builder(this@ChannelListActivity)
+                    .data(ch.logo).target(logo).crossfade(true).build())
+            return v
         }
     }
 
