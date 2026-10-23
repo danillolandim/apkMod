@@ -1,132 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#101418"
-    android:fillViewport="true">
+    android:background="@drawable/wallpaper">
 
+    <!-- Escurecimento inferior para legibilidade -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/scrim" />
+
+    <!-- Relógio / data (topo direito, estilo tvOS) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="40dp"
+        android:layout_marginEnd="56dp"
+        android:gravity="end"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/clock_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-thin"
+            android:text="00:00"
+            android:textColor="#FFFFFF"
+            android:textSize="72sp"
+            android:shadowColor="#80000000"
+            android:shadowDx="0" android:shadowDy="2" android:shadowRadius="8" />
+
+        <TextView
+            android:id="@+id/clock_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-6dp"
+            android:fontFamily="sans-serif-light"
+            android:text=""
+            android:textColor="#D9FFFFFF"
+            android:textSize="20sp" />
+    </LinearLayout>
+
+    <!-- Engrenagem (canto superior esquerdo) -->
+    <ImageButton
+        android:id="@+id/btn_gear"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="40dp"
+        android:layout_marginStart="48dp"
+        android:background="@drawable/card_bg"
+        android:contentDescription="Configurações"
+        android:padding="12dp"
+        android:src="@drawable/ic_gear" />
+
+    <!-- Conteúdo inferior -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
         android:orientation="vertical"
-        android:padding="48dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Player Mod"
-                android:textColor="#FFFFFF"
-                android:textSize="28sp"
-                android:textStyle="bold" />
-
-            <ImageButton
-                android:id="@+id/btn_gear"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Configurações"
-                android:padding="8dp"
-                android:src="@drawable/ic_gear" />
-        </LinearLayout>
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingBottom="56dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="20dp"
-            android:text="No player: OK = controles • MENU/amarelo = faixas e opções • INFO/azul = HUD • vermelho = aspecto • verde = PiP"
-            android:textColor="#9AA4AE"
-            android:textSize="14sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Streams públicos de teste"
-            android:textColor="#3DA9FC"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:id="@+id/presets"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            android:orientation="vertical" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="URL direta (HLS/DASH/MP4) ou endereço P2P"
-            android:textColor="#3DA9FC"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <EditText
-            android:id="@+id/url"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="https://…/master.m3u8"
-            android:inputType="textUri"
-            android:singleLine="true"
+            android:fontFamily="sans-serif-light"
+            android:text="Player Mod"
             android:textColor="#FFFFFF"
-            android:textColorHint="#667080" />
+            android:textSize="34sp" />
 
-        <EditText
-            android:id="@+id/sub_url"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Legenda externa (opcional): https://…/legenda.srt"
-            android:inputType="textUri"
-            android:singleLine="true"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#667080" />
-
+        <!-- Cartões de ação -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="18dp"
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/btn_live"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Modo: VOD" />
+                android:id="@+id/card_channels"
+                android:layout_width="260dp"
+                android:layout_height="120dp"
+                android:background="@drawable/card_bg"
+                android:fontFamily="sans-serif-medium"
+                android:text="Meus canais"
+                android:textAllCaps="false"
+                android:textColor="@color/card_text"
+                android:textSize="22sp" />
 
             <Button
-                android:id="@+id/btn_play_url"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Tocar URL direta" />
+                android:id="@+id/card_settings"
+                android:layout_width="260dp"
+                android:layout_height="120dp"
+                android:layout_marginStart="20dp"
+                android:background="@drawable/card_bg"
+                android:fontFamily="sans-serif-medium"
+                android:text="Configurações"
+                android:textAllCaps="false"
+                android:textColor="@color/card_text"
+                android:textSize="22sp" />
 
             <Button
-                android:id="@+id/btn_load_list"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Carregar lista M3U" />
-
-            <Button
-                android:id="@+id/btn_settings"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Configurações" />
-
-            <Button
-                android:id="@+id/btn_play_p2p"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Tocar via P2P" />
+                android:id="@+id/card_test"
+                android:layout_width="260dp"
+                android:layout_height="120dp"
+                android:layout_marginStart="20dp"
+                android:background="@drawable/card_bg"
+                android:fontFamily="sans-serif-medium"
+                android:text="Testar URL / demos"
+                android:textAllCaps="false"
+                android:textColor="@color/card_text"
+                android:textSize="22sp" />
         </LinearLayout>
     </LinearLayout>
-</ScrollView>
+</FrameLayout>

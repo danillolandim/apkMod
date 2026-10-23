@@ -43,6 +43,7 @@ class SettingsActivity : FragmentActivity() {
         val url = findViewById<EditText>(R.id.set_url)
         val config = findViewById<EditText>(R.id.set_config)
         val ua = findViewById<EditText>(R.id.set_ua)
+        val epg = findViewById<EditText>(R.id.set_epg)
         val refresh = findViewById<EditText>(R.id.set_refresh)
         val auto = findViewById<CheckBox>(R.id.set_auto)
         val info = findViewById<TextView>(R.id.set_info)
@@ -50,6 +51,7 @@ class SettingsActivity : FragmentActivity() {
         url.setText(store.playlistUrl.orEmpty())
         config.setText(store.configUrl.orEmpty())
         ua.setText(store.userAgent.orEmpty())
+        epg.setText(store.epgUrl.orEmpty())
         refresh.setText(store.refreshHours.toString())
         auto.isChecked = store.autoLoad
         info.text = statusText()
@@ -77,6 +79,7 @@ class SettingsActivity : FragmentActivity() {
             store.playlistUrl = url.text.toString().trim().ifBlank { null }
             store.configUrl = config.text.toString().trim().ifBlank { null }
             store.userAgent = ua.text.toString().trim().ifBlank { null }
+            store.epgUrl = epg.text.toString().trim().ifBlank { null }
             store.refreshHours = refresh.text.toString().trim().toIntOrNull() ?: 12
             store.autoLoad = auto.isChecked
             app.audioLanguage = AppSettings.LANG_OPTIONS[audioSpin.selectedItemPosition].second
@@ -136,6 +139,7 @@ class SettingsActivity : FragmentActivity() {
         store.playlistUrl = findViewById<EditText>(R.id.set_url).text.toString().trim().ifBlank { null }
         store.configUrl = findViewById<EditText>(R.id.set_config).text.toString().trim().ifBlank { null }
         store.userAgent = findViewById<EditText>(R.id.set_ua).text.toString().trim().ifBlank { null }
+        store.epgUrl = findViewById<EditText>(R.id.set_epg).text.toString().trim().ifBlank { null }
         store.refreshHours = findViewById<EditText>(R.id.set_refresh).text.toString().trim().toIntOrNull() ?: 12
         store.autoLoad = findViewById<CheckBox>(R.id.set_auto).isChecked
         app.audioLanguage = AppSettings.LANG_OPTIONS[audioSpin.selectedItemPosition].second

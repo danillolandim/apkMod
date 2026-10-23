@@ -33,6 +33,11 @@ class PlaylistStore(context: Context) {
         get() = prefs.getString("user_agent", null)
         set(v) = prefs.edit().putString("user_agent", v?.trim()).apply()
 
+    /** URL do EPG (XMLTV, .xml ou .xml.gz). Exibição de programa atual: próximo passo. */
+    var epgUrl: String?
+        get() = prefs.getString("epg_url", null)
+        set(v) = prefs.edit().putString("epg_url", v?.trim()).apply()
+
     var autoLoad: Boolean
         get() = prefs.getBoolean("auto_load", false)
         set(v) = prefs.edit().putBoolean("auto_load", v).apply()

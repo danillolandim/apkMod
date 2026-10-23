@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="1920dp" android:height="1080dp"
+    android:viewportWidth="1920" android:viewportHeight="1080">
+
+    <!-- Céu (gradiente de fim de tarde) -->
+    <path android:pathData="M0,0 H1920 V1080 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="0" android:startY="0"
+                android:endX="0" android:endY="1080">
+                <item android:offset="0.0" android:color="#FF0A1630" />
+                <item android:offset="0.45" android:color="#FF1C3657" />
+                <item android:offset="0.72" android:color="#FFB5663B" />
+                <item android:offset="0.86" android:color="#FFE79A5C" />
+                <item android:offset="1.0" android:color="#FF3A2A33" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Sol baixo -->
+    <path android:pathData="M1360,560 m-120,0 a120,120 0 1,0 240,0 a120,120 0 1,0 -240,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="1360" android:centerY="560" android:gradientRadius="140">
+                <item android:offset="0.0" android:color="#FFFFE9C8" />
+                <item android:offset="0.7" android:color="#FFF2B477" />
+                <item android:offset="1.0" android:color="#00F2B477" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Montanha ao fundo -->
+    <path android:pathData="M0,720 L300,600 L560,690 L820,560 L1120,680 L1420,580 L1700,700 L1920,640 L1920,1080 L0,1080 Z"
+        android:fillColor="#FF2A4866" android:fillAlpha="0.65" />
+    <!-- Montanha do meio -->
+    <path android:pathData="M0,820 L280,730 L520,800 L780,700 L1040,800 L1320,720 L1600,810 L1920,760 L1920,1080 L0,1080 Z"
+        android:fillColor="#FF17304C" android:fillAlpha="0.85" />
+    <!-- Colina da frente -->
+    <path android:pathData="M0,930 L360,860 L720,920 L1080,850 L1440,930 L1920,870 L1920,1080 L0,1080 Z"
+        android:fillColor="#FF0C1C2E" />
+</vector>
