@@ -255,7 +255,12 @@ class ChannelListActivity : FragmentActivity() {
         if (sec == Sec.FAV) {
             subMode = SubMode.GROUPS
             groups = emptyList()
-        } else if ((sec == Sec.FILMES || sec == Sec.SERIES) && subs.size <= 1) {
+        } else if (sec == Sec.FILMES && subs.size <= 1) {
+            // Lista sem subcategorias reais -> gênero/lançamento via TMDB.
+            subMode = SubMode.ALPHA
+            groups = filmesGroups()
+            ensureFilmesIndexed()
+        } else if (sec == Sec.SERIES && subs.size <= 1) {
             // Sem subcategorias reais na lista -> índice A-Z + Recentes.
             subMode = SubMode.ALPHA
             val present = all.asSequence()
@@ -277,6 +282,74 @@ class ChannelListActivity : FragmentActivity() {
         applyFilter()
     }
 
+    /** Subcategorias de Filmes: fixos + gêneros presentes (ordem canônica). */
+    private fun filmesGroups(): List<String> {
+        val counts = vodIndex.genreCounts()
+        val genreNames = com.seupainel.player.meta.VodIndex.GENRES.entries
+            .filter { (counts[it.key] ?: 0) >= 3 }      // só gêneros com conteúdo
+            .map { it.value }
+        return buildList {
+            add(ALL_SEC); add(RECENTES); add(LANCAMENTOS)
+            addAll(genreNames)
+            if (genreNames.isEmpty()) {
+                // enquanto o índice ainda está vazio, oferece A-Z
+                val present = all.asSequence()
+                    .filter { secOfChannel(it) == Sec.FILMES }
+                    .map { firstKey(it.name) }.distinct().toSortedSet()
+                addAll(present)
+            }
+        }
+    }
+
+    /** Refaz a lista de subcategorias de Filmes se novos gêneros surgiram. */
+    private fun rebuildFilmesGroups() {
+        if (currentSection != Sec.FILMES) return
+        val newGroups = filmesGroups()
+        if (newGroups == groups) return
+        groups = newGroups
+        val selIdx = newGroups.indexOf(currentSub ?: ALL_SEC).coerceAtLeast(0)
+        groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
+        groupsView.setSelection(selIdx)
+    }
+
+    /** Busca gênero+ano de cada filme no TMDB (uma vez), em segundo plano. */
+    private fun ensureFilmesIndexed() {
+        if (indexing || tmdbKey.isBlank()) return
+        indexing = true
+        thread(name = "index-dispatch") {
+            val movies = all.filter { secOfChannel(it) == Sec.FILMES }
+            // já indexados (disco) e os que falharam nesta sessão ficam de fora.
+            val todo = movies.filter { !vodIndex.has(it.name) && !indexMiss.contains(it.name) }
+            if (todo.isEmpty()) { indexing = false; runOnUiThread { rebuildFilmesGroups() }; return@thread }
+            val total = todo.size
+            val done = java.util.concurrent.atomic.AtomicInteger(0)
+            for (ch in todo) {
+                indexExec.execute {
+                    val cat = runCatching { com.seupainel.player.meta.Tmdb.categorize(tmdbKey, ch.name) }.getOrNull()
+                    if (cat != null) {
+                        vodIndex.put(ch.name, cat.genreIds, cat.year)
+                        tmdbCache[ch.name] = com.seupainel.player.meta.Tmdb.Quick(cat.rating, cat.posterUrl)
+                    } else {
+                        // falha/não encontrado: não repete nesta sessão; tenta de novo na próxima.
+                        indexMiss.add(ch.name)
+                    }
+                    val d = done.incrementAndGet()
+                    if (d % 40 == 0 || d == total) {
+                        vodIndex.saveIfDirty()
+                        runOnUiThread { onIndexProgress(d, total, movies.size) }
+                    }
+                    if (d == total) indexing = false
+                }
+            }
+        }
+    }
+
+    private fun onIndexProgress(done: Int, total: Int, movieCount: Int) {
+        if (currentSection != Sec.FILMES) return
+        rebuildFilmesGroups()
+        status.text = if (done < total) "Indexando filmes… $done/$total" else "$movieCount filmes"
+    }
+
     private fun openSearch() {
         search.visibility = View.VISIBLE
         search.requestFocus()
@@ -291,20 +364,26 @@ class ChannelListActivity : FragmentActivity() {
         val favs = store.favorites()
         val sec = currentSection
         val sub = currentSub
-        val mode = subMode
         val gen = ++filterGen
+        // Resolve o tipo da subcategoria uma vez (fora do loop).
+        val genreId = com.seupainel.player.meta.VodIndex.GENRE_BY_NAME[sub]
         thread(name = "filter") {
             var result = all.filter { ch ->
                 val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOfChannel(ch) == sec
                 val inSub = when {
-                    sub == null || sub == RECENTES -> true
-                    mode == SubMode.ALPHA -> firstKey(ch.name) == sub
-                    else -> ch.group == sub
+                    sub == null || sub == ALL_SEC || sub == RECENTES -> true
+                    sub == LANCAMENTOS -> (vodIndex.year(ch.name) ?: 0) >= lancCutoff
+                    genreId != null -> vodIndex.genres(ch.name).contains(genreId)
+                    sub.length == 1 -> firstKey(ch.name) == sub          // índice A-Z
+                    else -> ch.group == sub                              // subcategoria real
                 }
                 inSec && inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
             }
-            // "Recentes": últimos adicionados (ordem da lista), proxy de lançamentos.
-            if (sub == RECENTES) result = result.takeLast(200).reversed()
+            // Ordenação por subcategoria.
+            when (sub) {
+                RECENTES -> result = result.takeLast(200).reversed()      // últimos adicionados
+                LANCAMENTOS -> result = result.sortedByDescending { vodIndex.year(it.name) ?: 0 }
+            }
             if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs, sec) }
         }
     }
@@ -416,6 +495,15 @@ class ChannelListActivity : FragmentActivity() {
     private val tmdbExec = java.util.concurrent.Executors.newFixedThreadPool(4)
     private val tmdbKey by lazy { com.seupainel.player.AppSettings(this).tmdbApiKey }
 
+    // Índice de gênero/ano (TMDB) para os filtros de Filmes. Executor próprio
+    // para não travar o enriquecimento dos cartazes (tmdbExec).
+    private val vodIndex by lazy { com.seupainel.player.meta.VodIndex(this) }
+    private val indexMiss = java.util.Collections.synchronizedSet(HashSet<String>())
+    private val indexExec = java.util.concurrent.Executors.newFixedThreadPool(3)
+    @Volatile private var indexing = false
+    @Volatile private var indexGenre = 0     // muda quando as subcategorias de gênero mudam
+    private val lancCutoff = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 2
+
     /** Canal clicado: filme/série abre detalhes; ao vivo toca direto. */
     private fun onChannelClick(ch: M3uParser.Channel) {
         when (secOfChannel(ch)) {
@@ -487,6 +575,8 @@ class ChannelListActivity : FragmentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         tmdbExec.shutdownNow()
+        indexExec.shutdownNow()
+        vodIndex.saveIfDirty()
     }
 
     /** Adapter leve: não recria lista a cada filtro, só troca os dados e recicla as views. */
@@ -664,6 +754,7 @@ class ChannelListActivity : FragmentActivity() {
         const val EXTRA_FORCE_REFRESH = "force_refresh"
         private const val ALL_SEC = "Tudo"
         private const val RECENTES = "Recentes"
+        private const val LANCAMENTOS = "Lançamentos"
         private const val MAX_CHARS = 12_000_000
         private const val UA = "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 Chrome/120 Safari/537.36"
         private val DIRECT_EXT = listOf(".mp4", ".mkv", ".ts", ".avi", ".mov", ".webm", ".mp3", ".aac", ".flac")

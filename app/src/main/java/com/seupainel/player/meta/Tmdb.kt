@@ -32,6 +32,37 @@ object Tmdb {
     /** Dados rápidos para o selo no cartaz (só /search/multi, sem detalhes). */
     data class Quick(val rating: Double, val posterUrl: String?)
 
+    /** Dados para indexar e filtrar VOD: gênero, ano, nota e cartaz, num só request. */
+    data class Cat(
+        val genreIds: List<Int>,
+        val year: Int?,
+        val rating: Double,
+        val posterUrl: String?,
+    )
+
+    /** Uma única chamada /search/multi que devolve gênero + ano + nota + cartaz. */
+    fun categorize(apiKey: String, rawTitle: String): Cat? {
+        if (apiKey.isBlank()) return null
+        val q = cleanTitle(rawTitle).ifBlank { rawTitle }
+        val (code, json) = req(apiKey, "/search/multi", mapOf(
+            "query" to q, "language" to "pt-BR", "include_adult" to "false",
+        ))
+        if (code !in 200..299 || json == null) return null
+        val results = json.optJSONArray("results") ?: return null
+        for (i in 0 until results.length()) {
+            val o = results.getJSONObject(i)
+            val mt = o.optString("media_type")
+            if (mt == "movie" || mt == "tv") {
+                val arr = o.optJSONArray("genre_ids")
+                val ids = if (arr != null) (0 until arr.length()).map { arr.optInt(it) } else emptyList()
+                val date = o.optString(if (mt == "tv") "first_air_date" else "release_date", "")
+                val poster = o.optString("poster_path", "").takeIf { it.isNotBlank() }?.let { IMG + it }
+                return Cat(ids, date.take(4).toIntOrNull(), o.optDouble("vote_average", 0.0), poster)
+            }
+        }
+        return null
+    }
+
     fun quick(apiKey: String, rawTitle: String): Quick? {
         if (apiKey.isBlank()) return null
         val q = cleanTitle(rawTitle).ifBlank { rawTitle }
