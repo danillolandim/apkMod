@@ -82,6 +82,9 @@ class PlaylistStore(context: Context) {
     fun readCache(): String? =
         if (cacheFile.exists() && cacheFile.length() > 0) runCatching { cacheFile.readText() }.getOrNull() else null
 
+    /** Checagem leve (sem ler o arquivo todo) de que existe um cache. */
+    fun hasCache(): Boolean = cacheFile.exists() && cacheFile.length() > 0
+
     fun cacheAgeMs(): Long =
         if (lastRefreshMs > 0) System.currentTimeMillis() - lastRefreshMs else Long.MAX_VALUE
 

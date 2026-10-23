@@ -3,6 +3,10 @@ package com.seupainel.player
 import android.app.Application
 import android.content.Context
 import com.seupainel.player.engine.P2pEngine
+import com.seupainel.player.playlist.M3uParser
+import com.seupainel.player.playlist.PlaylistHolder
+import com.seupainel.player.playlist.PlaylistStore
+import kotlin.concurrent.thread
 
 class App : Application() {
 
@@ -10,6 +14,20 @@ class App : Application() {
         super.onCreate()
         // O motor P2P inicializa sozinho no primeiro start() (P2pEngine.init é
         // preguiçoso) — assim o app abre e toca URL direta mesmo sem config.
+
+        // Pré-carrega a lista do cache assim que o processo sobe, para que abrir
+        // qualquer seção seja instantâneo (não depende do Splash ter rodado).
+        thread(name = "app-preload") {
+            runCatching {
+                if (PlaylistHolder.channels == null) {
+                    val cache = PlaylistStore(this).readCache()
+                    if (cache != null) {
+                        val res = M3uParser.parse(cache)
+                        if (res is M3uParser.Result.Playlist) PlaylistHolder.channels = res.channels
+                    }
+                }
+            }
+        }
     }
 
     companion object {

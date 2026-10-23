@@ -6,7 +6,6 @@ import android.view.View
 import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
 import androidx.fragment.app.FragmentActivity
-import com.seupainel.player.playlist.M3uParser
 import com.seupainel.player.playlist.PlaylistHolder
 import com.seupainel.player.playlist.PlaylistStore
 import kotlin.concurrent.thread
@@ -26,16 +25,13 @@ class SplashActivity : FragmentActivity() {
         if (AppSettings(this).autoUpdate) Updater.check(this, silent = true)
 
         val startAt = System.currentTimeMillis()
-        thread(name = "splash-preload") {
-            runCatching {
-                if (PlaylistHolder.channels == null) {
-                    val cache = PlaylistStore(this).readCache()
-                    if (cache != null) {
-                        val res = M3uParser.parse(cache)
-                        if (res is M3uParser.Result.Playlist) PlaylistHolder.channels = res.channels
-                    }
-                }
-            }
+        val expectCache = PlaylistStore(this).hasCache()
+        thread(name = "splash-wait") {
+            // O App já inicia o parse ao subir o processo; aqui só esperamos ele
+            // terminar (com teto), para que as seções abram instantâneas depois.
+            while (expectCache && PlaylistHolder.channels == null &&
+                System.currentTimeMillis() - startAt < 6000
+            ) runCatching { Thread.sleep(60) }
             // mantém a animação visível por um tempo mínimo agradável
             val elapsed = System.currentTimeMillis() - startAt
             if (elapsed < 900) runCatching { Thread.sleep(900 - elapsed) }
