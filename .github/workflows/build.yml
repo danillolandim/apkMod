@@ -25,13 +25,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
+      # O runner ubuntu-latest já traz o Android SDK (ANDROID_HOME definido,
+      # licenças aceitas). O Android Gradle Plugin baixa platform/build-tools
+      # que faltarem. Não é preciso nenhuma action extra de SDK.
+      - name: Android SDK (pré-instalado no runner)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" 2>/dev/null | head -20
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
