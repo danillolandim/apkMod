@@ -35,7 +35,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-thin"
             android:text="00:00"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/card_text"
             android:textSize="72sp"
             android:shadowColor="#80000000"
             android:shadowDx="0" android:shadowDy="2" android:shadowRadius="8" />
@@ -80,7 +80,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-light"
             android:text="Player Mod"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/card_text"
             android:textSize="34sp" />
 
         <!-- Cartões de ação -->
@@ -101,7 +101,7 @@
                 android:gravity="center"
                 android:fontFamily="sans-serif-medium"
                 android:text="Meus canais"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/card_text"
                 android:textSize="22sp" />
 
             <TextView
@@ -116,7 +116,7 @@
                 android:gravity="center"
                 android:fontFamily="sans-serif-medium"
                 android:text="Configurações"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/card_text"
                 android:textSize="22sp" />
 
             <TextView
@@ -131,7 +131,7 @@
                 android:gravity="center"
                 android:fontFamily="sans-serif-medium"
                 android:text="Testar URL / demos"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/card_text"
                 android:textSize="22sp" />
         </LinearLayout>
     </LinearLayout>

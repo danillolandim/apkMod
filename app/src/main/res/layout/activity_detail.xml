@@ -68,8 +68,8 @@
                 android:paddingRight="48dp"
                 android:paddingTop="16dp"
                 android:paddingBottom="16dp"
+                android:textColor="@color/card_text"
                 android:text="▶  Assistir"
-                android:textColor="#FFFFFF"
                 android:textSize="20sp" />
         </LinearLayout>
     </LinearLayout>
