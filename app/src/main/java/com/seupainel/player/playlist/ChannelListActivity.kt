@@ -271,11 +271,12 @@ class ChannelListActivity : FragmentActivity() {
 
     private val posterAdapter by lazy { PosterAdapter() }
 
-    // Cache de notas TMDB e busca limitada (só itens visíveis, sem repetir).
-    private val ratingCache = java.util.concurrent.ConcurrentHashMap<String, Double>()
-    private val ratingMiss = java.util.Collections.synchronizedSet(HashSet<String>())
+    // Cache TMDB (nota + pôster) e busca limitada (só itens visíveis, sem repetir).
+    private val tmdbCache = java.util.concurrent.ConcurrentHashMap<String, com.seupainel.player.meta.Tmdb.Quick>()
+    private val tmdbMiss = java.util.Collections.synchronizedSet(HashSet<String>())
     private val tmdbExec = java.util.concurrent.Executors.newFixedThreadPool(4)
     private val tmdbKey by lazy { com.seupainel.player.AppSettings(this).tmdbApiKey }
+    private fun currentIsSeries() = currentGroup.uppercase().let { it.contains("SERIE") || it.contains("SÉRIE") }
 
     private inner class PosterAdapter : android.widget.BaseAdapter() {
         private var items: List<M3uParser.Channel> = emptyList()
@@ -289,41 +290,51 @@ class ChannelListActivity : FragmentActivity() {
             v.tag = ch.url
             v.findViewById<TextView>(R.id.poster_title).text = ch.name
             val img = v.findViewById<android.widget.ImageView>(R.id.poster)
+            val badge = v.findViewById<TextView>(R.id.poster_rating)
+            val series = currentIsSeries()
+
+            // Capa da lista como base (fallback). Em séries ela costuma ser um
+            // frame do episódio, então será trocada pelo pôster do TMDB abaixo.
             val logo = ch.logo
             if (logo.isNullOrBlank()) img.setImageDrawable(null)
-            else coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
-                coil.request.ImageRequest.Builder(this@ChannelListActivity)
-                    .data(logo).target(img).crossfade(true).build()
-            )
+            else loadPoster(img, logo)
 
-            // Selo de nota (TMDB) no canto do cartaz — só dos visíveis, com cache.
-            val badge = v.findViewById<TextView>(R.id.poster_rating)
-            bindRating(badge, v, ch)
+            bindTmdb(badge, img, v, ch, series)
             return v
         }
 
-        private fun bindRating(badge: TextView, itemView: View, ch: M3uParser.Channel) {
-            val cached = ratingCache[ch.name]
+        private fun bindTmdb(badge: TextView, img: android.widget.ImageView, itemView: View, ch: M3uParser.Channel, series: Boolean) {
+            val cached = tmdbCache[ch.name]
             if (cached != null) {
-                if (cached > 0) { badge.text = "★ ${"%.1f".format(cached)}"; badge.visibility = View.VISIBLE }
-                else badge.visibility = View.GONE
+                applyTmdb(badge, img, ch, cached, series)
                 return
             }
             badge.visibility = View.GONE
-            if (tmdbKey.isBlank() || ratingMiss.contains(ch.name)) return
-            ratingMiss.add(ch.name) // evita buscas duplicadas
+            if (tmdbKey.isBlank() || tmdbMiss.contains(ch.name)) return
+            tmdbMiss.add(ch.name)
             val key = ch.url
             tmdbExec.execute {
                 val q = runCatching { com.seupainel.player.meta.Tmdb.quick(tmdbKey, ch.name) }.getOrNull()
-                val rating = q?.rating ?: 0.0
-                ratingCache[ch.name] = rating
-                runOnUiThread {
-                    if (itemView.tag == key && rating > 0) {
-                        badge.text = "★ ${"%.1f".format(rating)}"
-                        badge.visibility = View.VISIBLE
-                    }
-                }
+                    ?: com.seupainel.player.meta.Tmdb.Quick(0.0, null)
+                tmdbCache[ch.name] = q
+                runOnUiThread { if (itemView.tag == key) applyTmdb(badge, img, ch, q, series) }
             }
+        }
+
+        private fun applyTmdb(badge: TextView, img: android.widget.ImageView, ch: M3uParser.Channel, q: com.seupainel.player.meta.Tmdb.Quick, series: Boolean) {
+            if (q.rating > 0) { badge.text = "★ ${"%.1f".format(q.rating)}"; badge.visibility = View.VISIBLE }
+            else badge.visibility = View.GONE
+            // Pôster do TMDB: sempre em séries (frame ruim), ou quando a lista não tem capa.
+            if (!q.posterUrl.isNullOrBlank() && (series || ch.logo.isNullOrBlank())) {
+                loadPoster(img, q.posterUrl)
+            }
+        }
+
+        private fun loadPoster(img: android.widget.ImageView, url: String) {
+            coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
+                coil.request.ImageRequest.Builder(this@ChannelListActivity)
+                    .data(url).target(img).crossfade(true).build()
+            )
         }
     }
 
