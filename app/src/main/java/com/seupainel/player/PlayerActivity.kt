@@ -68,6 +68,7 @@ class PlayerActivity : FragmentActivity() {
     private lateinit var chName: TextView
     private lateinit var chEpg: TextView
     private lateinit var chLogo: android.widget.ImageView
+    private lateinit var qualityBtn: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,6 +110,13 @@ class PlayerActivity : FragmentActivity() {
         chName = findViewById(R.id.ch_name)
         chEpg = findViewById(R.id.ch_epg)
         chLogo = findViewById(R.id.ch_logo)
+        qualityBtn = findViewById(R.id.quality_btn)
+        qualityBtn.setOnClickListener { showQualityPopup() }
+        // Mantém a barra do canal aberta enquanto o botão de qualidade tem foco.
+        qualityBtn.setOnFocusChangeListener { _, has ->
+            if (has) ui.removeCallbacks(hideChannelBar)
+            else ui.postDelayed(hideChannelBar, 5_000)
+        }
 
         subs = SubtitleJson.decode(intent.getStringExtra(EXTRA_SUBTITLES_JSON))
             .toExternalList()
@@ -266,10 +274,31 @@ class PlayerActivity : FragmentActivity() {
             )
         }
         chLogo.visibility = if (logoUrl.isBlank()) View.GONE else View.VISIBLE
+        if (variantUrls.size > 1) {
+            qualityBtn.visibility = View.VISIBLE
+            qualityBtn.text = "▾ ${variantLabels.getOrElse(variantIdx) { "" }}"
+        } else qualityBtn.visibility = View.GONE
         channelBar.visibility = View.VISIBLE
         ui.removeCallbacks(hideChannelBar)
         ui.postDelayed(hideChannelBar, 5_000)
         announce(title)
+    }
+
+    /** Menu suspenso compacto de qualidade, ancorado no botão (não cobre a tela). */
+    private fun showQualityPopup() {
+        if (variantUrls.size <= 1) return
+        ui.removeCallbacks(hideChannelBar)
+        val pm = android.widget.PopupMenu(this, qualityBtn)
+        variantLabels.forEachIndexed { i, label ->
+            pm.menu.add(0, i, i, (if (i == variantIdx) "● " else "○ ") + label)
+        }
+        pm.setOnMenuItemClickListener { item ->
+            switchVariant(item.itemId)
+            qualityBtn.text = "▾ ${variantLabels.getOrElse(variantIdx) { "" }}"
+            true
+        }
+        pm.setOnDismissListener { ui.postDelayed(hideChannelBar, 5_000) }
+        pm.show()
     }
 
     /** EPG do canal atual (preenchido quando o EPG estiver ligado — próximo passo). */

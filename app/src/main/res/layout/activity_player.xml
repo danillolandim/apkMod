@@ -80,6 +80,26 @@
                 android:maxLines="2"
                 android:ellipsize="end" />
         </LinearLayout>
+
+        <!-- Botão de qualidade (só no ao vivo com várias qualidades) -->
+        <TextView
+            android:id="@+id/quality_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:paddingLeft="18dp"
+            android:paddingRight="18dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:background="@drawable/card_bg"
+            android:focusable="true"
+            android:clickable="true"
+            android:defaultFocusHighlightEnabled="false"
+            android:fontFamily="sans-serif-medium"
+            android:text="Qualidade"
+            android:textColor="@color/card_text"
+            android:textSize="16sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- HUD de diagnóstico (liga/desliga pelo botão INFO/azul) -->
