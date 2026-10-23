@@ -1,7 +1,8 @@
 # Novidades
 
 ## Esta versão
-- Canais ao vivo juntados por qualidade: "Globo HD/FHD/SD" vira um só; a troca de qualidade fica no player (menu ≡).
+- No player ao vivo, o botão OK abre o menu de opções (qualidade do canal, áudio, legenda), sem depender da tecla ≡.
+- Canais ao vivo juntados por qualidade: "Globo HD/FHD/SD" vira um só; a troca de qualidade fica no player (OK ou ≡).
 - Seleção de categoria instantânea em Filmes e Séries (gênero e lançamentos pré-calculados em 2º plano).
 - "Lançamentos" por ANO de lançamento, do mais novo pro mais antigo — em Filmes e Séries.
 - TV ao vivo agrupada por tema (Esportes, Notícias, Documentários, Infantil…); a lista troca ao mover o foco, sem clicar.

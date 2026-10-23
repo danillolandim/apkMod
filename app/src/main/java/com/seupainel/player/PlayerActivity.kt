@@ -241,7 +241,8 @@ class PlayerActivity : FragmentActivity() {
     private fun showChannelBar() {
         if (inPip) return
         chName.text = title.ifBlank { "Canal" }
-        chEpg.text = epgText.ifBlank { pc.shortQualityLabel() }
+        val hint = if (variantUrls.size > 1) "OK: opções e qualidade" else "OK: opções"
+        chEpg.text = epgText.ifBlank { "${pc.shortQualityLabel()}  •  $hint" }
         if (logoUrl.isNotBlank() && !logoLoaded) {
             logoLoaded = true
             coil.Coil.imageLoader(this).enqueue(
@@ -361,9 +362,13 @@ class PlayerActivity : FragmentActivity() {
             KeyEvent.KEYCODE_DPAD_RIGHT -> if (!controllerVisible) { seekBy(+10_000); true } else super.onKeyDown(keyCode, event)
             KeyEvent.KEYCODE_DPAD_LEFT -> if (!controllerVisible) { seekBy(-10_000); true } else super.onKeyDown(keyCode, event)
 
-            // OK mostra/esconde controles
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER ->
-                if (!controllerVisible) { playerView.showController(); true } else super.onKeyDown(keyCode, event)
+            // OK: ao vivo abre o menu de opções (qualidade/áudio/legenda);
+            // VOD mostra/esconde os controles de avançar/retroceder.
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
+                isLive -> { showMenu(); true }
+                !controllerVisible -> { playerView.showController(); true }
+                else -> super.onKeyDown(keyCode, event)
+            }
 
             // BACK: fecha controles antes de sair
             KeyEvent.KEYCODE_BACK -> if (controllerVisible) { playerView.hideController(); true } else super.onKeyDown(keyCode, event)
