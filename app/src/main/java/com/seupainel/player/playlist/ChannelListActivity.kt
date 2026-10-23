@@ -46,6 +46,7 @@ class ChannelListActivity : FragmentActivity() {
     private var currentSub: String? = null                  // null = tudo da seção
     private var canaisDerived = false                       // canais agrupados por tema (do nome)
     @Volatile private var secLists: Map<Sec, List<M3uParser.Channel>>? = null  // partição por seção
+    @Volatile private var liveVariants: Map<String, List<M3uParser.Channel>> = emptyMap()  // canal -> qualidades
     private var shown: List<M3uParser.Channel> = emptyList()
 
     private fun secOf(group: String): Sec {
@@ -498,6 +499,8 @@ class ChannelListActivity : FragmentActivity() {
                 NOVIDADES -> result = result.sortedByDescending { newItems.firstSeen(it.url) }
                 LANCAMENTOS -> result = result.sortedByDescending { vodIndex.year(it.name) ?: 0 }
             }
+            // Canais ao vivo: junta HD/FHD/SD do mesmo canal num item só.
+            if (sec == Sec.CANAIS) result = collapseLive(result)
             if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs, sec) }
         }
     }
@@ -640,7 +643,7 @@ class ChannelListActivity : FragmentActivity() {
     private fun onChannelClick(ch: M3uParser.Channel) {
         when (secOfChannel(ch)) {
             Sec.FILMES, Sec.SERIES -> openDetail(ch)
-            else -> play(ch)
+            else -> playLive(ch)
         }
     }
 
@@ -764,6 +767,41 @@ class ChannelListActivity : FragmentActivity() {
             putExtra(com.seupainel.player.DetailActivity.EXTRA_LOGO, ch.logo ?: "")
             putExtra(com.seupainel.player.DetailActivity.EXTRA_IS_LIVE, ch.isLive)
             putExtra(com.seupainel.player.DetailActivity.EXTRA_IS_SERIES, isSeries)
+        })
+    }
+
+    /** Junta variações de qualidade do mesmo canal; guarda as variações p/ o player. */
+    private fun collapseLive(list: List<M3uParser.Channel>): List<M3uParser.Channel> {
+        val groups = LinkedHashMap<String, MutableList<M3uParser.Channel>>()
+        for (ch in list) groups.getOrPut(ChannelQuality.baseName(ch.name).lowercase()) { ArrayList() }.add(ch)
+        val reps = ArrayList<M3uParser.Channel>(groups.size)
+        val vmap = HashMap<String, List<M3uParser.Channel>>(groups.size)
+        for (variants in groups.values) {
+            val sorted = variants.sortedByDescending { ChannelQuality.rank(it.name) }
+            val best = sorted.first()
+            val baseName = ChannelQuality.baseName(best.name)
+            reps.add(best.copy(name = baseName))
+            vmap[baseName] = sorted
+        }
+        liveVariants = vmap
+        return reps
+    }
+
+    /** Toca um canal ao vivo; se tiver várias qualidades, leva todas ao player. */
+    private fun playLive(ch: M3uParser.Channel) {
+        val variants = liveVariants[ch.name]
+        if (variants == null || variants.size <= 1) { play(ch); return }
+        val best = variants.first()
+        startActivity(Intent(this, PlayerActivity::class.java).apply {
+            putExtra(PlayerActivity.EXTRA_DIRECT_URL, best.url)
+            putExtra(PlayerActivity.EXTRA_IS_LIVE, best.isLive)
+            putExtra(PlayerActivity.EXTRA_TITLE, ch.name)
+            putExtra(PlayerActivity.EXTRA_LOGO, ch.logo ?: "")
+            best.userAgent?.let { putExtra(PlayerActivity.EXTRA_USER_AGENT, it) }
+            best.referer?.let { putExtra(PlayerActivity.EXTRA_REFERER, it) }
+            putStringArrayListExtra(PlayerActivity.EXTRA_VARIANT_URLS, ArrayList(variants.map { it.url }))
+            putStringArrayListExtra(PlayerActivity.EXTRA_VARIANT_LABELS,
+                ArrayList(variants.map { ChannelQuality.labelOf(it.name) }))
         })
     }
 

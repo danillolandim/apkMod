@@ -54,6 +54,9 @@ class PlayerActivity : FragmentActivity() {
     private var isLive = false
 
     private var directUrl: String = ""
+    private var variantUrls: List<String> = emptyList()
+    private var variantLabels: List<String> = emptyList()
+    private var variantIdx: Int = 0
     private lateinit var address: String
     private var addressBackup: String = ""
     private var subs: List<PlayerController.ExternalSubtitle> = emptyList()
@@ -84,6 +87,9 @@ class PlayerActivity : FragmentActivity() {
         engine = App.engine(this)
 
         directUrl = intent.getStringExtra(EXTRA_DIRECT_URL).orEmpty()
+        variantUrls = intent.getStringArrayListExtra(EXTRA_VARIANT_URLS) ?: emptyList()
+        variantLabels = intent.getStringArrayListExtra(EXTRA_VARIANT_LABELS) ?: emptyList()
+        variantIdx = variantUrls.indexOf(directUrl).coerceAtLeast(0)
         address = intent.getStringExtra(EXTRA_P2P_ADDRESS).orEmpty()
         addressBackup = intent.getStringExtra(EXTRA_P2P_BACKUP).orEmpty()
         resumeKey = directUrl.ifBlank { address }
@@ -387,6 +393,14 @@ class PlayerActivity : FragmentActivity() {
         val text = pc.textTracks()
         val options = ArrayList<Pair<String, () -> Unit>>()
 
+        // Qualidade do canal ao vivo (streams HD/FHD/SD diferentes).
+        if (variantUrls.size > 1) {
+            variantUrls.indices.forEach { i ->
+                val label = variantLabels.getOrElse(i) { "Opção ${i + 1}" }
+                options += ("${mark(i == variantIdx)}Qualidade do canal: $label") to { switchVariant(i) }
+            }
+        }
+
         if (video.size > 1) {
             options += "Qualidade: Automática" to { pc.setAutoQuality(); showBadge("Qualidade automática", true) }
             video.sortedByDescending { it.label }.forEach { t ->
@@ -437,6 +451,16 @@ class PlayerActivity : FragmentActivity() {
             }.show()
     }
 
+    /** Troca para outro stream de qualidade do mesmo canal ao vivo. */
+    private fun switchVariant(i: Int) {
+        if (i !in variantUrls.indices || i == variantIdx) return
+        variantIdx = i
+        directUrl = variantUrls[i]
+        retries = 0
+        showBadge("Qualidade: ${variantLabels.getOrElse(i) { "" }}", announce = true)
+        pc.play(directUrl, subtitles = subs, startPositionMs = 0)
+    }
+
     private fun mark(selected: Boolean) = if (selected) "● " else "○ "
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
 
@@ -464,6 +488,8 @@ class PlayerActivity : FragmentActivity() {
         const val EXTRA_P2P_BACKUP = "p2p_backup"
         const val EXTRA_IS_LIVE = "is_live"
         const val EXTRA_SUBTITLES_JSON = "subtitles_json"
+        const val EXTRA_VARIANT_URLS = "variant_urls"
+        const val EXTRA_VARIANT_LABELS = "variant_labels"
         const val EXTRA_SUB_URL = "sub_url"
         const val EXTRA_SUB_LABEL = "sub_label"
         const val EXTRA_SUB_LANG = "sub_lang"
