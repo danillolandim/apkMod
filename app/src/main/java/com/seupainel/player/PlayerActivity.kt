@@ -107,11 +107,15 @@ class PlayerActivity : FragmentActivity() {
 
     private fun startEngine(addr: String) {
         engine.start(addr, object : P2pEngine.Callback {
-            override fun onReady(urls: P2pEngine.PlaybackUrls) = ui.post {
-                val url = urls.hls ?: urls.http ?: return@post
-                pc.play(url, subtitles = subs, startPositionMs = startMs)
+            override fun onReady(urls: P2pEngine.PlaybackUrls) {
+                ui.post {
+                    val url = urls.hls ?: urls.http ?: return@post
+                    pc.play(url, subtitles = subs, startPositionMs = startMs)
+                }
             }
-            override fun onError(message: String) = ui.post { recover("engine: $message") }
+            override fun onError(message: String) {
+                ui.post { recover("engine: $message") }
+            }
         })
     }
 
