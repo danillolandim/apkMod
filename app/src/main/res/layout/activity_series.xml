@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0E14"
+    android:orientation="horizontal"
+    android:padding="48dp">
+
+    <LinearLayout
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/s_poster"
+            android:layout_width="match_parent"
+            android:layout_height="440dp"
+            android:background="#111823"
+            android:scaleType="centerCrop"
+            android:contentDescription="Cartaz" />
+
+        <TextView
+            android:id="@+id/s_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textColor="#FFC24B"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginStart="36dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/s_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="#FFFFFF"
+            android:textSize="30sp"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/s_overview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textColor="#C9D2DC"
+            android:textSize="15sp"
+            android:maxLines="4"
+            android:ellipsize="end"
+            android:lineSpacingExtra="3dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="Temporada"
+            android:textColor="#64D2FF"
+            android:textSize="15sp" />
+
+        <Spinner
+            android:id="@+id/s_season"
+            android:layout_width="240dp"
+            android:layout_height="wrap_content" />
+
+        <ListView
+            android:id="@+id/s_episodes"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="12dp"
+            android:background="#121A26" />
+    </LinearLayout>
+</LinearLayout>

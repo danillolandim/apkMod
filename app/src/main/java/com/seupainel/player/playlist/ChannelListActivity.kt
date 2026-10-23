@@ -54,8 +54,13 @@ class ChannelListActivity : FragmentActivity() {
         groupsView.setOnItemClickListener { _, _, pos, _ -> selectGroup(groups[pos]) }
         channelsView.setOnItemClickListener { _, _, pos, _ -> play(shown[pos]) }
         channelsView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
-        gridView.setOnItemClickListener { _, _, pos, _ -> openDetail(shown[pos]) }
-        gridView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
+        gridView.setOnItemClickListener { _, _, pos, _ ->
+            if (seriesMode) shownSeries.getOrNull(pos)?.let { openSeries(it) }
+            else shown.getOrNull(pos)?.let { openDetail(it) }
+        }
+        gridView.setOnItemLongClickListener { _, _, pos, _ ->
+            if (!seriesMode) shown.getOrNull(pos)?.let { toggleFav(it) }; true
+        }
         search.setOnEditorActionListener { _, _, _ -> applyFilter(); true }
 
         val fromSettings = intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)
@@ -233,12 +238,19 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
+    @Volatile private var seriesMode = false
+
     private fun publish(list: List<M3uParser.Channel>, favs: Set<String>) {
         shown = list
         findViewById<View>(R.id.empty).visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
 
-        // Grade de pôsteres para categorias de filmes/séries (ou quando forçado);
-        // lista para canais ao vivo.
+        // Séries: agrupa episódios em séries (uma por cartaz).
+        if (currentIsSeries() && gridForced != false && list.isNotEmpty()) {
+            publishSeries(list); return
+        }
+        seriesMode = false
+
+        // Grade de pôsteres para filmes (ou forçado); lista para canais ao vivo.
         val useGrid = gridForced ?: isVodCategory(currentGroup, list)
         if (useGrid) {
             channelsView.visibility = View.GONE
@@ -252,6 +264,80 @@ class ChannelListActivity : FragmentActivity() {
             if (channelsView.adapter !== channelAdapter) channelsView.adapter = channelAdapter
             channelAdapter.submit(list, favs)
             channelsView.setSelectionAfterHeaderView()
+        }
+    }
+
+    private var shownSeries: List<SeriesGrouper.Series> = emptyList()
+    private val seriesAdapter by lazy { SeriesAdapter() }
+
+    private fun publishSeries(list: List<M3uParser.Channel>) {
+        val gen = filterGen
+        thread(name = "series-group") {
+            val series = SeriesGrouper.group(list)
+            if (gen != filterGen) return@thread
+            runOnUiThread {
+                if (gen != filterGen) return@runOnUiThread
+                seriesMode = true
+                shownSeries = series
+                channelsView.visibility = View.GONE
+                gridView.visibility = View.VISIBLE
+                if (gridView.adapter !== seriesAdapter) gridView.adapter = seriesAdapter
+                seriesAdapter.submit(series)
+                gridView.setSelection(0)
+                status.text = "${series.size} séries"
+            }
+        }
+    }
+
+    private fun openSeries(s: SeriesGrouper.Series) {
+        startActivity(Intent(this, com.seupainel.player.SeriesActivity::class.java).apply {
+            putExtra(com.seupainel.player.SeriesActivity.EXTRA_TITLE, s.title)
+            putExtra(com.seupainel.player.SeriesActivity.EXTRA_LOGO, s.logo ?: "")
+            putExtra(com.seupainel.player.SeriesActivity.EXTRA_EPISODES,
+                com.seupainel.player.SeriesActivity.episodesToJson(s.episodes))
+        })
+    }
+
+    private inner class SeriesAdapter : android.widget.BaseAdapter() {
+        private var items: List<SeriesGrouper.Series> = emptyList()
+        fun submit(list: List<SeriesGrouper.Series>) { items = list; notifyDataSetChanged() }
+        override fun getCount() = items.size
+        override fun getItem(position: Int) = items[position]
+        override fun getItemId(position: Int) = position.toLong()
+        override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
+            val v = convertView ?: layoutInflater.inflate(R.layout.item_poster, parent, false)
+            val s = items[position]
+            v.tag = s.title
+            v.findViewById<TextView>(R.id.poster_title).text = s.title
+            val img = v.findViewById<android.widget.ImageView>(R.id.poster)
+            val badge = v.findViewById<TextView>(R.id.poster_rating)
+            if (s.logo.isNullOrBlank()) img.setImageDrawable(null) else loadImg(img, s.logo)
+            // TMDB: pôster real da série + nota
+            val cached = tmdbCache[s.title]
+            if (cached != null) applySeries(badge, img, cached)
+            else {
+                badge.visibility = View.GONE
+                if (tmdbKey.isNotBlank() && !tmdbMiss.contains(s.title)) {
+                    tmdbMiss.add(s.title)
+                    val key = s.title
+                    tmdbExec.execute {
+                        val q = runCatching { com.seupainel.player.meta.Tmdb.quick(tmdbKey, s.title) }.getOrNull()
+                            ?: com.seupainel.player.meta.Tmdb.Quick(0.0, null)
+                        tmdbCache[s.title] = q
+                        runOnUiThread { if (v.tag == key) applySeries(badge, img, q) }
+                    }
+                }
+            }
+            return v
+        }
+        private fun applySeries(badge: TextView, img: android.widget.ImageView, q: com.seupainel.player.meta.Tmdb.Quick) {
+            if (q.rating > 0) { badge.text = "★ ${"%.1f".format(q.rating)}"; badge.visibility = View.VISIBLE }
+            else badge.visibility = View.GONE
+            if (!q.posterUrl.isNullOrBlank()) loadImg(img, q.posterUrl)
+        }
+        private fun loadImg(img: android.widget.ImageView, url: String) {
+            coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
+                coil.request.ImageRequest.Builder(this@ChannelListActivity).data(url).target(img).crossfade(true).build())
         }
     }
 

@@ -1,12 +1,13 @@
 # Novidades
 
 ## Esta versão
-- Tela de detalhes estilo IMDb: pôster, nota e sinopse (via TMDB) antes de assistir.
-- Pop-up de atualização com resumo das melhorias.
-- Busca de capa na web quando a lista não traz pôster.
+- Séries agrupadas: uma série por cartaz, com temporadas e lista de episódios.
+- Pôster correto das séries via TMDB (em vez do frame do episódio).
+- Nota do TMDB no canto do cartaz (filmes e séries).
+- Estética Apple TV: foco branco, sem círculo nem zoom estourando.
 
 ## Anteriores
-- Atualização dentro do app (sem Downloader).
-- Papéis de parede (temas + imagem personalizada) e foco dos botões melhorado.
-- Filmes e séries com cartazes em grade; cache instantâneo; listas enormes sem travar.
-- Player: legendas externas, troca de áudio, qualidade, PiP, HUD, retry com backup.
+- Tela de detalhes (pôster, nota e sinopse) antes de assistir.
+- Atualização dentro do app (sem Downloader) com resumo de novidades.
+- Papel de parede nativo (Emerald Bay) + temas; cache instantâneo.
+- Player: legendas, troca de áudio, qualidade, PiP, barra de canal.
