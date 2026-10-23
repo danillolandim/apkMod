@@ -27,8 +27,12 @@ class VodIndex(context: Context) {
 
     init { load() }
 
-    private fun keyOf(title: String) =
+    // Memoiza a limpeza de título (regex caro) — o mesmo nome é consultado
+    // muitas vezes a cada filtro, então cacheamos a chave.
+    private val keyCache = ConcurrentHashMap<String, String>()
+    private fun keyOf(title: String) = keyCache.getOrPut(title) {
         Tmdb.cleanTitle(title).lowercase().ifBlank { title.lowercase() }
+    }
 
     /** Chave normalizada do título (pública, para deduplicar episódios). */
     fun keyFor(title: String) = keyOf(title)
