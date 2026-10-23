@@ -73,7 +73,10 @@ class SeriesActivity : FragmentActivity() {
                 when (r) {
                     is Tmdb.Res.Ok -> {
                         val m = r.meta
-                        if (!m.posterUrl.isNullOrBlank()) loadImage(poster, m.posterUrl)
+                        if (!m.posterUrl.isNullOrBlank()) {
+                            loadImage(poster, m.posterUrl)
+                            com.seupainel.player.meta.PosterCache.put(title, m.posterUrl)
+                        }
                         val stars = if (m.rating > 0) "★ ${"%.1f".format(m.rating)}/10" else ""
                         meta.text = listOfNotNull(stars.ifBlank { null }, m.year).joinToString("   •   ")
                         overview.text = m.overview ?: "Sinopse indisponível."

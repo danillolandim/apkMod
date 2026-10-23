@@ -457,6 +457,7 @@ class ChannelListActivity : FragmentActivity() {
                         is com.seupainel.player.meta.Tmdb.CatRes.Found -> {
                             vodIndex.put(ch.name, r.cat.genreIds, r.cat.year)
                             tmdbCache[ch.name] = com.seupainel.player.meta.Tmdb.Quick(r.cat.rating, r.cat.posterUrl)
+                            com.seupainel.player.meta.PosterCache.put(ch.name, r.cat.posterUrl)
                         }
                         com.seupainel.player.meta.Tmdb.CatRes.NotFound ->
                             vodIndex.put(ch.name, emptyList(), null)   // não existe: guarda de vez
@@ -611,10 +612,16 @@ class ChannelListActivity : FragmentActivity() {
             v.findViewById<TextView>(R.id.poster_title).text = s.title
             val img = v.findViewById<android.widget.ImageView>(R.id.poster)
             val badge = v.findViewById<TextView>(R.id.poster_rating)
-            if (s.logo.isNullOrBlank()) img.setImageDrawable(null) else loadImg(img, s.logo)
+            // Cartaz: usa o do TMDB (mesmo do detalhe) quando já conhecido.
+            val known = com.seupainel.player.meta.PosterCache.get(s.title)
+            when {
+                !known.isNullOrBlank() -> loadImg(img, known)
+                !s.logo.isNullOrBlank() -> loadImg(img, s.logo)
+                else -> img.setImageDrawable(null)
+            }
             // TMDB: pôster real da série + nota
             val cached = tmdbCache[s.title]
-            if (cached != null) applySeries(badge, img, cached)
+            if (cached != null) applySeries(badge, img, cached, s.title)
             else {
                 badge.visibility = View.GONE
                 if (tmdbKey.isNotBlank() && !tmdbMiss.contains(s.title)) {
@@ -624,16 +631,18 @@ class ChannelListActivity : FragmentActivity() {
                         val q = runCatching { com.seupainel.player.meta.Tmdb.quick(tmdbKey, s.title) }.getOrNull()
                             ?: com.seupainel.player.meta.Tmdb.Quick(0.0, null)
                         tmdbCache[s.title] = q
-                        runOnUiThread { if (v.tag == key) applySeries(badge, img, q) }
+                        com.seupainel.player.meta.PosterCache.put(s.title, q.posterUrl)
+                        runOnUiThread { if (v.tag == key) applySeries(badge, img, q, s.title) }
                     }
                 }
             }
             return v
         }
-        private fun applySeries(badge: TextView, img: android.widget.ImageView, q: com.seupainel.player.meta.Tmdb.Quick) {
+        private fun applySeries(badge: TextView, img: android.widget.ImageView, q: com.seupainel.player.meta.Tmdb.Quick, title: String) {
             if (q.rating > 0) { badge.text = "★ ${"%.1f".format(q.rating)}"; badge.visibility = View.VISIBLE }
             else badge.visibility = View.GONE
-            if (!q.posterUrl.isNullOrBlank()) loadImg(img, q.posterUrl)
+            val poster = com.seupainel.player.meta.PosterCache.get(title) ?: q.posterUrl
+            if (!poster.isNullOrBlank()) loadImg(img, poster)
         }
         private fun loadImg(img: android.widget.ImageView, url: String) {
             coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
@@ -721,6 +730,7 @@ class ChannelListActivity : FragmentActivity() {
                 val q = runCatching { com.seupainel.player.meta.Tmdb.quick(tmdbKey, ch.name) }.getOrNull()
                     ?: com.seupainel.player.meta.Tmdb.Quick(0.0, null)
                 tmdbCache[ch.name] = q
+                com.seupainel.player.meta.PosterCache.put(ch.name, q.posterUrl)
                 runOnUiThread { if (itemView.tag == key) applyTmdb(badge, img, ch, q, series) }
             }
         }
@@ -731,7 +741,8 @@ class ChannelListActivity : FragmentActivity() {
             // Sempre preferir o pôster do TMDB (mesmo que a tela de detalhes),
             // porque a capa da lista costuma estar trocada/antiga. Se o TMDB não
             // tiver pôster, fica a capa da lista já carregada como fallback.
-            if (!q.posterUrl.isNullOrBlank()) loadPoster(img, q.posterUrl)
+            val poster = com.seupainel.player.meta.PosterCache.get(ch.name) ?: q.posterUrl
+            if (!poster.isNullOrBlank()) loadPoster(img, poster)
         }
 
         private fun loadPoster(img: android.widget.ImageView, url: String) {
