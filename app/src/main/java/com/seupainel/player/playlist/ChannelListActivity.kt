@@ -271,6 +271,12 @@ class ChannelListActivity : FragmentActivity() {
 
     private val posterAdapter by lazy { PosterAdapter() }
 
+    // Cache de notas TMDB e busca limitada (só itens visíveis, sem repetir).
+    private val ratingCache = java.util.concurrent.ConcurrentHashMap<String, Double>()
+    private val ratingMiss = java.util.Collections.synchronizedSet(HashSet<String>())
+    private val tmdbExec = java.util.concurrent.Executors.newFixedThreadPool(4)
+    private val tmdbKey by lazy { com.seupainel.player.AppSettings(this).tmdbApiKey }
+
     private inner class PosterAdapter : android.widget.BaseAdapter() {
         private var items: List<M3uParser.Channel> = emptyList()
         fun submit(list: List<M3uParser.Channel>) { items = list; notifyDataSetChanged() }
@@ -280,20 +286,50 @@ class ChannelListActivity : FragmentActivity() {
         override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
             val v = convertView ?: layoutInflater.inflate(R.layout.item_poster, parent, false)
             val ch = items[position]
+            v.tag = ch.url
             v.findViewById<TextView>(R.id.poster_title).text = ch.name
             val img = v.findViewById<android.widget.ImageView>(R.id.poster)
             val logo = ch.logo
-            if (logo.isNullOrBlank()) {
-                img.setImageDrawable(null)
-            } else {
-                coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
-                    coil.request.ImageRequest.Builder(this@ChannelListActivity)
-                        .data(logo).target(img).crossfade(true).build()
-                )
-            }
-            // Item não é focável: o clique vem do onItemClick do GridView.
+            if (logo.isNullOrBlank()) img.setImageDrawable(null)
+            else coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
+                coil.request.ImageRequest.Builder(this@ChannelListActivity)
+                    .data(logo).target(img).crossfade(true).build()
+            )
+
+            // Selo de nota (TMDB) no canto do cartaz — só dos visíveis, com cache.
+            val badge = v.findViewById<TextView>(R.id.poster_rating)
+            bindRating(badge, v, ch)
             return v
         }
+
+        private fun bindRating(badge: TextView, itemView: View, ch: M3uParser.Channel) {
+            val cached = ratingCache[ch.name]
+            if (cached != null) {
+                if (cached > 0) { badge.text = "★ ${"%.1f".format(cached)}"; badge.visibility = View.VISIBLE }
+                else badge.visibility = View.GONE
+                return
+            }
+            badge.visibility = View.GONE
+            if (tmdbKey.isBlank() || ratingMiss.contains(ch.name)) return
+            ratingMiss.add(ch.name) // evita buscas duplicadas
+            val key = ch.url
+            tmdbExec.execute {
+                val q = runCatching { com.seupainel.player.meta.Tmdb.quick(tmdbKey, ch.name) }.getOrNull()
+                val rating = q?.rating ?: 0.0
+                ratingCache[ch.name] = rating
+                runOnUiThread {
+                    if (itemView.tag == key && rating > 0) {
+                        badge.text = "★ ${"%.1f".format(rating)}"
+                        badge.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        tmdbExec.shutdownNow()
     }
 
     /** Adapter leve: não recria lista a cada filtro, só troca os dados e recicla as views. */

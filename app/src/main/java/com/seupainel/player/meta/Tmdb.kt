@@ -29,6 +29,28 @@ object Tmdb {
         data class Err(val msg: String) : Res()
     }
 
+    /** Dados rápidos para o selo no cartaz (só /search/multi, sem detalhes). */
+    data class Quick(val rating: Double, val posterUrl: String?)
+
+    fun quick(apiKey: String, rawTitle: String): Quick? {
+        if (apiKey.isBlank()) return null
+        val q = cleanTitle(rawTitle).ifBlank { rawTitle }
+        val (code, json) = req(apiKey, "/search/multi", mapOf(
+            "query" to q, "language" to "pt-BR", "include_adult" to "false",
+        ))
+        if (code !in 200..299 || json == null) return null
+        val results = json.optJSONArray("results") ?: return null
+        for (i in 0 until results.length()) {
+            val o = results.getJSONObject(i)
+            val mt = o.optString("media_type")
+            if (mt == "movie" || mt == "tv") {
+                val poster = o.optString("poster_path", "").takeIf { it.isNotBlank() }?.let { IMG + it }
+                return Quick(o.optDouble("vote_average", 0.0), poster)
+            }
+        }
+        return null
+    }
+
     private const val IMG = "https://image.tmdb.org/t/p/w500"
 
     fun cleanTitle(raw: String): String {

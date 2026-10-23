@@ -5,13 +5,34 @@
     android:orientation="vertical"
     android:padding="6dp">
 
-    <ImageView
-        android:id="@+id/poster"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="230dp"
-        android:scaleType="centerCrop"
-        android:background="#0E141B"
-        android:contentDescription="Cartaz" />
+        android:layout_height="230dp">
+
+        <ImageView
+            android:id="@+id/poster"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:background="#0E141B"
+            android:contentDescription="Cartaz" />
+
+        <TextView
+            android:id="@+id/poster_rating"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:paddingLeft="7dp"
+            android:paddingRight="7dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/rating_bg"
+            android:textColor="#FFD200"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/poster_title"
