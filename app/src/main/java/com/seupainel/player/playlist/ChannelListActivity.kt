@@ -192,23 +192,38 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun selectGroup(g: String) { currentGroup = g; applyFilter() }
 
+    @Volatile private var filterGen = 0
+
     private fun applyFilter() {
         val q = search.text.toString().trim().lowercase()
         val favs = store.favorites()
-        // Sem filtro ("Todos" + busca vazia): reaproveita a lista, sem copiar.
-        shown = if (currentGroup == ALL && q.isEmpty()) all
-        else all.filter { ch ->
-            val inGroup = when (currentGroup) {
-                ALL -> true
-                FAV -> favs.contains(ch.url)
-                else -> ch.group == currentGroup
-            }
-            inGroup && (q.isEmpty() || ch.name.lowercase().contains(q))
+        val group = currentGroup
+        val gen = ++filterGen
+
+        // Sem filtro ("Todos" + busca vazia): aplica na hora, sem thread.
+        if (group == ALL && q.isEmpty()) {
+            publish(all, favs); return
         }
+        // Filtro de 47k itens fora da UI para não travar.
+        thread(name = "filter") {
+            val result = all.filter { ch ->
+                val inGroup = when (group) {
+                    ALL -> true
+                    FAV -> favs.contains(ch.url)
+                    else -> ch.group == group
+                }
+                inGroup && (q.isEmpty() || ch.name.lowercase().contains(q))
+            }
+            if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs) }
+        }
+    }
+
+    private fun publish(list: List<M3uParser.Channel>, favs: Set<String>) {
+        shown = list
         if (channelsView.adapter !== channelAdapter) channelsView.adapter = channelAdapter
-        channelAdapter.submit(shown, favs)
+        channelAdapter.submit(list, favs)
         channelsView.setSelectionAfterHeaderView()
-        findViewById<View>(R.id.empty).visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.empty).visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
     }
 
     /** Adapter leve: não recria lista a cada filtro, só troca os dados e recicla as views. */
