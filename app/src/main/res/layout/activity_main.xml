@@ -98,6 +98,13 @@
                 android:text="Carregar lista M3U" />
 
             <Button
+                android:id="@+id/btn_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Configurações" />
+
+            <Button
                 android:id="@+id/btn_play_p2p"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

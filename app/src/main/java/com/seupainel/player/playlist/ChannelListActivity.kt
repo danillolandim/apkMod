@@ -49,19 +49,70 @@ class ChannelListActivity : FragmentActivity() {
         search = findViewById(R.id.search)
         store = PlaylistStore(this)
 
-        val url = intent.getStringExtra(EXTRA_URL).orEmpty().trim()
-        if (url.isBlank()) { finish(); return }
-
         groupsView.setOnItemClickListener { _, _, pos, _ -> selectGroup(groups[pos]) }
         channelsView.setOnItemClickListener { _, _, pos, _ -> play(shown[pos]) }
         channelsView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
         search.setOnEditorActionListener { _, _, _ -> applyFilter(); channelsView.requestFocus(); true }
 
+        val fromSettings = intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)
+        val force = intent.getBooleanExtra(EXTRA_FORCE_REFRESH, false)
+
+        // 1) Cache: se veio das configurações e o cache está fresco, abre na hora.
+        if (fromSettings && !force && store.cacheFresh()) {
+            store.readCache()?.let { cached ->
+                when (val res = M3uParser.parse(cached)) {
+                    is M3uParser.Result.Playlist -> { show(res.channels); status.text = "${res.channels.size} canais (cache)"; return }
+                    else -> { /* cache inválido, segue para a rede */ }
+                }
+            }
+        }
+
         status.text = "Carregando…"
-        load(url)
+        if (fromSettings) resolveAndLoad() else {
+            val url = intent.getStringExtra(EXTRA_URL).orEmpty().trim()
+            if (url.isBlank()) { finish(); return }
+            load(url, cacheIt = false)
+        }
     }
 
-    private fun load(url: String) {
+    /** Resolve a URL da lista a partir das configurações (config URL -> lista). */
+    private fun resolveAndLoad() {
+        thread(name = "playlist-resolve") {
+            val configUrl = store.configUrl
+            val resolved = if (!configUrl.isNullOrBlank()) {
+                runCatching { fetchText(configUrl).lineSequence()
+                    .map { it.trim() }
+                    .firstOrNull { it.startsWith("http", true) } }
+                    .getOrNull() ?: store.playlistUrl
+            } else store.playlistUrl
+            if (resolved.isNullOrBlank()) {
+                runOnUiThread { status.text = "Configure a URL da lista nas Configurações." }
+                return@thread
+            }
+            load(resolved, cacheIt = true)
+        }
+    }
+
+    private fun fetchText(url: String): String {
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 20_000; readTimeout = 30_000
+            instanceFollowRedirects = true
+            setRequestProperty("User-Agent", store.userAgent?.ifBlank { null } ?: UA)
+            setRequestProperty("Accept-Encoding", "gzip")
+        }
+        val raw = if (conn.contentEncoding?.contains("gzip", true) == true)
+            GZIPInputStream(conn.inputStream) else conn.inputStream
+        return BufferedReader(InputStreamReader(raw, Charsets.UTF_8)).use { r ->
+            val sb = StringBuilder(); val buf = CharArray(8192); var n: Int; var total = 0
+            while (r.read(buf).also { n = it } > 0) {
+                sb.appendRange(buf, 0, n); total += n
+                if (total > MAX_CHARS) break
+            }
+            conn.disconnect(); sb.toString()
+        }
+    }
+
+    private fun load(url: String, cacheIt: Boolean) {
         thread(name = "playlist-load") {
             try {
                 val lower = url.substringBefore('?').lowercase()
@@ -72,7 +123,7 @@ class ChannelListActivity : FragmentActivity() {
                 val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 20_000; readTimeout = 30_000
                     instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", UA)
+                    setRequestProperty("User-Agent", store.userAgent?.ifBlank { null } ?: UA)
                     setRequestProperty("Accept-Encoding", "gzip")
                 }
                 val code = conn.responseCode
@@ -106,9 +157,10 @@ class ChannelListActivity : FragmentActivity() {
                     is M3uParser.Result.Empty -> runOnUiThread {
                         status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)."
                     }
-                    is M3uParser.Result.Playlist -> runOnUiThread {
+                    is M3uParser.Result.Playlist -> {
                         store.lastUrl = url
-                        show(res.channels)
+                        if (cacheIt) store.writeCache(text)
+                        runOnUiThread { show(res.channels) }
                     }
                 }
             } catch (e: Exception) {
@@ -176,15 +228,26 @@ class ChannelListActivity : FragmentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_PROG_RED) {
-            val pos = channelsView.selectedItemPosition
-            if (pos in shown.indices) { toggleFav(shown[pos]); return true }
+        when (keyCode) {
+            KeyEvent.KEYCODE_PROG_RED -> {
+                val pos = channelsView.selectedItemPosition
+                if (pos in shown.indices) { toggleFav(shown[pos]); return true }
+            }
+            KeyEvent.KEYCODE_PROG_GREEN, KeyEvent.KEYCODE_MENU -> {
+                // Atualizar agora (ignora cache)
+                status.text = "Atualizando…"
+                if (intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)) resolveAndLoad()
+                else load(intent.getStringExtra(EXTRA_URL).orEmpty().trim(), cacheIt = false)
+                return true
+            }
         }
         return super.onKeyDown(keyCode, event)
     }
 
     companion object {
         const val EXTRA_URL = "url"
+        const val EXTRA_FROM_SETTINGS = "from_settings"
+        const val EXTRA_FORCE_REFRESH = "force_refresh"
         private const val ALL = "Todos"
         private const val FAV = "★ Favoritos"
         private const val MAX_CHARS = 12_000_000

@@ -99,9 +99,27 @@ class MainActivity : FragmentActivity() {
             )
         }
 
+        findViewById<Button>(R.id.btn_settings).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        // Auto-load: se configurado, abre direto na lista ao iniciar.
+        val store = com.seupainel.player.playlist.PlaylistStore(this)
+        if (!autoLoaded && store.autoLoad &&
+            (!store.playlistUrl.isNullOrBlank() || !store.configUrl.isNullOrBlank())
+        ) {
+            autoLoaded = true
+            startActivity(
+                Intent(this, com.seupainel.player.playlist.ChannelListActivity::class.java)
+                    .putExtra(com.seupainel.player.playlist.ChannelListActivity.EXTRA_FROM_SETTINGS, true)
+            )
+        }
+
         // Foco inicial no primeiro preset (D-pad)
         container.post { container.getChildAt(0)?.requestFocus() }
     }
+
+    private var autoLoaded = false
 
     private fun playDirect(url: String, subUrl: String, live: Boolean) {
         startActivity(Intent(this, PlayerActivity::class.java).apply {
