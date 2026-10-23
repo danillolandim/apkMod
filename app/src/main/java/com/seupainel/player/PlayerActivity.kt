@@ -84,9 +84,11 @@ class PlayerActivity : FragmentActivity() {
         resumeKey = directUrl.ifBlank { address }
         if (directUrl.isBlank() && address.isBlank()) { toast("Nada para tocar"); finish(); return }
 
-        // Cabeçalhos HTTP por canal (muitas listas exigem User-Agent/Referer).
+        // Cabeçalhos HTTP: UA do canal (EXTVLCOPT) ou, se ausente, o UA global
+        // definido nas Configurações. Muitos provedores exigem um UA específico.
+        val globalUa = com.seupainel.player.playlist.PlaylistStore(this).userAgent
         pc.setHttpHeaders(
-            intent.getStringExtra(EXTRA_USER_AGENT),
+            intent.getStringExtra(EXTRA_USER_AGENT)?.ifBlank { null } ?: globalUa,
             intent.getStringExtra(EXTRA_REFERER),
         )
         title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
@@ -136,7 +138,17 @@ class PlayerActivity : FragmentActivity() {
 
     private fun setupListeners() {
         pc.player.addListener(object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) = recover(error.errorCodeName)
+            override fun onPlayerError(error: PlaybackException) {
+                val cause = error.cause
+                val detail = when (cause) {
+                    is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException ->
+                        "HTTP ${cause.responseCode}"
+                    is androidx.media3.datasource.HttpDataSource.HttpDataSourceException ->
+                        "rede: ${cause.javaClass.simpleName}"
+                    else -> cause?.message?.take(80) ?: error.errorCodeName
+                }
+                recover(detail)
+            }
 
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {

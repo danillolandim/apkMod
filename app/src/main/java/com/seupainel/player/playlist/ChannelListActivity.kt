@@ -57,17 +57,22 @@ class ChannelListActivity : FragmentActivity() {
         val fromSettings = intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)
         val force = intent.getBooleanExtra(EXTRA_FORCE_REFRESH, false)
 
-        // 1) Cache: se veio das configurações e o cache está fresco, abre na hora.
+        status.text = "Carregando…"
+
+        // 1) Cache: se veio das configurações e está fresco, parseia em 2º plano.
         if (fromSettings && !force && store.cacheFresh()) {
-            store.readCache()?.let { cached ->
-                when (val res = M3uParser.parse(cached)) {
-                    is M3uParser.Result.Playlist -> { show(res.channels); status.text = "${res.channels.size} canais (cache)"; return }
-                    else -> { /* cache inválido, segue para a rede */ }
+            thread(name = "playlist-cache") {
+                val cached = store.readCache()
+                val res = cached?.let { M3uParser.parse(it) }
+                if (res is M3uParser.Result.Playlist) {
+                    runOnUiThread { show(res.channels); status.text = "${res.channels.size} canais (cache)" }
+                } else {
+                    runOnUiThread { resolveAndLoad() }   // cache inválido -> rede
                 }
             }
+            return
         }
 
-        status.text = "Carregando…"
         if (fromSettings) resolveAndLoad() else {
             val url = intent.getStringExtra(EXTRA_URL).orEmpty().trim()
             if (url.isBlank()) { finish(); return }
