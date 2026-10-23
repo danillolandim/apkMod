@@ -541,6 +541,84 @@ class ChannelListActivity : FragmentActivity() {
         })
     }
 
+    /**
+     * Diagnóstico: mostra a linha crua (#EXTINF) do item selecionado, mais os
+     * campos já interpretados. Serve para descobrir que metadados a lista traz
+     * (gênero, ano, etc.) e assim decidir como filtrar.
+     */
+    private fun showItemData() {
+        val pos = if (gridView.visibility == View.VISIBLE) gridView.selectedItemPosition
+                  else channelsView.selectedItemPosition
+
+        val name: String
+        val url: String?
+        val parsed: String
+        if (seriesMode) {
+            val s = shownSeries.getOrNull(pos) ?: run {
+                Toast.makeText(this, "Selecione um item", Toast.LENGTH_SHORT).show(); return
+            }
+            val first = s.episodes.firstOrNull()?.channel
+            name = s.title
+            url = first?.url
+            parsed = buildString {
+                append("SÉRIE: ").append(s.title).append('\n')
+                append("Episódios: ").append(s.episodes.size).append('\n')
+                append("Temporadas: ").append(s.episodes.map { it.season }.distinct().sorted().joinToString()).append('\n')
+                first?.let {
+                    append("group-title: ").append(it.group).append('\n')
+                    append("tvg-logo: ").append(it.logo ?: "—").append('\n')
+                    append("tvg-id: ").append(it.tvgId ?: "—").append('\n')
+                }
+            }
+        } else {
+            val ch = shown.getOrNull(pos) ?: run {
+                Toast.makeText(this, "Selecione um item", Toast.LENGTH_SHORT).show(); return
+            }
+            name = ch.name
+            url = ch.url
+            parsed = buildString {
+                append("nome: ").append(ch.name).append('\n')
+                append("group-title: ").append(ch.group).append('\n')
+                append("tvg-logo: ").append(ch.logo ?: "—").append('\n')
+                append("tvg-id: ").append(ch.tvgId ?: "—").append('\n')
+                append("ao vivo: ").append(if (ch.isLive) "sim" else "não (VOD)").append('\n')
+                ch.userAgent?.let { append("user-agent: ").append(it).append('\n') }
+                ch.referer?.let { append("referer: ").append(it).append('\n') }
+            }
+        }
+
+        // Procura a linha crua #EXTINF correspondente a esta URL no cache.
+        val raw = url?.let { u ->
+            runCatching {
+                val txt = store.readCache() ?: return@runCatching null
+                val lines = txt.lineSequence().toList()
+                val idx = lines.indexOfFirst { it.trim() == u.trim() }
+                if (idx <= 0) null
+                else {
+                    // junta as linhas de metadados logo acima da URL (#EXTINF + #EXTVLCOPT…)
+                    var i = idx - 1
+                    val meta = ArrayList<String>()
+                    while (i >= 0 && lines[i].trimStart().startsWith("#")) { meta.add(0, lines[i]); i-- }
+                    meta.joinToString("\n")
+                }
+            }.getOrNull()
+        }
+
+        val msg = buildString {
+            append(parsed)
+            append('\n')
+            append("URL:\n").append(url ?: "—").append("\n\n")
+            append("LINHA CRUA DA LISTA:\n")
+            append(raw ?: "(não encontrada no cache)")
+        }
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(name)
+            .setMessage(msg)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         when (keyCode) {
             KeyEvent.KEYCODE_PROG_RED -> {
@@ -548,6 +626,7 @@ class ChannelListActivity : FragmentActivity() {
                 if (lv in shown.indices) { toggleFav(shown[lv]); return true }
             }
             KeyEvent.KEYCODE_SEARCH, KeyEvent.KEYCODE_PROG_YELLOW -> { openSearch(); return true }
+            KeyEvent.KEYCODE_INFO, KeyEvent.KEYCODE_PROG_BLUE -> { showItemData(); return true }
             KeyEvent.KEYCODE_PROG_GREEN, KeyEvent.KEYCODE_MENU -> {
                 status.text = "Atualizando…"
                 if (intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)) resolveAndLoad()
