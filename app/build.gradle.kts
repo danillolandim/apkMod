@@ -16,9 +16,25 @@ android {
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
+    signingConfigs {
+        // Chave de depuração FIXA (versionada no repo). Garante que todas as
+        // atualizações tenham a mesma assinatura e instalem por cima sem o erro
+        // "conflito com pacote já existente".
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

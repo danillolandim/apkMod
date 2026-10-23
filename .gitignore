@@ -11,3 +11,6 @@ local.properties
 # Keystore
 *.jks
 *.keystore
+
+# chave de depuração fixa (assinatura estável das atualizações)
+!app/debug.keystore
