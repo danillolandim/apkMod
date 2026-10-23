@@ -57,7 +57,7 @@ class AppSettings(context: Context) {
 
     /** Papel de parede: chave de tema (ver WALLPAPERS) ou "custom". */
     var wallpaper: String
-        get() = p.getString("wallpaper", "dusk") ?: "dusk"
+        get() = p.getString("wallpaper", "emerald") ?: "emerald"
         set(v) = p.edit().putString("wallpaper", v).apply()
 
     /** URL de imagem personalizada para o papel de parede (ex.: Unsplash). */
@@ -87,6 +87,7 @@ class AppSettings(context: Context) {
 
         /** Papéis de parede embutidos (rótulo -> chave/drawable) + Personalizado. */
         val WALLPAPERS = listOf(
+            "Emerald Bay (foto)" to "emerald",
             "Entardecer" to "dusk",
             "Noite" to "night",
             "Oceano" to "ocean",
@@ -94,6 +95,7 @@ class AppSettings(context: Context) {
             "Imagem personalizada (URL)" to "custom",
         )
         fun wallpaperDrawable(key: String): String = when (key) {
+            "emerald" -> "bg_emerald"   // foto embutida (CI); cai no vetor se faltar
             "night" -> "wallpaper_night"
             "ocean" -> "wallpaper_ocean"
             "forest" -> "wallpaper_forest"

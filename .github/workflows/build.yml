@@ -47,6 +47,15 @@ jobs:
       # Grava a saída num arquivo e, se falhar, publica as linhas de erro como
       # anotações do run e no resumo do job (visíveis pela API/página mesmo
       # sem baixar o log completo).
+      # Baixa e embute papéis de parede (foto) no APK — internet liberada no runner.
+      - name: Fetch bundled wallpapers
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          curl -sSL --max-time 60 -A "Mozilla/5.0" \
+            "https://images.unsplash.com/photo-1552083375-1447ce886485?q=80&w=2560&fm=jpg&fit=crop" \
+            -o app/src/main/res/drawable-nodpi/bg_emerald.jpg || echo "aviso: download do wallpaper falhou (usa vetor)"
+          ls -la app/src/main/res/drawable-nodpi/ || true
+
       - name: Build debug APK
         id: build
         run: |
