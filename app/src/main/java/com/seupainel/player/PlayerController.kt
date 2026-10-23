@@ -123,9 +123,10 @@ class PlayerController(
             Mode.LIVE -> DefaultLoadControl.Builder()
                 .setBufferDurationsMs(10_000, 50_000, 1_000, 2_000)
                 .setBackBuffer(30_000, true)   // rewind instantâneo em live
-            // VOD: buffer grande (até 2 min) — zero rebuffer em filme/série.
+            // VOD: buffer folgado (até 90s) — zero rebuffer sem pesar a memória
+            // da TV com streams 4K de bitrate alto.
             Mode.VOD -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(30_000, 120_000, 2_000, 4_000)
+                .setBufferDurationsMs(25_000, 90_000, 2_000, 4_000)
         }
             .setPrioritizeTimeOverSizeThresholds(true) // começa a tocar antes
             .build()
