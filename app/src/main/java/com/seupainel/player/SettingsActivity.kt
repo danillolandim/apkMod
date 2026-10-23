@@ -2,9 +2,11 @@ package com.seupainel.player
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
@@ -21,11 +23,22 @@ import java.util.Locale
 class SettingsActivity : FragmentActivity() {
 
     private lateinit var store: PlaylistStore
+    private lateinit var app: AppSettings
+
+    private lateinit var audioSpin: Spinner
+    private lateinit var subSpin: Spinner
+    private lateinit var sizeSpin: Spinner
+    private lateinit var aspectSpin: Spinner
+    private lateinit var connSpin: Spinner
+    private lateinit var forceMax: CheckBox
+    private lateinit var resumeChk: CheckBox
+    private lateinit var retryChk: CheckBox
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         store = PlaylistStore(this)
+        app = AppSettings(this)
 
         val url = findViewById<EditText>(R.id.set_url)
         val config = findViewById<EditText>(R.id.set_config)
@@ -41,12 +54,39 @@ class SettingsActivity : FragmentActivity() {
         auto.isChecked = store.autoLoad
         info.text = statusText()
 
+        // --- preferências de player ---
+        audioSpin = spinner(R.id.set_audio_lang, AppSettings.LANG_OPTIONS.map { it.first })
+        subSpin = spinner(R.id.set_sub_lang, AppSettings.LANG_OPTIONS.map { it.first })
+        sizeSpin = spinner(R.id.set_sub_size, AppSettings.SUBTITLE_SIZES.map { it.first })
+        aspectSpin = spinner(R.id.set_aspect, PlayerController.ASPECTS.map { it.second })
+        connSpin = spinner(R.id.set_conn, AppSettings.CONNECTION_OPTIONS.map { it.first })
+        forceMax = findViewById(R.id.set_force_max)
+        resumeChk = findViewById(R.id.set_resume)
+        retryChk = findViewById(R.id.set_retry)
+
+        audioSpin.setSelection(AppSettings.LANG_OPTIONS.indexOfFirst { it.second == app.audioLanguage }.coerceAtLeast(0))
+        subSpin.setSelection(AppSettings.LANG_OPTIONS.indexOfFirst { it.second == app.subtitleLanguage }.coerceAtLeast(0))
+        sizeSpin.setSelection(AppSettings.SUBTITLE_SIZES.indexOfFirst { it.second == app.subtitleSizeSp }.coerceAtLeast(0))
+        aspectSpin.setSelection(app.aspectIndex.coerceIn(PlayerController.ASPECTS.indices))
+        connSpin.setSelection(AppSettings.CONNECTION_OPTIONS.indexOfFirst { it.second == app.connectionMbps }.coerceAtLeast(0))
+        forceMax.isChecked = app.forceMaxQuality
+        resumeChk.isChecked = app.resumeEnabled
+        retryChk.isChecked = app.autoRetry
+
         fun save() {
             store.playlistUrl = url.text.toString().trim().ifBlank { null }
             store.configUrl = config.text.toString().trim().ifBlank { null }
             store.userAgent = ua.text.toString().trim().ifBlank { null }
             store.refreshHours = refresh.text.toString().trim().toIntOrNull() ?: 12
             store.autoLoad = auto.isChecked
+            app.audioLanguage = AppSettings.LANG_OPTIONS[audioSpin.selectedItemPosition].second
+            app.subtitleLanguage = AppSettings.LANG_OPTIONS[subSpin.selectedItemPosition].second
+            app.subtitleSizeSp = AppSettings.SUBTITLE_SIZES[sizeSpin.selectedItemPosition].second
+            app.aspectIndex = aspectSpin.selectedItemPosition
+            app.connectionMbps = AppSettings.CONNECTION_OPTIONS[connSpin.selectedItemPosition].second
+            app.forceMaxQuality = forceMax.isChecked
+            app.resumeEnabled = resumeChk.isChecked
+            app.autoRetry = retryChk.isChecked
         }
 
         findViewById<Button>(R.id.set_save).setOnClickListener {
@@ -75,6 +115,12 @@ class SettingsActivity : FragmentActivity() {
         url.requestFocus()
     }
 
+    private fun spinner(id: Int, items: List<String>): Spinner {
+        val s = findViewById<Spinner>(id)
+        s.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
+        return s
+    }
+
     private fun statusText(): String {
         val cache = store.readCache()
         val when_ = if (store.lastRefreshMs > 0)
@@ -86,13 +132,19 @@ class SettingsActivity : FragmentActivity() {
 
     override fun onPause() {
         super.onPause()
-        // auto-save ao sair, para não perder o que foi digitado
-        PlaylistStore(this).apply {
-            playlistUrl = findViewById<EditText>(R.id.set_url).text.toString().trim().ifBlank { null }
-            configUrl = findViewById<EditText>(R.id.set_config).text.toString().trim().ifBlank { null }
-            userAgent = findViewById<EditText>(R.id.set_ua).text.toString().trim().ifBlank { null }
-            refreshHours = findViewById<EditText>(R.id.set_refresh).text.toString().trim().toIntOrNull() ?: 12
-            autoLoad = findViewById<CheckBox>(R.id.set_auto).isChecked
-        }
+        // auto-save ao sair, para não perder o que foi editado
+        store.playlistUrl = findViewById<EditText>(R.id.set_url).text.toString().trim().ifBlank { null }
+        store.configUrl = findViewById<EditText>(R.id.set_config).text.toString().trim().ifBlank { null }
+        store.userAgent = findViewById<EditText>(R.id.set_ua).text.toString().trim().ifBlank { null }
+        store.refreshHours = findViewById<EditText>(R.id.set_refresh).text.toString().trim().toIntOrNull() ?: 12
+        store.autoLoad = findViewById<CheckBox>(R.id.set_auto).isChecked
+        app.audioLanguage = AppSettings.LANG_OPTIONS[audioSpin.selectedItemPosition].second
+        app.subtitleLanguage = AppSettings.LANG_OPTIONS[subSpin.selectedItemPosition].second
+        app.subtitleSizeSp = AppSettings.SUBTITLE_SIZES[sizeSpin.selectedItemPosition].second
+        app.aspectIndex = aspectSpin.selectedItemPosition
+        app.connectionMbps = AppSettings.CONNECTION_OPTIONS[connSpin.selectedItemPosition].second
+        app.forceMaxQuality = forceMax.isChecked
+        app.resumeEnabled = resumeChk.isChecked
+        app.autoRetry = retryChk.isChecked
     }
 }

@@ -59,21 +59,25 @@ class PlayerController(
         /* bandwidthFraction                 */ 0.8f,
     )
 
-    // Estimativa inicial alta -> COMEÇA em HD/4K em vez de SD. Na C6K (TV 4K,
-    // normalmente em boa rede) 15 Mbps evita começar baixo em stream pesado.
+    private val settings = AppSettings(context)
+
+    // Estimativa inicial de banda vinda das Configurações (padrão 10 Mbps).
     private val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
-        .setInitialBitrateEstimate(15_000_000L)
+        .setInitialBitrateEstimate(settings.connectionMbps.coerceAtLeast(1) * 1_000_000L)
         .build()
 
     private val trackSelector = DefaultTrackSelector(context, adaptiveFactory).apply {
+        val audio = settings.audioLanguage.ifBlank { "pt" }
+        val sub = settings.subtitleLanguage.ifBlank { "pt" }
         parameters = buildUponParameters()
-            .setPreferredTextLanguages("pt-BR", "pt", "en")
-            .setPreferredAudioLanguages("pt-BR", "pt")
+            .setPreferredTextLanguages(sub, "pt-BR", "pt")
+            .setPreferredAudioLanguages(audio, "pt-BR", "pt")
             .setExceedVideoConstraintsIfNecessary(true)
             .setExceedRendererCapabilitiesIfNecessary(true)
             .setAllowVideoMixedMimeTypeAdaptiveness(true)
             .setAllowVideoNonSeamlessAdaptiveness(true)
             .setTunnelingEnabled(true)
+            .setForceHighestSupportedBitrate(settings.forceMaxQuality)
             .build()
     }
 
@@ -167,7 +171,7 @@ class PlayerController(
                         null,
                     )
                 )
-                setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20f)
+                setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, settings.subtitleSizeSp)
             }
         }
     }
@@ -322,6 +326,17 @@ class PlayerController(
     private fun langDisplay(code: String): String = try {
         java.util.Locale.forLanguageTag(code).displayLanguage.ifBlank { code }
     } catch (_: Exception) { code }
+
+    companion object {
+        /** Modos de aspecto (RESIZE_MODE do PlayerView, rótulo). Índice usado nas Configurações. */
+        val ASPECTS = listOf(
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT to "Ajustar",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL to "Preencher",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM to "Zoom",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH to "16:9",
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT to "4:3",
+        )
+    }
 
     private fun videoLabel(height: Int, bitrate: Int): String {
         val res = when {

@@ -46,6 +46,7 @@ class PlayerActivity : FragmentActivity() {
     private lateinit var hud: TextView
     private lateinit var badge: TextView
     private lateinit var resume: ResumeStore
+    private lateinit var settings: AppSettings
 
     private val ui = Handler(Looper.getMainLooper())
     private var retries = 0
@@ -68,6 +69,7 @@ class PlayerActivity : FragmentActivity() {
         hud = findViewById(R.id.hud)
         badge = findViewById(R.id.badge)
         resume = ResumeStore(this)
+        settings = AppSettings(this)
 
         isLive = intent.getBooleanExtra(EXTRA_IS_LIVE, false)
         pc = PlayerController(this, if (isLive) PlayerController.Mode.LIVE else PlayerController.Mode.VOD)
@@ -102,7 +104,12 @@ class PlayerActivity : FragmentActivity() {
                 } ?: emptyList()
             }
 
-        startMs = intent.getLongExtra(EXTRA_START_MS, 0L).takeIf { it > 0 } ?: resume.get(resumeKey)
+        startMs = intent.getLongExtra(EXTRA_START_MS, 0L).takeIf { it > 0 }
+            ?: if (settings.resumeEnabled) resume.get(resumeKey) else 0L
+
+        // Aspecto padrão escolhido nas Configurações.
+        aspectIdx = settings.aspectIndex.coerceIn(aspectModes.indices)
+        playerView.resizeMode = aspectModes[aspectIdx].first
 
         setupListeners()
         if (directUrl.isNotBlank()) {
@@ -158,6 +165,7 @@ class PlayerActivity : FragmentActivity() {
 
     /** Backoff: 2s, 4s, 8s; depois tenta o backup; depois desiste. */
     private fun recover(reason: String) {
+        if (!settings.autoRetry) { toast("Falha: $reason"); return }
         retries++
         if (retries <= 3) {
             val delay = 2000L * (1 shl (retries - 1))
@@ -194,13 +202,7 @@ class PlayerActivity : FragmentActivity() {
     private fun announce(text: String) = playerView.announceForAccessibility(text)
 
     // ---------- Aspecto (vermelho) ----------
-    private val aspectModes = listOf(
-        AspectRatioFrameLayout.RESIZE_MODE_FIT to "Ajustar",
-        AspectRatioFrameLayout.RESIZE_MODE_FILL to "Preencher",
-        AspectRatioFrameLayout.RESIZE_MODE_ZOOM to "Zoom",
-        AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH to "16:9",
-        AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT to "4:3",
-    )
+    private val aspectModes = PlayerController.ASPECTS
     private var aspectIdx = 0
     private fun cycleAspect() {
         aspectIdx = (aspectIdx + 1) % aspectModes.size
@@ -386,14 +388,14 @@ class PlayerActivity : FragmentActivity() {
 
     override fun onStop() {
         super.onStop()
-        resume.save(resumeKey, pc.player.currentPosition, pc.player.duration)
+        if (settings.resumeEnabled) resume.save(resumeKey, pc.player.currentPosition, pc.player.duration)
         if (!inPip) pc.player.pause()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         ui.removeCallbacksAndMessages(null)
-        resume.save(resumeKey, pc.player.currentPosition, pc.player.duration)
+        if (settings.resumeEnabled) resume.save(resumeKey, pc.player.currentPosition, pc.player.duration)
         pc.release()
         if (directUrl.isBlank()) engine.stop()
     }

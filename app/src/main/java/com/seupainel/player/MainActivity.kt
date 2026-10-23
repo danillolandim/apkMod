@@ -99,9 +99,9 @@ class MainActivity : FragmentActivity() {
             )
         }
 
-        findViewById<Button>(R.id.btn_settings).setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
+        val openSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
+        findViewById<Button>(R.id.btn_settings).setOnClickListener { openSettings() }
+        findViewById<android.widget.ImageButton>(R.id.btn_gear).setOnClickListener { openSettings() }
 
         // Auto-load: se configurado, abre direto na lista ao iniciar.
         val store = com.seupainel.player.playlist.PlaylistStore(this)

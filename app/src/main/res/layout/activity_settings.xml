@@ -102,6 +102,48 @@
             android:textColor="#9AA4AE"
             android:textSize="13sp" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="20dp"
+            android:background="#2A323A" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Preferências do player"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Áudio preferido (dublado/original)" android:textColor="#3DA9FC" />
+        <Spinner android:id="@+id/set_audio_lang" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Legenda preferida" android:textColor="#3DA9FC" />
+        <Spinner android:id="@+id/set_sub_lang" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Tamanho da legenda" android:textColor="#3DA9FC" />
+        <Spinner android:id="@+id/set_sub_size" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Aspecto padrão" android:textColor="#3DA9FC" />
+        <Spinner android:id="@+id/set_aspect" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Qualidade da conexão (início mais alto)" android:textColor="#3DA9FC" />
+        <Spinner android:id="@+id/set_conn" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <CheckBox android:id="@+id/set_force_max" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Travar sempre na máxima qualidade" android:textColor="#FFFFFF" />
+        <CheckBox android:id="@+id/set_resume" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Continuar de onde parou" android:textColor="#FFFFFF" />
+        <CheckBox android:id="@+id/set_retry" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Reconectar automaticamente em falha" android:textColor="#FFFFFF" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
