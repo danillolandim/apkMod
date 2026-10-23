@@ -48,6 +48,12 @@
             android:theme="@style/Theme.Player" />
 
         <activity
+            android:name=".DetailActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.Player" />
+
+        <activity
             android:name=".playlist.ChannelListActivity"
             android:exported="false"
             android:screenOrientation="landscape"

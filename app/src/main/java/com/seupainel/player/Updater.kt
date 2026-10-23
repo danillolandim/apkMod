@@ -23,6 +23,7 @@ object Updater {
 
     private const val BASE = "https://github.com/danillolandim/apkMod/releases/download/latest"
     private const val VERSION_URL = "$BASE/version.txt"
+    private const val CHANGELOG_URL = "$BASE/changelog.txt"
     private const val APK_URL = "$BASE/player-mod.apk"
 
     /**
@@ -34,7 +35,8 @@ object Updater {
                 val remote = fetch(VERSION_URL).trim().toIntOrNull() ?: return@thread
                 val local = BuildConfig.VERSION_CODE
                 if (remote > local) {
-                    runOnMain(context) { promptUpdate(context, local, remote) }
+                    val changelog = runCatching { fetch(CHANGELOG_URL) }.getOrNull()
+                    runOnMain(context) { promptUpdate(context, local, remote, changelog) }
                 } else if (!silent) {
                     runOnMain(context) { toast(context, "Você já está na versão mais recente ($local).") }
                 }
@@ -44,10 +46,21 @@ object Updater {
         }
     }
 
-    private fun promptUpdate(context: Context, local: Int, remote: Int) {
+    private fun promptUpdate(context: Context, local: Int, remote: Int, changelog: String?) {
+        // Mostra só a seção "Esta versão" do changelog, se houver.
+        val whatsNew = changelog
+            ?.substringAfter("## Esta versão", "")
+            ?.substringBefore("## ", "")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        val msg = buildString {
+            append("Nova versão disponível (você tem a $local).")
+            if (whatsNew != null) { append("\n\nNovidades:\n"); append(whatsNew) }
+            append("\n\nBaixar e instalar agora?")
+        }
         android.app.AlertDialog.Builder(context)
             .setTitle("Atualização disponível")
-            .setMessage("Versão $remote disponível (você tem a $local). Baixar e instalar agora?")
+            .setMessage(msg)
             .setPositiveButton("Atualizar") { _, _ -> download(context) }
             .setNegativeButton("Agora não", null)
             .show()

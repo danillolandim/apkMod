@@ -65,6 +65,11 @@ class AppSettings(context: Context) {
         get() = p.getString("wallpaper_url", "") ?: ""
         set(v) = p.edit().putString("wallpaper_url", v.trim()).apply()
 
+    /** Chave da API do TMDB (themoviedb.org) para capa/nota/sinopse. */
+    var tmdbApiKey: String
+        get() = p.getString("tmdb_key", "") ?: ""
+        set(v) = p.edit().putString("tmdb_key", v.trim()).apply()
+
     companion object {
         /** Opções de "qualidade da conexão" exibidas (rótulo -> Mbps). */
         val CONNECTION_OPTIONS = listOf(

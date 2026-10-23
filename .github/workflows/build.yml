@@ -72,6 +72,9 @@ jobs:
       - name: Version marker
         run: echo "${GITHUB_RUN_NUMBER}" > version.txt
 
+      - name: Changelog
+        run: cp CHANGELOG.md changelog.txt
+
       - name: Upload as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -86,4 +89,5 @@ jobs:
           files: |
             player-mod.apk
             version.txt
+            changelog.txt
           prerelease: true

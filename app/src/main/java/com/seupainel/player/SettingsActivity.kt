@@ -45,6 +45,7 @@ class SettingsActivity : FragmentActivity() {
         val config = findViewById<EditText>(R.id.set_config)
         val ua = findViewById<EditText>(R.id.set_ua)
         val epg = findViewById<EditText>(R.id.set_epg)
+        val tmdb = findViewById<EditText>(R.id.set_tmdb)
         val refresh = findViewById<EditText>(R.id.set_refresh)
         val auto = findViewById<CheckBox>(R.id.set_auto)
         val info = findViewById<TextView>(R.id.set_info)
@@ -53,6 +54,7 @@ class SettingsActivity : FragmentActivity() {
         config.setText(store.configUrl.orEmpty())
         ua.setText(store.userAgent.orEmpty())
         epg.setText(store.epgUrl.orEmpty())
+        tmdb.setText(app.tmdbApiKey)
 
         // Lista de User-Agents prontos: escolher preenche o campo.
         val uaPreset = spinner(R.id.set_ua_preset, AppSettings.UA_PRESETS.map { it.first })
@@ -106,6 +108,7 @@ class SettingsActivity : FragmentActivity() {
             store.configUrl = config.text.toString().trim().ifBlank { null }
             store.userAgent = ua.text.toString().trim().ifBlank { null }
             store.epgUrl = epg.text.toString().trim().ifBlank { null }
+            app.tmdbApiKey = tmdb.text.toString()
             store.refreshHours = refresh.text.toString().trim().toIntOrNull() ?: 12
             store.autoLoad = auto.isChecked
             app.audioLanguage = AppSettings.LANG_OPTIONS[audioSpin.selectedItemPosition].second
@@ -169,6 +172,7 @@ class SettingsActivity : FragmentActivity() {
         store.configUrl = findViewById<EditText>(R.id.set_config).text.toString().trim().ifBlank { null }
         store.userAgent = findViewById<EditText>(R.id.set_ua).text.toString().trim().ifBlank { null }
         store.epgUrl = findViewById<EditText>(R.id.set_epg).text.toString().trim().ifBlank { null }
+        app.tmdbApiKey = findViewById<EditText>(R.id.set_tmdb).text.toString()
         store.refreshHours = findViewById<EditText>(R.id.set_refresh).text.toString().trim().toIntOrNull() ?: 12
         store.autoLoad = findViewById<CheckBox>(R.id.set_auto).isChecked
         app.audioLanguage = AppSettings.LANG_OPTIONS[audioSpin.selectedItemPosition].second

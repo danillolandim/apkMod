@@ -54,7 +54,7 @@ class ChannelListActivity : FragmentActivity() {
         groupsView.setOnItemClickListener { _, _, pos, _ -> selectGroup(groups[pos]) }
         channelsView.setOnItemClickListener { _, _, pos, _ -> play(shown[pos]) }
         channelsView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
-        gridView.setOnItemClickListener { _, _, pos, _ -> play(shown[pos]) }
+        gridView.setOnItemClickListener { _, _, pos, _ -> openDetail(shown[pos]) }
         gridView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
         search.setOnEditorActionListener { _, _, _ -> applyFilter(); true }
 
@@ -320,6 +320,18 @@ class ChannelListActivity : FragmentActivity() {
         val added = store.toggleFavorite(ch.url)
         Toast.makeText(this, if (added) "★ Favoritado: ${ch.name}" else "Removido dos favoritos", Toast.LENGTH_SHORT).show()
         applyFilter()
+    }
+
+    /** Abre a tela de detalhes (filmes/séries) antes de assistir. */
+    private fun openDetail(ch: M3uParser.Channel) {
+        val isSeries = currentGroup.uppercase().contains("SERIE") || currentGroup.uppercase().contains("SÉRIE")
+        startActivity(Intent(this, com.seupainel.player.DetailActivity::class.java).apply {
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_URL, ch.url)
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_TITLE, ch.name)
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_LOGO, ch.logo ?: "")
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_IS_LIVE, ch.isLive)
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_IS_SERIES, isSeries)
+        })
     }
 
     private fun play(ch: M3uParser.Channel) {
