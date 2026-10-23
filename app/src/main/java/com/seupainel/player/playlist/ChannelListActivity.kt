@@ -93,24 +93,46 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
-    private fun fetchText(url: String): String {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 20_000; readTimeout = 30_000
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", store.userAgent?.ifBlank { null } ?: UA)
-            setRequestProperty("Accept-Encoding", "gzip")
+    /** Abre a conexão seguindo redirecionamentos manualmente (inclusive http<->https). */
+    private fun connect(urlStr: String, maxRedirects: Int = 6): HttpURLConnection {
+        var current = urlStr
+        var hops = 0
+        while (true) {
+            val c = (URL(current).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 20_000; readTimeout = 30_000
+                instanceFollowRedirects = false   // seguimos à mão (atravessa http/https)
+                setRequestProperty("User-Agent", store.userAgent?.ifBlank { null } ?: UA)
+                setRequestProperty("Accept-Encoding", "gzip")
+                setRequestProperty("Accept", "*/*")
+            }
+            val code = c.responseCode
+            if (code in intArrayOf(301, 302, 303, 307, 308)) {
+                val loc = c.getHeaderField("Location")
+                c.disconnect()
+                if (loc.isNullOrBlank()) throw java.io.IOException("HTTP $code sem destino")
+                current = URL(URL(current), loc).toString()   // resolve relativo/absoluto
+                if (++hops > maxRedirects) throw java.io.IOException("Muitos redirecionamentos")
+                continue
+            }
+            if (code !in 200..299) { c.disconnect(); throw java.io.IOException("HTTP $code") }
+            return c
         }
-        val raw = if (conn.contentEncoding?.contains("gzip", true) == true)
-            GZIPInputStream(conn.inputStream) else conn.inputStream
+    }
+
+    private fun readBody(c: HttpURLConnection): String {
+        val raw = if (c.contentEncoding?.contains("gzip", true) == true)
+            GZIPInputStream(c.inputStream) else c.inputStream
         return BufferedReader(InputStreamReader(raw, Charsets.UTF_8)).use { r ->
             val sb = StringBuilder(); val buf = CharArray(8192); var n: Int; var total = 0
             while (r.read(buf).also { n = it } > 0) {
                 sb.appendRange(buf, 0, n); total += n
                 if (total > MAX_CHARS) break
             }
-            conn.disconnect(); sb.toString()
+            c.disconnect(); sb.toString()
         }
     }
+
+    private fun fetchText(url: String): String = readBody(connect(url))
 
     private fun load(url: String, cacheIt: Boolean) {
         thread(name = "playlist-load") {
@@ -120,40 +142,20 @@ class ChannelListActivity : FragmentActivity() {
                     runOnUiThread { openPlayer(url, live = false, title = null); finish() }
                     return@thread
                 }
-                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 20_000; readTimeout = 30_000
-                    instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", store.userAgent?.ifBlank { null } ?: UA)
-                    setRequestProperty("Accept-Encoding", "gzip")
-                }
-                val code = conn.responseCode
-                if (code !in 200..299) {
-                    conn.disconnect()
-                    runOnUiThread { status.text = "Servidor respondeu HTTP $code" }
-                    return@thread
-                }
+                val conn = connect(url)
+                val finalUrl = conn.url.toString()
                 val type = conn.contentType.orEmpty().lowercase()
                 val looksList = lower.contains("m3u") || type.contains("mpegurl") || type.contains("text/plain")
                 if ((type.startsWith("video/") || type.startsWith("audio/")) && !looksList) {
                     conn.disconnect()
-                    runOnUiThread { openPlayer(url, live = false, title = null); finish() }
+                    runOnUiThread { openPlayer(finalUrl, live = false, title = null); finish() }
                     return@thread
                 }
-                val raw = if (conn.contentEncoding?.contains("gzip", true) == true)
-                    GZIPInputStream(conn.inputStream) else conn.inputStream
-                val text = BufferedReader(InputStreamReader(raw, Charsets.UTF_8)).use { r ->
-                    val sb = StringBuilder(); val buf = CharArray(8192); var n: Int; var total = 0
-                    while (r.read(buf).also { n = it } > 0) {
-                        sb.appendRange(buf, 0, n); total += n
-                        if (total > MAX_CHARS) break
-                    }
-                    sb.toString()
-                }
-                conn.disconnect()
+                val text = readBody(conn)
 
                 when (val res = M3uParser.parse(text)) {
                     is M3uParser.Result.HlsStream ->
-                        runOnUiThread { openPlayer(url, live = true, title = null); finish() }
+                        runOnUiThread { openPlayer(finalUrl, live = true, title = null); finish() }
                     is M3uParser.Result.Empty -> runOnUiThread {
                         status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)."
                     }
