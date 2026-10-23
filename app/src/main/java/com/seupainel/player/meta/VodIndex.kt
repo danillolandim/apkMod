@@ -30,6 +30,10 @@ class VodIndex(context: Context) {
     private fun keyOf(title: String) =
         Tmdb.cleanTitle(title).lowercase().ifBlank { title.lowercase() }
 
+    /** Chave normalizada do título (pública, para deduplicar episódios). */
+    fun keyFor(title: String) = keyOf(title)
+    fun hasKey(key: String) = map.containsKey(key)
+
     fun has(title: String) = map.containsKey(keyOf(title))
     fun get(title: String): Entry? = map[keyOf(title)]
     fun year(title: String): Int? = map[keyOf(title)]?.year

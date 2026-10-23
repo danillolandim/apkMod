@@ -45,6 +45,7 @@ class ChannelListActivity : FragmentActivity() {
     private var startSection: Sec = Sec.CANAIS               // seção escolhida na home
     private var currentSub: String? = null                  // null = tudo da seção
     private var canaisDerived = false                       // canais agrupados por tema (do nome)
+    @Volatile private var secLists: Map<Sec, List<M3uParser.Channel>>? = null  // partição por seção
     private var shown: List<M3uParser.Channel> = emptyList()
 
     private fun secOf(group: String): Sec {
@@ -78,7 +79,19 @@ class ChannelListActivity : FragmentActivity() {
         search = findViewById(R.id.search)
         store = PlaylistStore(this)
 
-        groupsView.setOnItemClickListener { _, _, pos, _ -> selectSub(groups.getOrNull(pos)) }
+        // Atualiza a lista da direita assim que o foco muda de categoria (instantâneo),
+        // não só ao clicar. O clique apenas pula o foco para o conteúdo.
+        groupsView.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                val g = groups.getOrNull(pos)
+                if (g != null && g != (currentSub ?: ALL_SEC)) selectSub(g)
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
+        groupsView.setOnItemClickListener { _, _, pos, _ ->
+            selectSub(groups.getOrNull(pos))
+            (if (gridView.visibility == View.VISIBLE) gridView else channelsView).requestFocus()
+        }
         channelsView.setOnItemClickListener { _, _, pos, _ -> onChannelClick(shown[pos]) }
         channelsView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
         gridView.setOnItemClickListener { _, _, pos, _ ->
@@ -269,6 +282,12 @@ class ChannelListActivity : FragmentActivity() {
     private fun show(channels: List<M3uParser.Channel>) {
         all = channels
         PlaylistHolder.channels = channels          // mantém a memória compartilhada em dia
+        // Particiona por seção em 2º plano -> filtros/categorias ficam instantâneos.
+        thread(name = "partition") {
+            val m = HashMap<Sec, MutableList<M3uParser.Channel>>()
+            for (ch in channels) m.getOrPut(secOfChannel(ch)) { ArrayList() }.add(ch)
+            secLists = m
+        }
         val realGroups = channels.map { it.group }.distinct()
         sectionGroups = realGroups.groupBy { secOf(it) }
         status.text = "${channels.size} itens"
@@ -325,13 +344,13 @@ class ChannelListActivity : FragmentActivity() {
                 }
             }
             else -> {
-                // Séries sem categorias reais -> índice A-Z (+ Recentes).
+                // Séries sem categorias reais -> Lançamentos (por ano) + A-Z.
                 subMode = SubMode.ALPHA
                 val present = all.asSequence()
                     .filter { secOfChannel(it) == sec }
                     .map { firstKey(it.name) }.distinct().toSortedSet()
                 groups = buildList {
-                    add(ALL_SEC); add(RECENTES)
+                    add(ALL_SEC); add(LANCAMENTOS)
                     if (newItems.anyNew()) add(NOVIDADES)
                     addAll(present)
                 }
@@ -355,9 +374,8 @@ class ChannelListActivity : FragmentActivity() {
             .filter { (counts[it.key] ?: 0) >= 3 }      // só gêneros com conteúdo
             .map { it.value }
         return buildList {
-            add(ALL_SEC); add(RECENTES)
+            add(ALL_SEC); add(LANCAMENTOS)
             if (newItems.anyNew()) add(NOVIDADES)
-            add(LANCAMENTOS)
             addAll(genreNames)
             if (genreNames.isEmpty()) {
                 // enquanto o índice ainda está vazio, oferece A-Z
@@ -383,18 +401,24 @@ class ChannelListActivity : FragmentActivity() {
         groupsView.setSelection(sel)
     }
 
-    /** Busca gênero+ano de cada filme no TMDB (uma vez), em segundo plano. */
+    /** Busca gênero+ano no TMDB (uma vez por título) de filmes E séries. */
     private fun ensureFilmesIndexed() {
         if (indexing || tmdbKey.isBlank()) return
         indexing = true
         indexStarted = true
         thread(name = "index-dispatch") {
-            val movies = all.filter { secOfChannel(it) == Sec.FILMES }
-            // já indexados (disco) e os que falharam nesta sessão ficam de fora;
-            // novidades primeiro, para o gênero/cartaz delas ficar pronto antes.
-            val todo = movies.filter { !vodIndex.has(it.name) && !indexMiss.contains(it.name) }
-                .sortedByDescending { if (newItems.isNew(it.url)) 1 else 0 }
+            val vod = all.filter { val s = secOfChannel(it); s == Sec.FILMES || s == Sec.SERIES }
+            // Um item por TÍTULO (episódios de uma série colapsam na mesma chave),
+            // pulando os já indexados; novidades primeiro.
+            val seenKeys = HashSet<String>()
+            val todo = ArrayList<M3uParser.Channel>()
+            for (ch in vod.sortedByDescending { if (newItems.isNew(it.url)) 1 else 0 }) {
+                val key = vodIndex.keyFor(ch.name)
+                if (key.isBlank() || vodIndex.hasKey(key) || indexMiss.contains(ch.name)) continue
+                if (seenKeys.add(key)) todo.add(ch)
+            }
             if (todo.isEmpty()) { indexing = false; runOnUiThread { rebuildFilmesGroups() }; return@thread }
+            val movies = vod   // só para o texto de progresso
             val total = todo.size
             val done = java.util.concurrent.atomic.AtomicInteger(0)
             for (ch in todo) {
@@ -425,9 +449,9 @@ class ChannelListActivity : FragmentActivity() {
     }
 
     private fun onIndexProgress(done: Int, total: Int, movieCount: Int) {
-        if (currentSection != Sec.FILMES) return
+        if (currentSection != Sec.FILMES && currentSection != Sec.SERIES) return
         rebuildFilmesGroups()
-        status.text = if (done < total) "Indexando filmes… $done/$total" else "$movieCount filmes"
+        status.text = if (done < total) "Organizando catálogo… $done/$total" else ""
     }
 
     private fun openSearch() {
@@ -448,9 +472,15 @@ class ChannelListActivity : FragmentActivity() {
         val gen = ++filterGen
         // Resolve o tipo da subcategoria uma vez (fora do loop).
         val genreId = com.seupainel.player.meta.VodIndex.GENRE_BY_NAME[sub]
+        val lists = secLists
         thread(name = "filter") {
-            var result = all.filter { ch ->
-                val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOfChannel(ch) == sec
+            // Base da seção já particionada (rápido); se ainda não pronta, filtra tudo.
+            val base: List<M3uParser.Channel> = when {
+                sec == Sec.FAV -> all.filter { favs.contains(it.url) }
+                lists != null -> lists[sec] ?: emptyList()
+                else -> all.filter { secOfChannel(it) == sec }
+            }
+            var result = base.filter { ch ->
                 val inSub = when {
                     sub == null || sub == ALL_SEC || sub == RECENTES -> true
                     sub == NOVIDADES -> newItems.isNew(ch.url)            // entrou de novo
@@ -460,7 +490,7 @@ class ChannelListActivity : FragmentActivity() {
                     sub.length == 1 -> firstKey(ch.name) == sub          // índice A-Z
                     else -> ch.group == sub                              // subcategoria real
                 }
-                inSec && inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
+                inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
             }
             // Ordenação por subcategoria.
             when (sub) {
@@ -502,8 +532,10 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun publishSeries(list: List<M3uParser.Channel>) {
         val gen = filterGen
+        val byYear = currentSub == LANCAMENTOS
         thread(name = "series-group") {
-            val series = SeriesGrouper.group(list)
+            var series = SeriesGrouper.group(list)
+            if (byYear) series = series.sortedByDescending { vodIndex.year(it.title) ?: 0 }
             if (gen != filterGen) return@thread
             runOnUiThread {
                 if (gen != filterGen) return@runOnUiThread
@@ -588,7 +620,7 @@ class ChannelListActivity : FragmentActivity() {
     @Volatile private var indexStarted = false      // Filmes já foi aberto nesta sessão?
     @Volatile private var indexPaused = false       // pausa a indexação durante a reprodução
     private val indexGate = Object()
-    private val lancCutoff = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 2
+    private val lancCutoff = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 3
 
     // Detector de novidades (o que entrou de novo entre uma atualização e outra).
     private val newItems by lazy { NewItems(this) }
