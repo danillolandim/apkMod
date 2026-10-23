@@ -2,13 +2,39 @@ package com.seupainel.player
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import com.seupainel.player.engine.P2pEngine
 import com.seupainel.player.playlist.M3uParser
 import com.seupainel.player.playlist.PlaylistHolder
 import com.seupainel.player.playlist.PlaylistStore
 import kotlin.concurrent.thread
 
-class App : Application() {
+class App : Application(), ImageLoaderFactory {
+
+    /**
+     * Carregador de imagens afinado para a grade de cartazes numa TV 4K com
+     * cabo de rede: cache de memória generoso, cache de disco grande e
+     * PERSISTENTE (não re-baixa o mesmo pôster), e RGB_565 (metade da memória
+     * por imagem, sem perda visível em pôster). Pôsteres do TMDB são imutáveis
+     * pela URL, então ignoramos os cabeçalhos de cache e guardamos direto.
+     */
+    override fun newImageLoader(): ImageLoader =
+        ImageLoader.Builder(this)
+            .crossfade(true)
+            .bitmapConfig(Bitmap.Config.RGB_565)
+            .respectCacheHeaders(false)
+            .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.30).build() }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("coil_posters"))
+                    .maxSizeBytes(300L * 1024 * 1024)   // 300 MB de pôsteres em disco
+                    .build()
+            }
+            .build()
 
     override fun onCreate() {
         super.onCreate()

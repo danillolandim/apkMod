@@ -78,6 +78,7 @@ class AppSettings(context: Context) {
             "Boa (10 Mbps)" to 10,
             "Rápida / fibra (20 Mbps)" to 20,
             "Muito rápida (40 Mbps)" to 40,
+            "Cabo de rede (80 Mbps)" to 80,
         )
         val SUBTITLE_SIZES = listOf("Pequena" to 16f, "Média" to 20f, "Grande" to 26f, "Enorme" to 34f)
         val LANG_OPTIONS = listOf(

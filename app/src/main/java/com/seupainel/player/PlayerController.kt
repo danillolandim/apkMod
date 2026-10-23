@@ -50,12 +50,13 @@ class PlayerController(
         val makeDefault: Boolean = false,
     )
 
-    // ABR mais agressivo, afinado para P2P: sobe pra HD rápido e cai devagar.
+    // ABR afinado para rede com fio (banda alta e estável): sobe pra alta
+    // qualidade rápido e usa mais da banda disponível, já que o cabo não oscila.
     private val adaptiveFactory = AdaptiveTrackSelection.Factory(
-        /* minDurationForQualityIncreaseMs   */ 6_000,
+        /* minDurationForQualityIncreaseMs   */ 4_000,
         /* maxDurationForQualityDecreaseMs   */ 30_000,
         /* minDurationToRetainAfterDiscardMs */ 25_000,
-        /* bandwidthFraction                 */ 0.8f,
+        /* bandwidthFraction                 */ 0.9f,
     )
 
     private val settings = AppSettings(context)
@@ -117,11 +118,14 @@ class PlayerController(
         // Buffer sob medida: LIVE prioriza baixa latência (zapping rápido);
         // VOD prioriza suavidade com buffer grande.
         val loadControl = when (mode) {
+            // LIVE: começa a tocar rápido (zapping) e mantém um colchão maior
+            // (cabo enche fácil), evitando engasgo em picos do provedor.
             Mode.LIVE -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(5_000, 30_000, 1_000, 2_000)
+                .setBufferDurationsMs(10_000, 50_000, 1_000, 2_000)
                 .setBackBuffer(30_000, true)   // rewind instantâneo em live
+            // VOD: buffer grande (até 2 min) — zero rebuffer em filme/série.
             Mode.VOD -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
+                .setBufferDurationsMs(30_000, 120_000, 2_000, 4_000)
         }
             .setPrioritizeTimeOverSizeThresholds(true) // começa a tocar antes
             .build()

@@ -1,6 +1,8 @@
 # Novidades
 
 ## Esta versão
+- Performance: cache de cartazes em disco (300 MB, persistente) e memória maior + RGB_565 — a grade carrega muito mais rápido e não re-baixa pôster.
+- Performance: indexação do TMDB mais rápida (8 tarefas), ABR/buffer afinados para rede com fio (sobe pra alta qualidade antes, sem rebuffer) e opção "Cabo de rede" nas Configurações.
 - Visual Apple TV no app inteiro: Configurações (campos, listas, caixas), menus/diálogos e a tela de carregamento agora seguem o mesmo estilo escuro com destaque azul.
 - Menus no estilo do app (escuro, cantos arredondados, destaque azul) — antes usavam o diálogo cinza padrão do Android.
 - Botão de qualidade no player ao vivo: mostra a atual e abre um menu suspenso compacto ali mesmo.

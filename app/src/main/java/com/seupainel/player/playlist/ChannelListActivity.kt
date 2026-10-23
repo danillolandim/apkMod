@@ -717,7 +717,7 @@ class ChannelListActivity : FragmentActivity() {
     // para não travar o enriquecimento dos cartazes (tmdbExec).
     private val vodIndex by lazy { com.seupainel.player.meta.VodIndex(this) }
     private val indexMiss = java.util.Collections.synchronizedSet(HashSet<String>())
-    private val indexExec = java.util.concurrent.Executors.newFixedThreadPool(6)
+    private val indexExec = java.util.concurrent.Executors.newFixedThreadPool(8)
     @Volatile private var indexing = false
     @Volatile private var indexStarted = false      // Filmes já foi aberto nesta sessão?
     @Volatile private var indexPaused = false       // pausa a indexação durante a reprodução
