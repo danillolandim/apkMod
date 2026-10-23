@@ -39,12 +39,17 @@ object ChannelQuality {
         else -> 2
     }
 
+    private val reTrail = Regex("""[\s\-|•:]+$""")
+    private val reLead = Regex("""^[\s\-|•:]+""")
+    private val reSpaces = Regex("""\s{2,}""")
+    private val baseCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     /** Nome sem o(s) sufixo(s) de qualidade, para agrupar e exibir. */
-    fun baseName(name: String): String {
+    fun baseName(name: String): String = baseCache.getOrPut(name) {
         var s = name.replace(QUAL, " ")
-        s = s.replace(Regex("""[\s\-|•:]+$"""), "")      // separadores soltos no fim
-        s = s.replace(Regex("""^[\s\-|•:]+"""), "")
-        s = s.replace(Regex("""\s{2,}"""), " ").trim()
-        return s.ifBlank { name.trim() }
+        s = s.replace(reTrail, "")        // separadores soltos no fim
+        s = s.replace(reLead, "")
+        s = s.replace(reSpaces, " ").trim()
+        s.ifBlank { name.trim() }
     }
 }

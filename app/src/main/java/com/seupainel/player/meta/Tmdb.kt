@@ -93,16 +93,28 @@ object Tmdb {
 
     private const val IMG = "https://image.tmdb.org/t/p/w500"
 
-    fun cleanTitle(raw: String): String {
+    // Regexes compilados UMA vez (antes eram recriados a cada chamada).
+    private val reSxE = Regex("""(?i)\bS\d{1,2}\s*E\d{1,3}\b""")
+    private val reTxE = Regex("""(?i)\bT\d{1,2}\s*E\d{1,3}\b""")
+    private val reQual = Regex("""(?i)\b(1080p|720p|480p|4k|uhd|fhd|hd|sd|dual|leg|legendado|dublado|dub|multi|h264|h265|hevc)\b""")
+    private val reYear = Regex("""\(?\b(19|20)\d{2}\b\)?""")
+    private val reBrackets = Regex("""[\[\](){}|]""")
+    private val reDash = Regex("""\s+-\s+.*$""")
+    private val reSpaces = Regex("""\s{2,}""")
+
+    // Memoiza o resultado (o mesmo nome é limpo muitas vezes por filtro/scroll).
+    private val cleanCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    fun cleanTitle(raw: String): String = cleanCache.getOrPut(raw) {
         var s = raw
-        s = s.replace(Regex("""(?i)\bS\d{1,2}\s*E\d{1,3}\b"""), " ")
-        s = s.replace(Regex("""(?i)\bT\d{1,2}\s*E\d{1,3}\b"""), " ")
-        s = s.replace(Regex("""(?i)\b(1080p|720p|480p|4k|uhd|fhd|hd|sd|dual|leg|legendado|dublado|dub|multi|h264|h265|hevc)\b"""), " ")
-        s = s.replace(Regex("""\(?\b(19|20)\d{2}\b\)?"""), " ")
-        s = s.replace(Regex("""[\[\](){}|]"""), " ")
-        s = s.replace(Regex("""\s+-\s+.*$"""), "")
-        s = s.replace(Regex("""\s{2,}"""), " ").trim()
-        return s
+        s = s.replace(reSxE, " ")
+        s = s.replace(reTxE, " ")
+        s = s.replace(reQual, " ")
+        s = s.replace(reYear, " ")
+        s = s.replace(reBrackets, " ")
+        s = s.replace(reDash, "")
+        s = s.replace(reSpaces, " ").trim()
+        s
     }
 
     fun fetch(apiKey: String, rawTitle: String, isSeries: Boolean): Res {
