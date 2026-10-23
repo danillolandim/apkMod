@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Banner placeholder para o LEANBACK_LAUNCHER (320x180). Troque pela sua arte. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#101418" />
+        </shape>
+    </item>
+    <item android:gravity="center">
+        <shape android:shape="rectangle">
+            <size android:width="120dp" android:height="120dp" />
+            <solid android:color="#00000000" />
+            <stroke android:width="4dp" android:color="#3DA9FC" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+</layer-list>

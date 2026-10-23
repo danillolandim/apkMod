@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Player Mod</string>
+    <string name="a11y_player">Reprodutor de vídeo. OK mostra os controles. Menu abre áudio, legenda e qualidade. Vermelho muda o aspecto. Verde abre picture-in-picture. Azul mostra diagnóstico.</string>
+</resources>

@@ -1,0 +1,59 @@
+# Compila o APK na nuvem e publica numa Release "latest" com URL fixa.
+# Essa URL serve direto no app Downloader da TV (ou pra gerar um código).
+#
+# Como usar:
+#   1. Crie um repositório no GitHub e envie esta pasta (tvplayer-mod).
+#   2. Em Settings → Actions → General → Workflow permissions, marque
+#      "Read and write permissions" (para o workflow poder criar a Release).
+#   3. Cada push na branch main gera o APK. O link fica em:
+#      https://github.com/<usuario>/<repo>/releases/download/latest/player-mod.apk
+
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk player-mod.apk
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-mod-apk
+          path: player-mod.apk
+
+      - name: Publish release "latest"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Player Mod (último build)
+          files: player-mod.apk
+          prerelease: true
