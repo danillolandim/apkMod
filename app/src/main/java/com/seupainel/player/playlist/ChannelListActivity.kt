@@ -206,7 +206,13 @@ class ChannelListActivity : FragmentActivity() {
         }
         groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
         status.text = "${channels.size} canais • ${realGroups.size} categorias"
-        selectGroup(ALL)
+
+        // Categoria inicial: "Canais" (evita o pesado "Todos") — ou a 1ª real.
+        val defaultIdx = groups.indexOfFirst { it.uppercase().contains("CANA") || it.uppercase().contains("CANAL") }
+            .let { if (it >= 0) it else if (realGroups.isNotEmpty()) groups.indexOf(realGroups.first()) else 0 }
+        groupsView.setSelection(defaultIdx)
+        selectGroup(groups[defaultIdx])
+        // Foco nas categorias (nunca na busca -> não abre o teclado).
         groupsView.requestFocus()
     }
 

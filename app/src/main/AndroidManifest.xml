@@ -45,6 +45,7 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:screenOrientation="landscape"
+            android:windowSoftInputMode="stateHidden"
             android:theme="@style/Theme.Player" />
 
         <activity
@@ -63,6 +64,7 @@
             android:name=".playlist.ChannelListActivity"
             android:exported="false"
             android:screenOrientation="landscape"
+            android:windowSoftInputMode="stateHidden"
             android:theme="@style/Theme.Player" />
 
         <activity
