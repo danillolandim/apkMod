@@ -36,10 +36,24 @@ class ChannelListActivity : FragmentActivity() {
     private lateinit var search: EditText
     private lateinit var store: PlaylistStore
 
+    private enum class Sec { CANAIS, FILMES, SERIES, FAV }
+
     private var all: List<M3uParser.Channel> = emptyList()
-    private var groups: List<String> = emptyList()
-    private var currentGroup: String = ALL
+    private var groups: List<String> = emptyList()          // subcategorias da seção atual
+    private var sectionGroups: Map<Sec, List<String>> = emptyMap()
+    private var currentSection: Sec = Sec.CANAIS
+    private var currentSub: String? = null                  // null = tudo da seção
     private var shown: List<M3uParser.Channel> = emptyList()
+
+    private fun secOf(group: String): Sec {
+        val u = group.uppercase()
+        return when {
+            u.contains("SERIE") || u.contains("SÉRIE") -> Sec.SERIES
+            u.contains("FILME") || u.contains("MOVIE") || u.contains("VOD") || u.contains("CINEMA") -> Sec.FILMES
+            else -> Sec.CANAIS
+        }
+    }
+    private fun currentIsSeries() = currentSection == Sec.SERIES
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,8 +65,8 @@ class ChannelListActivity : FragmentActivity() {
         search = findViewById(R.id.search)
         store = PlaylistStore(this)
 
-        groupsView.setOnItemClickListener { _, _, pos, _ -> selectGroup(groups[pos]) }
-        channelsView.setOnItemClickListener { _, _, pos, _ -> play(shown[pos]) }
+        groupsView.setOnItemClickListener { _, _, pos, _ -> selectSub(groups.getOrNull(pos)) }
+        channelsView.setOnItemClickListener { _, _, pos, _ -> onChannelClick(shown[pos]) }
         channelsView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
         gridView.setOnItemClickListener { _, _, pos, _ ->
             if (seriesMode) shownSeries.getOrNull(pos)?.let { openSeries(it) }
@@ -61,7 +75,14 @@ class ChannelListActivity : FragmentActivity() {
         gridView.setOnItemLongClickListener { _, _, pos, _ ->
             if (!seriesMode) shown.getOrNull(pos)?.let { toggleFav(it) }; true
         }
-        search.setOnEditorActionListener { _, _, _ -> applyFilter(); true }
+        search.setOnEditorActionListener { _, _, _ -> applyFilter(); groupsView.requestFocus(); true }
+
+        // Barra de navegação por seções.
+        findViewById<View>(R.id.nav_canais).setOnClickListener { selectSection(Sec.CANAIS) }
+        findViewById<View>(R.id.nav_filmes).setOnClickListener { selectSection(Sec.FILMES) }
+        findViewById<View>(R.id.nav_series).setOnClickListener { selectSection(Sec.SERIES) }
+        findViewById<View>(R.id.nav_fav).setOnClickListener { selectSection(Sec.FAV) }
+        findViewById<View>(R.id.nav_search).setOnClickListener { openSearch() }
 
         val fromSettings = intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)
         val force = intent.getBooleanExtra(EXTRA_FORCE_REFRESH, false)
@@ -198,66 +219,69 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun show(channels: List<M3uParser.Channel>) {
         all = channels
-        val realGroups = channels.map { it.group }.distinct().sorted()
-        groups = buildList {
-            add(ALL)
-            if (store.favorites().isNotEmpty()) add(FAV)
-            addAll(realGroups)
-        }
-        groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
-        status.text = "${channels.size} canais • ${realGroups.size} categorias"
-
-        // Categoria inicial: "Canais" (evita o pesado "Todos") — ou a 1ª real.
-        val defaultIdx = groups.indexOfFirst { it.uppercase().contains("CANA") || it.uppercase().contains("CANAL") }
-            .let { if (it >= 0) it else if (realGroups.isNotEmpty()) groups.indexOf(realGroups.first()) else 0 }
-        groupsView.setSelection(defaultIdx)
-        selectGroup(groups[defaultIdx])
-        // Foco nas categorias (nunca na busca -> não abre o teclado).
+        val realGroups = channels.map { it.group }.distinct()
+        sectionGroups = realGroups.groupBy { secOf(it) }
+        status.text = "${channels.size} itens"
+        selectSection(Sec.CANAIS)
         groupsView.requestFocus()
     }
 
-    private fun selectGroup(g: String) { currentGroup = g; gridForced = null; applyFilter() }
+    private fun selectSection(sec: Sec) {
+        currentSection = sec
+        search.setText("")
+        search.visibility = View.GONE
+        val subs = (sectionGroups[sec] ?: emptyList()).sortedBy { it.lowercase() }
+        groups = when {
+            sec == Sec.FAV -> emptyList()
+            subs.size > 1 -> buildList { add(ALL_SEC); addAll(subs) }
+            else -> subs
+        }
+        groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
+        currentSub = if (groups.isNotEmpty() && groups[0] != ALL_SEC) groups[0] else null
+        if (groups.isNotEmpty()) groupsView.setSelection(0)
+        applyFilter()
+    }
+
+    private fun selectSub(g: String?) {
+        currentSub = if (g == null || g == ALL_SEC) null else g
+        applyFilter()
+    }
+
+    private fun openSearch() {
+        search.visibility = View.VISIBLE
+        search.requestFocus()
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.showSoftInput(search, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
 
     @Volatile private var filterGen = 0
 
     private fun applyFilter() {
         val q = search.text.toString().trim().lowercase()
         val favs = store.favorites()
-        val group = currentGroup
+        val sec = currentSection
+        val sub = currentSub
         val gen = ++filterGen
-
-        // Sem filtro ("Todos" + busca vazia): aplica na hora, sem thread.
-        if (group == ALL && q.isEmpty()) {
-            publish(all, favs); return
-        }
-        // Filtro de 47k itens fora da UI para não travar.
         thread(name = "filter") {
             val result = all.filter { ch ->
-                val inGroup = when (group) {
-                    ALL -> true
-                    FAV -> favs.contains(ch.url)
-                    else -> ch.group == group
-                }
-                inGroup && (q.isEmpty() || ch.name.lowercase().contains(q))
+                val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOf(ch.group) == sec
+                val inSub = sub == null || ch.group == sub
+                inSec && inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
             }
-            if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs) }
+            if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs, sec) }
         }
     }
 
     @Volatile private var seriesMode = false
 
-    private fun publish(list: List<M3uParser.Channel>, favs: Set<String>) {
+    private fun publish(list: List<M3uParser.Channel>, favs: Set<String>, sec: Sec) {
         shown = list
         findViewById<View>(R.id.empty).visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
 
-        // Séries: agrupa episódios em séries (uma por cartaz).
-        if (currentIsSeries() && gridForced != false && list.isNotEmpty()) {
-            publishSeries(list); return
-        }
+        if (sec == Sec.SERIES && list.isNotEmpty()) { publishSeries(list); return }
         seriesMode = false
 
-        // Grade de pôsteres para filmes (ou forçado); lista para canais ao vivo.
-        val useGrid = gridForced ?: isVodCategory(currentGroup, list)
+        val useGrid = sec == Sec.FILMES
         if (useGrid) {
             channelsView.visibility = View.GONE
             gridView.visibility = View.VISIBLE
@@ -347,20 +371,6 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
-    /** null = automático (detecta por categoria); true/false = forçado pelo usuário. */
-    private var gridForced: Boolean? = null
-
-    private fun isVodCategory(group: String, sample: List<M3uParser.Channel>): Boolean {
-        val g = group.uppercase()
-        if (listOf("FILME", "MOVIE", "SERIE", "SÉRIE", "VOD", "CINEMA", "NETFLIX", "PRIME", "DISNEY", "HBO", "MAX ")
-                .any { g.contains(it) }) return true
-        if (group == ALL || group == FAV) return false
-        // Se a maioria dos itens tem logo/pôster, trata como grade.
-        val probe = sample.take(40)
-        val withLogo = probe.count { !it.logo.isNullOrBlank() }
-        return probe.isNotEmpty() && withLogo >= probe.size * 0.6
-    }
-
     private val posterAdapter by lazy { PosterAdapter() }
 
     // Cache TMDB (nota + pôster) e busca limitada (só itens visíveis, sem repetir).
@@ -368,7 +378,14 @@ class ChannelListActivity : FragmentActivity() {
     private val tmdbMiss = java.util.Collections.synchronizedSet(HashSet<String>())
     private val tmdbExec = java.util.concurrent.Executors.newFixedThreadPool(4)
     private val tmdbKey by lazy { com.seupainel.player.AppSettings(this).tmdbApiKey }
-    private fun currentIsSeries() = currentGroup.uppercase().let { it.contains("SERIE") || it.contains("SÉRIE") }
+
+    /** Canal clicado: filme/série abre detalhes; ao vivo toca direto. */
+    private fun onChannelClick(ch: M3uParser.Channel) {
+        when (secOf(ch.group)) {
+            Sec.FILMES, Sec.SERIES -> openDetail(ch)
+            else -> play(ch)
+        }
+    }
 
     private inner class PosterAdapter : android.widget.BaseAdapter() {
         private var items: List<M3uParser.Channel> = emptyList()
@@ -469,7 +486,7 @@ class ChannelListActivity : FragmentActivity() {
 
     /** Abre a tela de detalhes (filmes/séries) antes de assistir. */
     private fun openDetail(ch: M3uParser.Channel) {
-        val isSeries = currentGroup.uppercase().contains("SERIE") || currentGroup.uppercase().contains("SÉRIE")
+        val isSeries = currentSection == Sec.SERIES
         startActivity(Intent(this, com.seupainel.player.DetailActivity::class.java).apply {
             putExtra(com.seupainel.player.DetailActivity.EXTRA_URL, ch.url)
             putExtra(com.seupainel.player.DetailActivity.EXTRA_TITLE, ch.name)
@@ -504,13 +521,7 @@ class ChannelListActivity : FragmentActivity() {
                 val lv = if (gridView.visibility == View.VISIBLE) gridView.selectedItemPosition else channelsView.selectedItemPosition
                 if (lv in shown.indices) { toggleFav(shown[lv]); return true }
             }
-            KeyEvent.KEYCODE_PROG_YELLOW -> {
-                // Alternar lista <-> grade (pôsteres)
-                gridForced = !(if (gridForced != null) gridForced!! else gridView.visibility == View.VISIBLE)
-                publish(shown, store.favorites())
-                Toast.makeText(this, if (gridForced == true) "Grade de pôsteres" else "Lista", Toast.LENGTH_SHORT).show()
-                return true
-            }
+            KeyEvent.KEYCODE_SEARCH, KeyEvent.KEYCODE_PROG_YELLOW -> { openSearch(); return true }
             KeyEvent.KEYCODE_PROG_GREEN, KeyEvent.KEYCODE_MENU -> {
                 status.text = "Atualizando…"
                 if (intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)) resolveAndLoad()
@@ -525,8 +536,7 @@ class ChannelListActivity : FragmentActivity() {
         const val EXTRA_URL = "url"
         const val EXTRA_FROM_SETTINGS = "from_settings"
         const val EXTRA_FORCE_REFRESH = "force_refresh"
-        private const val ALL = "Todos"
-        private const val FAV = "★ Favoritos"
+        private const val ALL_SEC = "Tudo"
         private const val MAX_CHARS = 12_000_000
         private const val UA = "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 Chrome/120 Safari/537.36"
         private val DIRECT_EXT = listOf(".mp4", ".mkv", ".ts", ".avi", ".mov", ".webm", ".mp3", ".aac", ".flac")
