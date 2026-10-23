@@ -598,36 +598,46 @@ class ChannelListActivity : FragmentActivity() {
             }
         }
 
-        // Procura a linha crua #EXTINF correspondente a esta URL no cache.
-        val raw = url?.let { u ->
-            runCatching {
+        // Procura a linha crua #EXTINF no cache em segundo plano (arquivo grande
+        // -> fora da UI), e só então mostra a janela.
+        thread(name = "item-diag") {
+            val raw = runCatching {
+                if (url == null) return@runCatching null
+                val u = url.trim()
                 val txt = store.readCache() ?: return@runCatching null
-                val lines = txt.lineSequence().toList()
-                val idx = lines.indexOfFirst { it.trim() == u.trim() }
-                if (idx <= 0) null
-                else {
-                    // junta as linhas de metadados logo acima da URL (#EXTINF + #EXTVLCOPT…)
-                    var i = idx - 1
-                    val meta = ArrayList<String>()
-                    while (i >= 0 && lines[i].trimStart().startsWith("#")) { meta.add(0, lines[i]); i-- }
-                    meta.joinToString("\n")
+                var prevMeta = StringBuilder()
+                var found: String? = null
+                for (line in txt.lineSequence()) {
+                    val t = line.trimStart()
+                    when {
+                        t.startsWith("#") -> prevMeta.append(line).append('\n')
+                        line.trim() == u -> { found = prevMeta.toString().trimEnd(); break }
+                        t.isEmpty() -> {}
+                        else -> prevMeta = StringBuilder()   // outra URL -> zera metadados
+                    }
                 }
+                found
             }.getOrNull()
-        }
 
-        val msg = buildString {
-            append(parsed)
-            append('\n')
-            append("URL:\n").append(url ?: "—").append("\n\n")
-            append("LINHA CRUA DA LISTA:\n")
-            append(raw ?: "(não encontrada no cache)")
-        }
+            val msg = buildString {
+                append(parsed)
+                append('\n')
+                append("URL:\n").append(url ?: "—").append("\n\n")
+                append("LINHA CRUA DA LISTA:\n")
+                append(if (raw.isNullOrBlank()) "(não encontrada no cache)" else raw)
+            }
 
-        android.app.AlertDialog.Builder(this)
-            .setTitle(name)
-            .setMessage(msg)
-            .setPositiveButton("OK", null)
-            .show()
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                runCatching {
+                    androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle(name)
+                        .setMessage(msg)
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            }
+        }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
