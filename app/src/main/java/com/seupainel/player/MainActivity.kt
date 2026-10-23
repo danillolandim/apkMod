@@ -39,9 +39,6 @@ class MainActivity : FragmentActivity() {
 
         applyWallpaper()
 
-        // Verifica atualização do app ao abrir (se ativado nas Configurações).
-        if (AppSettings(this).autoUpdate) Updater.check(this, silent = true)
-
         val openSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         findViewById<ImageButton>(R.id.btn_gear).setOnClickListener { openSettings() }
         findViewById<View>(R.id.card_live).setOnClickListener { openSection("canais") }

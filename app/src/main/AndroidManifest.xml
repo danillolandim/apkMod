@@ -22,9 +22,9 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Player">
 
-        <!-- Tela inicial de teste: presets, URL direta ou endereço P2P -->
+        <!-- Tela de abertura (animação + carga da lista) -->
         <activity
-            android:name=".MainActivity"
+            android:name=".SplashActivity"
             android:exported="true"
             android:screenOrientation="landscape"
             android:theme="@style/Theme.Player">
@@ -34,6 +34,13 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Home: TV ao vivo / Filmes / Séries -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.Player" />
 
         <activity
             android:name=".TestActivity"

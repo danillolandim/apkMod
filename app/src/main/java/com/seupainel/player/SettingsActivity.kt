@@ -104,8 +104,13 @@ class SettingsActivity : FragmentActivity() {
         }
 
         fun save() {
-            store.playlistUrl = url.text.toString().trim().ifBlank { null }
-            store.configUrl = config.text.toString().trim().ifBlank { null }
+            val newUrl = url.text.toString().trim().ifBlank { null }
+            val newConfig = config.text.toString().trim().ifBlank { null }
+            if (newUrl != store.playlistUrl || newConfig != store.configUrl) {
+                com.seupainel.player.playlist.PlaylistHolder.clear()   // lista mudou
+            }
+            store.playlistUrl = newUrl
+            store.configUrl = newConfig
             store.userAgent = ua.text.toString().trim().ifBlank { null }
             store.epgUrl = epg.text.toString().trim().ifBlank { null }
             app.tmdbApiKey = tmdb.text.toString()
@@ -143,7 +148,8 @@ class SettingsActivity : FragmentActivity() {
         }
 
         findViewById<Button>(R.id.set_clear_cache).setOnClickListener {
-            store.clearCache(); info.text = statusText()
+            store.clearCache(); com.seupainel.player.playlist.PlaylistHolder.clear()
+            info.text = statusText()
             Toast.makeText(this, "Cache limpo", Toast.LENGTH_SHORT).show()
         }
 
@@ -168,8 +174,13 @@ class SettingsActivity : FragmentActivity() {
     override fun onPause() {
         super.onPause()
         // auto-save ao sair, para não perder o que foi editado
-        store.playlistUrl = findViewById<EditText>(R.id.set_url).text.toString().trim().ifBlank { null }
-        store.configUrl = findViewById<EditText>(R.id.set_config).text.toString().trim().ifBlank { null }
+        val newUrl = findViewById<EditText>(R.id.set_url).text.toString().trim().ifBlank { null }
+        val newConfig = findViewById<EditText>(R.id.set_config).text.toString().trim().ifBlank { null }
+        if (newUrl != store.playlistUrl || newConfig != store.configUrl) {
+            com.seupainel.player.playlist.PlaylistHolder.clear()
+        }
+        store.playlistUrl = newUrl
+        store.configUrl = newConfig
         store.userAgent = findViewById<EditText>(R.id.set_ua).text.toString().trim().ifBlank { null }
         store.epgUrl = findViewById<EditText>(R.id.set_epg).text.toString().trim().ifBlank { null }
         app.tmdbApiKey = findViewById<EditText>(R.id.set_tmdb).text.toString()

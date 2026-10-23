@@ -44,6 +44,7 @@ class ChannelListActivity : FragmentActivity() {
     private var currentSection: Sec = Sec.CANAIS
     private var startSection: Sec = Sec.CANAIS               // seção escolhida na home
     private var currentSub: String? = null                  // null = tudo da seção
+    private var canaisDerived = false                       // canais agrupados por tema (do nome)
     private var shown: List<M3uParser.Channel> = emptyList()
 
     private fun secOf(group: String): Sec {
@@ -108,7 +109,13 @@ class ChannelListActivity : FragmentActivity() {
         startLoadingAnim()
         status.text = "Carregando…"
 
-        if (fromSettings) {
+        val preloaded = PlaylistHolder.channels
+        if (fromSettings && preloaded != null && !force) {
+            // Já veio pronto do Splash -> abre instantâneo, sem tela de carregando.
+            findViewById<View>(R.id.loading).visibility = View.GONE
+            show(preloaded)
+            if (!store.cacheFresh()) resolveAndLoad(silent = true)
+        } else if (fromSettings) {
             // 1) Tem cache? Mostra IMEDIATAMENTE (parse em 2º plano).
             val hasCache = store.readCache() != null
             if (hasCache && !force) {
@@ -257,6 +264,7 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun show(channels: List<M3uParser.Channel>) {
         all = channels
+        PlaylistHolder.channels = channels          // mantém a memória compartilhada em dia
         val realGroups = channels.map { it.group }.distinct()
         sectionGroups = realGroups.groupBy { secOf(it) }
         status.text = "${channels.size} itens"
@@ -282,14 +290,14 @@ class ChannelListActivity : FragmentActivity() {
         search.visibility = View.GONE
         val subs = (sectionGroups[sec] ?: emptyList()).sortedBy { it.lowercase() }
 
+        canaisDerived = false
         when {
             sec == Sec.FAV -> {
                 subMode = SubMode.GROUPS
                 groups = emptyList()
             }
             subs.size > 1 -> {
-                // A lista já traz categorias reais para esta seção (ex.: canais
-                // ao vivo por tema). Usa-as direto.
+                // A lista já traz categorias reais para esta seção. Usa-as direto.
                 subMode = SubMode.GROUPS
                 groups = buildList { add(ALL_SEC); addAll(subs) }
             }
@@ -299,17 +307,22 @@ class ChannelListActivity : FragmentActivity() {
                 groups = filmesGroups()
                 ensureFilmesIndexed()
             }
+            sec == Sec.CANAIS -> {
+                // Sem categorias reais -> deduz do nome (Esportes, Notícias, …).
+                canaisDerived = true
+                subMode = SubMode.GROUPS
+                val present = all.asSequence()
+                    .filter { secOfChannel(it) == Sec.CANAIS }
+                    .map { LiveGroups.categoryOf(it.name) }.toHashSet()
+                groups = buildList { add(ALL_SEC); addAll(LiveGroups.ORDER.filter { it in present }) }
+            }
             else -> {
-                // Canais/Séries sem categorias reais -> índice A-Z (+ Recentes).
+                // Séries sem categorias reais -> índice A-Z (+ Recentes).
                 subMode = SubMode.ALPHA
                 val present = all.asSequence()
                     .filter { secOfChannel(it) == sec }
                     .map { firstKey(it.name) }.distinct().toSortedSet()
-                groups = buildList {
-                    add(ALL_SEC)
-                    if (sec == Sec.SERIES) add(RECENTES)
-                    addAll(present)
-                }
+                groups = buildList { add(ALL_SEC); add(RECENTES); addAll(present) }
             }
         }
         groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
@@ -415,6 +428,7 @@ class ChannelListActivity : FragmentActivity() {
         val favs = store.favorites()
         val sec = currentSection
         val sub = currentSub
+        val derivedLive = canaisDerived
         val gen = ++filterGen
         // Resolve o tipo da subcategoria uma vez (fora do loop).
         val genreId = com.seupainel.player.meta.VodIndex.GENRE_BY_NAME[sub]
@@ -423,6 +437,7 @@ class ChannelListActivity : FragmentActivity() {
                 val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOfChannel(ch) == sec
                 val inSub = when {
                     sub == null || sub == ALL_SEC || sub == RECENTES -> true
+                    derivedLive -> LiveGroups.categoryOf(ch.name) == sub  // canais por tema
                     sub == LANCAMENTOS -> (vodIndex.year(ch.name) ?: 0) >= lancCutoff
                     genreId != null -> vodIndex.genres(ch.name).contains(genreId)
                     sub.length == 1 -> firstKey(ch.name) == sub          // índice A-Z
