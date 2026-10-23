@@ -96,11 +96,14 @@ class MainActivity : FragmentActivity() {
     private fun applyWallpaper() {
         val s = AppSettings(this)
         val bg = findViewById<android.widget.ImageView>(R.id.bg_image)
-        if (s.wallpaper == "custom" && s.wallpaperUrl.isNotBlank()) {
+        // Se há uma URL preenchida, usa a imagem (mais simples: basta colar a URL).
+        // Enquanto carrega / se falhar, mostra o tema vetorial como fundo.
+        if (s.wallpaperUrl.isNotBlank()) {
+            bg.setImageResource(resIdOf(AppSettings.wallpaperDrawable(s.wallpaper)))
             coil.Coil.imageLoader(this).enqueue(
                 coil.request.ImageRequest.Builder(this)
                     .data(s.wallpaperUrl).target(bg).crossfade(true)
-                    .error(resIdOf(AppSettings.wallpaperDrawable("dusk")))
+                    .error(resIdOf(AppSettings.wallpaperDrawable(s.wallpaper)))
                     .build()
             )
         } else {

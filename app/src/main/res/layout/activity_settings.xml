@@ -199,7 +199,7 @@
         <Spinner android:id="@+id/set_wallpaper" android:layout_width="match_parent" android:layout_height="wrap_content" />
 
         <EditText android:id="@+id/set_wallpaper_url" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:hint="URL de imagem (ex.: Unsplash) — só para 'Imagem personalizada'"
+            android:hint="Cole uma URL de imagem (ex.: Unsplash) — já vira o fundo"
             android:inputType="textUri" android:singleLine="true"
             android:textColor="#FFFFFF" android:textColorHint="#667080" />
 
