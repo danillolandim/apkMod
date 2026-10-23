@@ -84,6 +84,7 @@ class PlayerActivity : FragmentActivity() {
         pc.attach(playerView)
         playerView.contentDescription = getString(R.string.a11y_player)
         playerView.controllerShowTimeoutMs = 4_000
+        wireOptionsGear()
         engine = App.engine(this)
 
         directUrl = intent.getStringExtra(EXTRA_DIRECT_URL).orEmpty()
@@ -150,6 +151,21 @@ class PlayerActivity : FragmentActivity() {
                 ui.post { recover("engine: $message") }
             }
         })
+    }
+
+    /** Faz a engrenagem do player (na tela) abrir o menu completo do app. */
+    private fun wireOptionsGear() {
+        fun bind() {
+            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.apply {
+                setOnClickListener { showMenu() }
+                contentDescription = "Opções"
+            }
+        }
+        bind()
+        // Reaplica sempre que os controles reaparecem (a view pode ser recriada).
+        playerView.setControllerVisibilityListener(
+            PlayerView.ControllerVisibilityListener { if (it == View.VISIBLE) bind() }
+        )
     }
 
     private fun setupListeners() {
