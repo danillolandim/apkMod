@@ -277,7 +277,8 @@ class PlayerController(
     fun release() = player.release()
 
     data class TrackInfo(
-        val type: @C.TrackType Int,
+        /** C.TRACK_TYPE_VIDEO / AUDIO / TEXT */
+        val type: Int,
         val label: String,
         val language: String?,
         val trackIndex: Int,
@@ -285,7 +286,7 @@ class PlayerController(
         val group: Tracks.Group?,
     )
 
-    private fun collect(type: @C.TrackType Int): List<TrackInfo> {
+    private fun collect(type: Int): List<TrackInfo> {
         val out = ArrayList<TrackInfo>()
         for (group in player.currentTracks.groups) {
             if (group.type != type) continue

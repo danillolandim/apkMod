@@ -44,8 +44,26 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      # Grava a saída num arquivo e, se falhar, publica as linhas de erro como
+      # anotações do run e no resumo do job (visíveis pela API/página mesmo
+      # sem baixar o log completo).
       - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon
+        id: build
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Reportar erros (se falhou)
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          echo "## Build falhou" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -nE "^e: |error:|FAILURE|What went wrong|Caused by|Could not|Unresolved|not found|Execution failed" build.log | head -60 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^e: |error:|What went wrong|Caused by|Could not resolve|Unresolved reference|Execution failed" build.log \
+            | sed 's/[%\r]//g' | head -40 \
+            | while IFS= read -r line; do echo "::error::${line}"; done
+          exit 1
 
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk player-mod.apk
