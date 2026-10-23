@@ -55,15 +55,25 @@ class DetailActivity : FragmentActivity() {
             return
         }
         thread(name = "tmdb") {
-            val m = Tmdb.fetch(key, title, isSeries)
+            val r = Tmdb.fetch(key, title, isSeries)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                if (m == null) { overview.text = "Sem informações encontradas."; return@runOnUiThread }
-                if (!m.posterUrl.isNullOrBlank()) loadImage(poster, m.posterUrl)
-                val stars = if (m.rating > 0) "★ ${"%.1f".format(m.rating)}/10" else ""
-                meta.text = listOfNotNull(stars.ifBlank { null }, m.year).joinToString("   •   ")
-                overview.text = m.overview ?: "Sinopse indisponível."
-                if (m.title.isNotBlank()) titleView.text = m.title
+                when (r) {
+                    is Tmdb.Res.InvalidKey ->
+                        overview.text = "Chave do TMDB inválida. Confira em Configurações (use a 'API Key (v3)' ou o 'Read Access Token v4')."
+                    is Tmdb.Res.Err ->
+                        overview.text = "Não foi possível consultar o TMDB (${r.msg})."
+                    is Tmdb.Res.NotFound ->
+                        overview.text = "Sem informações para \"$title\" no TMDB (título pode estar diferente do original)."
+                    is Tmdb.Res.Ok -> {
+                        val m = r.meta
+                        if (!m.posterUrl.isNullOrBlank()) loadImage(poster, m.posterUrl)
+                        val stars = if (m.rating > 0) "★ ${"%.1f".format(m.rating)}/10" else ""
+                        meta.text = listOfNotNull(stars.ifBlank { null }, m.year).joinToString("   •   ")
+                        overview.text = m.overview ?: "Sinopse indisponível."
+                        if (m.title.isNotBlank()) titleView.text = m.title
+                    }
+                }
             }
         }
     }
