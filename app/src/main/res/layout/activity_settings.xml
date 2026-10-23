@@ -74,14 +74,19 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="User-Agent (opcional)"
+            android:text="User-Agent — se o canal não abre (erro de rede), teste um destes"
             android:textColor="#3DA9FC" />
+
+        <Spinner
+            android:id="@+id/set_ua_preset"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
         <EditText
             android:id="@+id/set_ua"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="deixe vazio para o padrão"
+            android:hint="ou digite um personalizado"
             android:inputType="text"
             android:singleLine="true"
             android:textColor="#FFFFFF"

@@ -2,6 +2,7 @@ package com.seupainel.player
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
@@ -52,6 +53,19 @@ class SettingsActivity : FragmentActivity() {
         config.setText(store.configUrl.orEmpty())
         ua.setText(store.userAgent.orEmpty())
         epg.setText(store.epgUrl.orEmpty())
+
+        // Lista de User-Agents prontos: escolher preenche o campo.
+        val uaPreset = spinner(R.id.set_ua_preset, AppSettings.UA_PRESETS.map { it.first })
+        val curUaIdx = AppSettings.UA_PRESETS.indexOfFirst { it.second == store.userAgent }
+        uaPreset.setSelection(if (curUaIdx >= 0) curUaIdx else 0)
+        uaPreset.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                val value = AppSettings.UA_PRESETS[pos].second
+                if (pos != 0 || value.isNotEmpty()) ua.setText(value)
+                else if (pos == 0 && ua.text.toString() in AppSettings.UA_PRESETS.map { it.second }) ua.setText("")
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
         refresh.setText(store.refreshHours.toString())
         auto.isChecked = store.autoLoad
         info.text = statusText()

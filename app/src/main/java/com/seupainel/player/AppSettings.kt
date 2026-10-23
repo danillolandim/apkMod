@@ -64,5 +64,17 @@ class AppSettings(context: Context) {
             "Português" to "pt", "Inglês" to "en", "Espanhol" to "es",
             "Japonês" to "ja", "Original/qualquer" to "",
         )
+
+        /** User-Agents comuns aceitos por provedores IPTV (rótulo -> valor). */
+        val UA_PRESETS = listOf(
+            "— Personalizado / vazio —" to "",
+            "VLC 3.0.20" to "VLC/3.0.20 LibVLC/3.0.20",
+            "FFmpeg (Lavf)" to "Lavf/60.3.100",
+            "IPTV Smarters" to "IPTVSmartersPlayer",
+            "TiviMate" to "TiviMate/4.7.0 (Android 12)",
+            "Kodi" to "Kodi/20.2 (Linux; Android 12) ExoPlayerLib/2.18",
+            "OkHttp" to "okhttp/4.9.3",
+            "Chrome (Android TV)" to "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+        )
     }
 }
