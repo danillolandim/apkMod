@@ -83,11 +83,24 @@ class PlayerController(
             .build()
     }
 
+    // Factory HTTP compartilhado: dá para injetar User-Agent/Referer por canal
+    // (muitas listas M3U exigem um User-Agent específico para o stream abrir).
+    private val http = DefaultHttpDataSource.Factory()
+        .setConnectTimeoutMs(30_000)
+        .setReadTimeoutMs(30_000)
+        .setAllowCrossProtocolRedirects(true)
+        .setKeepPostFor302Redirects(true)
+
+    /** Define cabeçalhos HTTP para os próximos streams (antes de play()). */
+    fun setHttpHeaders(userAgent: String?, referer: String?) {
+        if (!userAgent.isNullOrBlank()) http.setUserAgent(userAgent)
+        val headers = buildMap {
+            if (!referer.isNullOrBlank()) put("Referer", referer)
+        }
+        if (headers.isNotEmpty()) http.setDefaultRequestProperties(headers)
+    }
+
     val player: ExoPlayer = run {
-        val http = DefaultHttpDataSource.Factory()
-            .setConnectTimeoutMs(30_000)
-            .setReadTimeoutMs(30_000)
-            .setAllowCrossProtocolRedirects(true)
 
         // Buffer sob medida: LIVE prioriza baixa latência (zapping rápido);
         // VOD prioriza suavidade com buffer grande.

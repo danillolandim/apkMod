@@ -58,6 +58,7 @@ class PlayerActivity : FragmentActivity() {
     private var subs: List<PlayerController.ExternalSubtitle> = emptyList()
     private var startMs: Long = 0
     private var resumeKey: String = ""
+    private var title: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +81,13 @@ class PlayerActivity : FragmentActivity() {
         addressBackup = intent.getStringExtra(EXTRA_P2P_BACKUP).orEmpty()
         resumeKey = directUrl.ifBlank { address }
         if (directUrl.isBlank() && address.isBlank()) { toast("Nada para tocar"); finish(); return }
+
+        // Cabeçalhos HTTP por canal (muitas listas exigem User-Agent/Referer).
+        pc.setHttpHeaders(
+            intent.getStringExtra(EXTRA_USER_AGENT),
+            intent.getStringExtra(EXTRA_REFERER),
+        )
+        title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
 
         subs = SubtitleJson.decode(intent.getStringExtra(EXTRA_SUBTITLES_JSON))
             .toExternalList()
@@ -126,7 +134,8 @@ class PlayerActivity : FragmentActivity() {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {
                     retries = 0
-                    showBadge(pc.shortQualityLabel(), announce = true)
+                    val q = pc.shortQualityLabel()
+                    showBadge(if (title.isNotBlank()) "$title\n$q" else q, announce = true)
                 }
             }
 
@@ -391,6 +400,9 @@ class PlayerActivity : FragmentActivity() {
 
     companion object {
         const val EXTRA_DIRECT_URL = "direct_url"
+        const val EXTRA_TITLE = "title"
+        const val EXTRA_USER_AGENT = "user_agent"
+        const val EXTRA_REFERER = "referer"
         const val EXTRA_P2P_ADDRESS = "p2p_address"
         const val EXTRA_P2P_BACKUP = "p2p_backup"
         const val EXTRA_IS_LIVE = "is_live"

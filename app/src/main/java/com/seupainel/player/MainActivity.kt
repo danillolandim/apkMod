@@ -72,6 +72,18 @@ class MainActivity : FragmentActivity() {
             playDirect(u, subField.text.toString(), isLive)
         }
 
+        // Carregar lista M3U (abre a tela de canais; detecta lista x stream).
+        findViewById<Button>(R.id.btn_load_list).setOnClickListener {
+            val u = urlField.text.toString().trim().ifBlank {
+                com.seupainel.player.playlist.PlaylistStore(this).lastUrl.orEmpty()
+            }
+            if (u.isBlank()) { toast("Cole a URL da lista M3U"); return@setOnClickListener }
+            startActivity(
+                Intent(this, com.seupainel.player.playlist.ChannelListActivity::class.java)
+                    .putExtra(com.seupainel.player.playlist.ChannelListActivity.EXTRA_URL, u)
+            )
+        }
+
         findViewById<Button>(R.id.btn_play_p2p).setOnClickListener {
             val addr = urlField.text.toString().trim()
             if (addr.isBlank()) { toast("Cole o endereço P2P"); return@setOnClickListener }

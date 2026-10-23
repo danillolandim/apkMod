@@ -91,6 +91,13 @@
                 android:text="Tocar URL direta" />
 
             <Button
+                android:id="@+id/btn_load_list"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Carregar lista M3U" />
+
+            <Button
                 android:id="@+id/btn_play_p2p"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
