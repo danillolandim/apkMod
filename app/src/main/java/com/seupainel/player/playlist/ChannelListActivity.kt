@@ -728,10 +728,10 @@ class ChannelListActivity : FragmentActivity() {
         private fun applyTmdb(badge: TextView, img: android.widget.ImageView, ch: M3uParser.Channel, q: com.seupainel.player.meta.Tmdb.Quick, series: Boolean) {
             if (q.rating > 0) { badge.text = "★ ${"%.1f".format(q.rating)}"; badge.visibility = View.VISIBLE }
             else badge.visibility = View.GONE
-            // Pôster do TMDB: sempre em séries (frame ruim), ou quando a lista não tem capa.
-            if (!q.posterUrl.isNullOrBlank() && (series || ch.logo.isNullOrBlank())) {
-                loadPoster(img, q.posterUrl)
-            }
+            // Sempre preferir o pôster do TMDB (mesmo que a tela de detalhes),
+            // porque a capa da lista costuma estar trocada/antiga. Se o TMDB não
+            // tiver pôster, fica a capa da lista já carregada como fallback.
+            if (!q.posterUrl.isNullOrBlank()) loadPoster(img, q.posterUrl)
         }
 
         private fun loadPoster(img: android.widget.ImageView, url: String) {

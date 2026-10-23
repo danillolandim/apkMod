@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Cartaz do filme no grid agora usa o pôster do TMDB (mesmo da tela de detalhes), em vez da capa da lista (que vinha trocada/antiga).
 - Menu único no player: a engrenagem na tela abre todas as opções do app (qualidade, áudio, legenda, tamanho da legenda, aspecto, velocidade, timer, PiP).
 - No player ao vivo, o botão OK abre esse menu direto, sem depender da tecla ≡.
 - Canais ao vivo juntados por qualidade: "Globo HD/FHD/SD" vira um só; a troca de qualidade fica no player (OK ou ≡).
