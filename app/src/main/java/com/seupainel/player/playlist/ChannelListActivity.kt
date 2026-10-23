@@ -319,8 +319,10 @@ class ChannelListActivity : FragmentActivity() {
         selectSection(startSection)
         groupsView.requestFocus()
         hideLoading()
-        // Lista padrão: indexa tudo em 2º plano, mesmo fora da seção Filmes.
+        // Lista padrão: indexa tudo em 2º plano, mesmo fora da seção Filmes,
+        // e já pré-calcula os atalhos de gênero/lançamentos/aclamadas.
         ensureFilmesIndexed()
+        buildFilmesIndex()
     }
 
     private enum class SubMode { GROUPS, ALPHA }
@@ -678,24 +680,23 @@ class ChannelListActivity : FragmentActivity() {
         override fun getItem(position: Int) = items[position]
         override fun getItemId(position: Int) = position.toLong()
         override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
-            val v = convertView ?: layoutInflater.inflate(R.layout.item_poster, parent, false)
+            val v = convertView ?: layoutInflater.inflate(R.layout.item_poster, parent, false).also { it.tag = PH(it) }
+            val h = v.tag as PH
             val s = items[position]
-            v.tag = s.title
-            v.findViewById<TextView>(R.id.poster_title).text = s.title
-            val img = v.findViewById<android.widget.ImageView>(R.id.poster)
-            val badge = v.findViewById<TextView>(R.id.poster_rating)
+            h.key = s.title
+            h.title.text = s.title
             // Cartaz: usa o do TMDB (mesmo do detalhe) quando já conhecido.
             val known = com.seupainel.player.meta.PosterCache.get(s.title)
             when {
-                !known.isNullOrBlank() -> loadImg(img, known)
-                !s.logo.isNullOrBlank() -> loadImg(img, s.logo)
-                else -> img.setImageDrawable(null)
+                !known.isNullOrBlank() -> loadImg(h.poster, known)
+                !s.logo.isNullOrBlank() -> loadImg(h.poster, s.logo)
+                else -> h.poster.setImageDrawable(null)
             }
             // TMDB: pôster real da série + nota
             val cached = tmdbCache[s.title]
-            if (cached != null) applySeries(badge, img, cached, s.title)
+            if (cached != null) applySeries(h, cached, s.title)
             else {
-                badge.visibility = View.GONE
+                h.badge.visibility = View.GONE
                 if (tmdbKey.isNotBlank() && !tmdbMiss.contains(s.title)) {
                     tmdbMiss.add(s.title)
                     val key = s.title
@@ -704,21 +705,21 @@ class ChannelListActivity : FragmentActivity() {
                             ?: com.seupainel.player.meta.Tmdb.Quick(0.0, null)
                         tmdbCache[s.title] = q
                         com.seupainel.player.meta.PosterCache.put(s.title, q.posterUrl)
-                        runOnUiThread { if (v.tag == key) applySeries(badge, img, q, s.title) }
+                        runOnUiThread { if (h.key == key) applySeries(h, q, s.title) }
                     }
                 }
             }
             return v
         }
-        private fun applySeries(badge: TextView, img: android.widget.ImageView, q: com.seupainel.player.meta.Tmdb.Quick, title: String) {
-            if (q.rating > 0) { badge.text = "★ ${"%.1f".format(q.rating)}"; badge.visibility = View.VISIBLE }
-            else badge.visibility = View.GONE
+        private fun applySeries(h: PH, q: com.seupainel.player.meta.Tmdb.Quick, title: String) {
+            if (q.rating > 0) { h.badge.text = "★ ${"%.1f".format(q.rating)}"; h.badge.visibility = View.VISIBLE }
+            else h.badge.visibility = View.GONE
             val poster = com.seupainel.player.meta.PosterCache.get(title) ?: q.posterUrl
-            if (!poster.isNullOrBlank()) loadImg(img, poster)
+            if (!poster.isNullOrBlank()) loadImg(h.poster, poster)
         }
         private fun loadImg(img: android.widget.ImageView, url: String) {
             coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
-                coil.request.ImageRequest.Builder(this@ChannelListActivity).data(url).target(img).crossfade(true).build())
+                coil.request.ImageRequest.Builder(this@ChannelListActivity).data(gridPosterUrl(url)).target(img).crossfade(true).build())
         }
     }
 
@@ -763,6 +764,13 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
+    private inner class PH(val root: View) {
+        val title: TextView = root.findViewById(R.id.poster_title)
+        val poster: android.widget.ImageView = root.findViewById(R.id.poster)
+        val badge: TextView = root.findViewById(R.id.poster_rating)
+        var key: String = ""   // identidade para casar o callback assíncrono
+    }
+
     private inner class PosterAdapter : android.widget.BaseAdapter() {
         private var items: List<M3uParser.Channel> = emptyList()
         fun submit(list: List<M3uParser.Channel>) { items = list; notifyDataSetChanged() }
@@ -770,31 +778,27 @@ class ChannelListActivity : FragmentActivity() {
         override fun getItem(position: Int) = items[position]
         override fun getItemId(position: Int) = position.toLong()
         override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
-            val v = convertView ?: layoutInflater.inflate(R.layout.item_poster, parent, false)
+            val v = convertView ?: layoutInflater.inflate(R.layout.item_poster, parent, false).also { it.tag = PH(it) }
+            val h = v.tag as PH
             val ch = items[position]
-            v.tag = ch.url
-            v.findViewById<TextView>(R.id.poster_title).text = ch.name
-            val img = v.findViewById<android.widget.ImageView>(R.id.poster)
-            val badge = v.findViewById<TextView>(R.id.poster_rating)
+            h.key = ch.url
+            h.title.text = ch.name
             val series = currentIsSeries()
 
             // Capa da lista como base (fallback). Em séries ela costuma ser um
             // frame do episódio, então será trocada pelo pôster do TMDB abaixo.
             val logo = ch.logo
-            if (logo.isNullOrBlank()) img.setImageDrawable(null)
-            else loadPoster(img, logo)
+            if (logo.isNullOrBlank()) h.poster.setImageDrawable(null)
+            else loadPoster(h.poster, logo)
 
-            bindTmdb(badge, img, v, ch, series)
+            bindTmdb(h, ch, series)
             return v
         }
 
-        private fun bindTmdb(badge: TextView, img: android.widget.ImageView, itemView: View, ch: M3uParser.Channel, series: Boolean) {
+        private fun bindTmdb(h: PH, ch: M3uParser.Channel, series: Boolean) {
             val cached = tmdbCache[ch.name]
-            if (cached != null) {
-                applyTmdb(badge, img, ch, cached, series)
-                return
-            }
-            badge.visibility = View.GONE
+            if (cached != null) { applyTmdb(h, ch, cached, series); return }
+            h.badge.visibility = View.GONE
             if (tmdbKey.isBlank() || tmdbMiss.contains(ch.name)) return
             tmdbMiss.add(ch.name)
             val key = ch.url
@@ -803,27 +807,29 @@ class ChannelListActivity : FragmentActivity() {
                     ?: com.seupainel.player.meta.Tmdb.Quick(0.0, null)
                 tmdbCache[ch.name] = q
                 com.seupainel.player.meta.PosterCache.put(ch.name, q.posterUrl)
-                runOnUiThread { if (itemView.tag == key) applyTmdb(badge, img, ch, q, series) }
+                runOnUiThread { if (h.key == key) applyTmdb(h, ch, q, series) }
             }
         }
 
-        private fun applyTmdb(badge: TextView, img: android.widget.ImageView, ch: M3uParser.Channel, q: com.seupainel.player.meta.Tmdb.Quick, series: Boolean) {
-            if (q.rating > 0) { badge.text = "★ ${"%.1f".format(q.rating)}"; badge.visibility = View.VISIBLE }
-            else badge.visibility = View.GONE
+        private fun applyTmdb(h: PH, ch: M3uParser.Channel, q: com.seupainel.player.meta.Tmdb.Quick, series: Boolean) {
+            if (q.rating > 0) { h.badge.text = "★ ${"%.1f".format(q.rating)}"; h.badge.visibility = View.VISIBLE }
+            else h.badge.visibility = View.GONE
             // Sempre preferir o pôster do TMDB (mesmo que a tela de detalhes),
-            // porque a capa da lista costuma estar trocada/antiga. Se o TMDB não
-            // tiver pôster, fica a capa da lista já carregada como fallback.
+            // porque a capa da lista costuma estar trocada/antiga.
             val poster = com.seupainel.player.meta.PosterCache.get(ch.name) ?: q.posterUrl
-            if (!poster.isNullOrBlank()) loadPoster(img, poster)
+            if (!poster.isNullOrBlank()) loadPoster(h.poster, poster)
         }
 
         private fun loadPoster(img: android.widget.ImageView, url: String) {
             coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
                 coil.request.ImageRequest.Builder(this@ChannelListActivity)
-                    .data(url).target(img).crossfade(true).build()
+                    .data(gridPosterUrl(url)).target(img).crossfade(true).build()
             )
         }
     }
+
+    /** Pôster menor (w342) para a grade — menos banda/memória; o detalhe usa w500. */
+    private fun gridPosterUrl(url: String): String = url.replace("/t/p/w500", "/t/p/w342")
 
     override fun onPause() {
         super.onPause()
@@ -856,16 +862,19 @@ class ChannelListActivity : FragmentActivity() {
         override fun getCount() = items.size
         override fun getItem(position: Int) = items[position]
         override fun getItemId(position: Int) = position.toLong()
+        private inner class CH(root: View) {
+            val name: TextView = root.findViewById(R.id.ch_item_name)
+            val logo: android.widget.ImageView = root.findViewById(R.id.ch_item_logo)
+        }
         override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
-            val v = convertView ?: layoutInflater.inflate(R.layout.item_channel, parent, false)
+            val v = convertView ?: layoutInflater.inflate(R.layout.item_channel, parent, false).also { it.tag = CH(it) }
+            val h = v.tag as CH
             val ch = items[position]
-            v.findViewById<TextView>(R.id.ch_item_name).text =
-                if (favs.contains(ch.url)) "★ ${ch.name}" else ch.name
-            val logo = v.findViewById<android.widget.ImageView>(R.id.ch_item_logo)
-            if (ch.logo.isNullOrBlank()) logo.setImageDrawable(null)
+            h.name.text = if (favs.contains(ch.url)) "★ ${ch.name}" else ch.name
+            if (ch.logo.isNullOrBlank()) h.logo.setImageDrawable(null)
             else coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
                 coil.request.ImageRequest.Builder(this@ChannelListActivity)
-                    .data(ch.logo).target(logo).crossfade(true).build())
+                    .data(ch.logo).target(h.logo).crossfade(true).build())
             return v
         }
     }
