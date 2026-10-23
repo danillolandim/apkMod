@@ -143,9 +143,11 @@ class PlayerActivity : FragmentActivity() {
                 val detail = when (cause) {
                     is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException ->
                         "HTTP ${cause.responseCode}"
+                    is androidx.media3.datasource.HttpDataSource.InvalidContentTypeException ->
+                        "tipo inválido: ${cause.contentType}"
                     is androidx.media3.datasource.HttpDataSource.HttpDataSourceException ->
-                        "rede: ${cause.javaClass.simpleName}"
-                    else -> cause?.message?.take(80) ?: error.errorCodeName
+                        "rede: ${(cause.cause?.message ?: cause.message)?.take(90) ?: cause.javaClass.simpleName}"
+                    else -> "${error.errorCodeName}: ${cause?.message?.take(80) ?: ""}"
                 }
                 recover(detail)
             }
@@ -196,7 +198,9 @@ class PlayerActivity : FragmentActivity() {
             showBadge("Trocando para servidor de backup…", announce = true)
             engine.stop(); startEngine(addressBackup)
         } else {
-            toast("Falha ao reproduzir: $reason")
+            // erro final: mostra por mais tempo e também fixa no badge para leitura
+            Toast.makeText(this, "Falha ao reproduzir: $reason", Toast.LENGTH_LONG).show()
+            showBadge("Falha: $reason", announce = true, ms = 10_000)
         }
     }
 
