@@ -59,6 +59,9 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-rtsp:$media3")
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.media3:media3-datasource-okhttp:$media3")
+    // DNS-over-HTTPS: resolve hosts que o DNS da TV/operadora bloqueia (ex.: .sbs)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
     // Decodificação por software (FFmpeg) — opcional, espelha o original.
     // implementation("androidx.media3:media3-decoder-ffmpeg:$media3")
 

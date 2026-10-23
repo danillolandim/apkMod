@@ -12,7 +12,6 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -87,13 +86,11 @@ class PlayerController(
             .build()
     }
 
-    // Factory HTTP compartilhado: dá para injetar User-Agent/Referer por canal
-    // (muitas listas M3U exigem um User-Agent específico para o stream abrir).
-    private val http = DefaultHttpDataSource.Factory()
-        .setConnectTimeoutMs(30_000)
-        .setReadTimeoutMs(30_000)
-        .setAllowCrossProtocolRedirects(true)
-        .setKeepPostFor302Redirects(true)
+    // Factory HTTP sobre OkHttp com DNS-over-HTTPS (resolve hosts que o DNS da
+    // TV bloqueia) + injeção de User-Agent/Referer por canal.
+    private val http = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
+        com.seupainel.player.net.Net.client
+    )
 
     /** Define cabeçalhos HTTP para os próximos streams (antes de play()). */
     fun setHttpHeaders(userAgent: String?, referer: String?) {
