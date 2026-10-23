@@ -225,7 +225,11 @@ class ChannelListActivity : FragmentActivity() {
                         if (!silent) runOnUiThread { hideLoading(); status.text = "Nada reconhecido nessa URL (não é lista M3U nem stream)." }
                     is M3uParser.Result.Playlist -> {
                         store.lastUrl = url
-                        if (cacheIt) { store.writeCache(text); store.channelCount = res.channels.size }
+                        if (cacheIt) {
+                            store.writeCache(text); store.channelCount = res.channels.size
+                            // compara com a versão anterior e marca as novidades
+                            newItems.update(res.channels.map { it.url })
+                        }
                         runOnUiThread {
                             if (silent) {
                                 // Atualização por trás: só troca os dados se mudou, mantém a categoria.
@@ -314,7 +318,11 @@ class ChannelListActivity : FragmentActivity() {
                 val present = all.asSequence()
                     .filter { secOfChannel(it) == Sec.CANAIS }
                     .map { LiveGroups.categoryOf(it.name) }.toHashSet()
-                groups = buildList { add(ALL_SEC); addAll(LiveGroups.ORDER.filter { it in present }) }
+                groups = buildList {
+                    add(ALL_SEC)
+                    if (newItems.anyNew()) add(NOVIDADES)
+                    addAll(LiveGroups.ORDER.filter { it in present })
+                }
             }
             else -> {
                 // Séries sem categorias reais -> índice A-Z (+ Recentes).
@@ -322,7 +330,11 @@ class ChannelListActivity : FragmentActivity() {
                 val present = all.asSequence()
                     .filter { secOfChannel(it) == sec }
                     .map { firstKey(it.name) }.distinct().toSortedSet()
-                groups = buildList { add(ALL_SEC); add(RECENTES); addAll(present) }
+                groups = buildList {
+                    add(ALL_SEC); add(RECENTES)
+                    if (newItems.anyNew()) add(NOVIDADES)
+                    addAll(present)
+                }
             }
         }
         groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
@@ -343,7 +355,9 @@ class ChannelListActivity : FragmentActivity() {
             .filter { (counts[it.key] ?: 0) >= 3 }      // só gêneros com conteúdo
             .map { it.value }
         return buildList {
-            add(ALL_SEC); add(RECENTES); add(LANCAMENTOS)
+            add(ALL_SEC); add(RECENTES)
+            if (newItems.anyNew()) add(NOVIDADES)
+            add(LANCAMENTOS)
             addAll(genreNames)
             if (genreNames.isEmpty()) {
                 // enquanto o índice ainda está vazio, oferece A-Z
@@ -376,8 +390,10 @@ class ChannelListActivity : FragmentActivity() {
         indexStarted = true
         thread(name = "index-dispatch") {
             val movies = all.filter { secOfChannel(it) == Sec.FILMES }
-            // já indexados (disco) e os que falharam nesta sessão ficam de fora.
+            // já indexados (disco) e os que falharam nesta sessão ficam de fora;
+            // novidades primeiro, para o gênero/cartaz delas ficar pronto antes.
             val todo = movies.filter { !vodIndex.has(it.name) && !indexMiss.contains(it.name) }
+                .sortedByDescending { if (newItems.isNew(it.url)) 1 else 0 }
             if (todo.isEmpty()) { indexing = false; runOnUiThread { rebuildFilmesGroups() }; return@thread }
             val total = todo.size
             val done = java.util.concurrent.atomic.AtomicInteger(0)
@@ -437,6 +453,7 @@ class ChannelListActivity : FragmentActivity() {
                 val inSec = if (sec == Sec.FAV) favs.contains(ch.url) else secOfChannel(ch) == sec
                 val inSub = when {
                     sub == null || sub == ALL_SEC || sub == RECENTES -> true
+                    sub == NOVIDADES -> newItems.isNew(ch.url)            // entrou de novo
                     derivedLive -> LiveGroups.categoryOf(ch.name) == sub  // canais por tema
                     sub == LANCAMENTOS -> (vodIndex.year(ch.name) ?: 0) >= lancCutoff
                     genreId != null -> vodIndex.genres(ch.name).contains(genreId)
@@ -448,6 +465,7 @@ class ChannelListActivity : FragmentActivity() {
             // Ordenação por subcategoria.
             when (sub) {
                 RECENTES -> result = result.takeLast(200).reversed()      // últimos adicionados
+                NOVIDADES -> result = result.sortedByDescending { newItems.firstSeen(it.url) }
                 LANCAMENTOS -> result = result.sortedByDescending { vodIndex.year(it.name) ?: 0 }
             }
             if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs, sec) }
@@ -571,6 +589,9 @@ class ChannelListActivity : FragmentActivity() {
     @Volatile private var indexPaused = false       // pausa a indexação durante a reprodução
     private val indexGate = Object()
     private val lancCutoff = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 2
+
+    // Detector de novidades (o que entrou de novo entre uma atualização e outra).
+    private val newItems by lazy { NewItems(this) }
 
     /** Segura os workers de indexação enquanto o app está em 2º plano. */
     private fun awaitIndexResume() {
@@ -846,6 +867,7 @@ class ChannelListActivity : FragmentActivity() {
         const val EXTRA_SECTION = "section"   // "canais" | "filmes" | "series"
         private const val ALL_SEC = "Tudo"
         private const val RECENTES = "Recentes"
+        private const val NOVIDADES = "Novidades"
         private const val LANCAMENTOS = "Lançamentos"
         private const val MAX_CHARS = 12_000_000
         private const val UA = "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 Chrome/120 Safari/537.36"
