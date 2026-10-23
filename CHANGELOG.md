@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Zapping mais rápido: conexões mantidas vivas (reuso ao trocar de canal no mesmo servidor), DNS da lista pré-resolvido ao carregar, e cache do DNS-over-HTTPS (não re-consulta a cada troca).
 - Performance: cache de cartazes em disco (300 MB, persistente) e memória maior + RGB_565 — a grade carrega muito mais rápido e não re-baixa pôster.
 - Performance: indexação do TMDB mais rápida (8 tarefas), ABR/buffer afinados para rede com fio (sobe pra alta qualidade antes, sem rebuffer) e opção "Cabo de rede" nas Configurações.
 - Visual Apple TV no app inteiro: Configurações (campos, listas, caixas), menus/diálogos e a tela de carregamento agora seguem o mesmo estilo escuro com destaque azul.

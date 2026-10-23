@@ -80,6 +80,10 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun currentIsSeries() = currentSection == Sec.SERIES
 
+    /** Host de uma URL (para pré-resolver DNS). */
+    private fun hostOf(url: String): String? =
+        runCatching { java.net.URI(url).host }.getOrNull()?.takeIf { it.isNotBlank() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_channels)
@@ -296,8 +300,15 @@ class ChannelListActivity : FragmentActivity() {
         // Particiona por seção em 2º plano -> filtros/categorias ficam instantâneos.
         thread(name = "partition") {
             val m = HashMap<Sec, MutableList<M3uParser.Channel>>()
-            for (ch in channels) m.getOrPut(secOfChannel(ch)) { ArrayList() }.add(ch)
+            val hostCount = HashMap<String, Int>()
+            for (ch in channels) {
+                m.getOrPut(secOfChannel(ch)) { ArrayList() }.add(ch)
+                hostOf(ch.url)?.let { hostCount[it] = (hostCount[it] ?: 0) + 1 }
+            }
             secLists = m
+            // Pré-resolve o DNS dos hosts mais usados (zapping mais rápido).
+            val topHosts = hostCount.entries.sortedByDescending { it.value }.map { it.key }.take(12)
+            com.seupainel.player.net.Net.warmDns(topHosts)
         }
         val realGroups = channels.map { it.group }.distinct()
         sectionGroups = realGroups.groupBy { secOf(it) }
