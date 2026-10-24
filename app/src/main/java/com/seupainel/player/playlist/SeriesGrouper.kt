@@ -30,6 +30,15 @@ object SeriesGrouper {
         fun episodesOf(season: Int) = episodes.filter { it.season == season }.sortedBy { it.episode }
     }
 
+    /**
+     * Marcador "forte" de episódio: S01E02 / T01E02. Praticamente nunca
+     * aparece em título de filme, então é seguro usar para mover um item
+     * de Filmes→Séries. O formato frouxo "1x02" (reX) fica de fora porque
+     * casa com números em nomes de filme e causava filme na lista de série.
+     */
+    fun hasStrongEpisodeMarker(name: String): Boolean =
+        reSE.containsMatchIn(name) || reTE.containsMatchIn(name)
+
     /** Extrai (nomeBase, temporada, episódio) do nome, ou null se não casar. */
     fun parse(name: String): Triple<String, Int, Int>? {
         for (re in listOf(reSE, reTE, reX)) {

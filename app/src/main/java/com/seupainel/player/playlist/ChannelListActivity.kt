@@ -79,7 +79,12 @@ class ChannelListActivity : FragmentActivity() {
      */
     private fun secOfChannel(ch: M3uParser.Channel): Sec {
         val byGroup = secOf(ch.group)
-        if (byGroup != Sec.CANAIS && SeriesGrouper.parse(ch.name) != null) return Sec.SERIES
+        if (byGroup == Sec.CANAIS) return byGroup
+        // Grupo já é de séries: mantém.
+        if (byGroup == Sec.SERIES) return Sec.SERIES
+        // Grupo é de filmes: só move p/ Séries com marcador FORTE (S01E02/T01E02).
+        // O formato frouxo "1x02" casa com nomes de filme e vazava filme p/ série.
+        if (SeriesGrouper.hasStrongEpisodeMarker(ch.name)) return Sec.SERIES
         return byGroup
     }
 

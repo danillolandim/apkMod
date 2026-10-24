@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Corrigido filme aparecendo na lista de Séries: só movemos um item de Filmes pra Séries quando o nome tem um marcador forte de episódio (S01E02/T01E02); o formato frouxo "1x02" casava com números em nomes de filme.
 - Nova categoria "Populares" (em alta) em Filmes e Séries: as mais vistas pelo nº de votos do TMDB, da mais popular pra menos. E "Aclamadas" agora exige menos votos, então mostra mais títulos.
 - Dock de ações no player (estilo dock do Mac): a engrenagem (ou OK no ao vivo) abre uma barra que sobe de baixo com Qualidade, Áudio, Legenda, Aspecto, Velocidade, Timer e PiP — cada botão alterna o valor na hora.
 - Dublado + Legendado juntos: filme "X" e "X (LEG)" viram um cartaz só; no detalhe aparecem os botões "Dublado" e "Legendado".
