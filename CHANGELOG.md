@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Nova categoria "Populares" (em alta) em Filmes e Séries: as mais vistas pelo nº de votos do TMDB, da mais popular pra menos. E "Aclamadas" agora exige menos votos, então mostra mais títulos.
 - Dock de ações no player (estilo dock do Mac): a engrenagem (ou OK no ao vivo) abre uma barra que sobe de baixo com Qualidade, Áudio, Legenda, Aspecto, Velocidade, Timer e PiP — cada botão alterna o valor na hora.
 - Dublado + Legendado juntos: filme "X" e "X (LEG)" viram um cartaz só; no detalhe aparecem os botões "Dublado" e "Legendado".
 - Série: tela redesenhada estilo Apple TV — alternar Dublado/Legendado, abas de temporada (1ª, 2ª…) e a lista de episódios abaixo; versões dub/leg da mesma série agora são a mesma série.
