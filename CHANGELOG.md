@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Classificação Filme × Série pelo TMDB: o tipo (filme/série) do TMDB passa a mandar na hora de separar as seções, corrigindo itens que a lista pôs no grupo errado — nos dois sentidos. Vai se ajustando conforme o catálogo é indexado.
 - Autoplay de séries: ao terminar um episódio, emenda sozinho no próximo (mesma versão dublada/legendada), mostrando "A seguir…".
 - "▶ Continuar" em Filmes e Séries: fileira no topo com o que você começou a assistir, pra retomar de onde parou com um clique. Some da fileira quando o conteúdo termina.
 - Guia de programação (EPG) no ao vivo: lê o XMLTV da URL de EPG (Configurações; aceita .xml e .xml.gz) e mostra "agora / a seguir" na barra do canal e o programa atual sob cada canal na lista. Carrega em 2º plano; some sozinho se a lista não tiver EPG.

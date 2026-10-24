@@ -81,9 +81,15 @@ class ChannelListActivity : FragmentActivity() {
     private fun secOfChannel(ch: M3uParser.Channel): Sec {
         val byGroup = secOf(ch.group)
         if (byGroup == Sec.CANAIS) return byGroup
-        // Grupo já é de séries: mantém.
+        // 1) Tipo do TMDB manda (resolve grupo mal nomeado, nos dois sentidos).
+        when (vodIndex.isTv(ch.name)) {
+            true -> return Sec.SERIES
+            false -> return Sec.FILMES
+            null -> {}   // ainda não indexado: usa a heurística abaixo
+        }
+        // 2) Grupo já é de séries: mantém.
         if (byGroup == Sec.SERIES) return Sec.SERIES
-        // Grupo é de filmes: só move p/ Séries com marcador FORTE (S01E02/T01E02).
+        // 3) Grupo é de filmes: só move p/ Séries com marcador FORTE (S01E02/T01E02).
         // O formato frouxo "1x02" casa com nomes de filme e vazava filme p/ série.
         if (SeriesGrouper.hasStrongEpisodeMarker(ch.name)) return Sec.SERIES
         return byGroup
@@ -411,6 +417,13 @@ class ChannelListActivity : FragmentActivity() {
         if (buildingFilmes) return
         buildingFilmes = true
         thread(name = "vod-fast") {
+            // Reparticiona considerando o tipo do TMDB (melhora conforme indexa):
+            // um filme que a lista pôs em "Séries" (ou vice-versa) volta pro lugar.
+            if (all.isNotEmpty()) {
+                val m = HashMap<Sec, MutableList<M3uParser.Channel>>()
+                for (ch in all) m.getOrPut(secOfChannel(ch)) { ArrayList() }.add(ch)
+                secLists = m
+            }
             // Filmes
             val movies = secLists?.get(Sec.FILMES) ?: all.filter { secOfChannel(it) == Sec.FILMES }
             val mByGenre = HashMap<Int, ArrayList<M3uParser.Channel>>()
@@ -520,7 +533,11 @@ class ChannelListActivity : FragmentActivity() {
                 val key = vodIndex.keyFor(ch.name)
                 if (key.isBlank() || indexMiss.contains(ch.name)) continue
                 val e = vodIndex.getByKey(key)
-                val needs = e == null || e.rating.isNaN()   // novo OU sem nota (formato antigo)
+                // Casou no TMDB? (itens "não existe" têm tudo vazio/zero.)
+                val matched = e != null && (e.genreIds.isNotEmpty() || e.year != null ||
+                    e.votes > 0 || (!e.rating.isNaN() && e.rating > 0.0))
+                // novo, OU sem nota (formato antigo), OU casou mas ainda sem o tipo filme/série
+                val needs = e == null || e.rating.isNaN() || (matched && e.tv == null)
                 if (needs && seenKeys.add(key)) todo.add(ch)
             }
             if (todo.isEmpty()) { indexing = false; runOnUiThread { rebuildFilmesGroups() }; return@thread }
@@ -535,7 +552,7 @@ class ChannelListActivity : FragmentActivity() {
                     when (val r = runCatching { com.seupainel.player.meta.Tmdb.categorize(tmdbKey, ch.name) }
                         .getOrDefault(com.seupainel.player.meta.Tmdb.CatRes.Error)) {
                         is com.seupainel.player.meta.Tmdb.CatRes.Found -> {
-                            vodIndex.put(ch.name, r.cat.genreIds, r.cat.year, r.cat.rating, r.cat.votes)
+                            vodIndex.put(ch.name, r.cat.genreIds, r.cat.year, r.cat.rating, r.cat.votes, r.cat.isTv)
                             tmdbCache[ch.name] = com.seupainel.player.meta.Tmdb.Quick(r.cat.rating, r.cat.posterUrl)
                             com.seupainel.player.meta.PosterCache.put(ch.name, r.cat.posterUrl)
                         }

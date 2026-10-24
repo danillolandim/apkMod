@@ -21,6 +21,7 @@ class VodIndex(context: Context) {
         val year: Int?,
         val rating: Double = Double.NaN,   // NaN = nota ainda não buscada (formato antigo)
         val votes: Int = 0,
+        val tv: Boolean? = null,           // tipo do TMDB: série/true, filme/false, null=desconhecido
     )
 
     private val file = File(context.filesDir, "vod_index.json")
@@ -50,11 +51,13 @@ class VodIndex(context: Context) {
     fun genres(title: String): List<Int> = map[keyOf(title)]?.genreIds ?: emptyList()
     fun rating(title: String): Double = map[keyOf(title)]?.rating ?: Double.NaN
     fun votes(title: String): Int = map[keyOf(title)]?.votes ?: 0
+    /** Tipo do TMDB: série (true), filme (false) ou desconhecido (null). */
+    fun isTv(title: String): Boolean? = map[keyOf(title)]?.tv
     fun size() = map.size
 
-    fun put(title: String, genreIds: List<Int>, year: Int?, rating: Double = Double.NaN, votes: Int = 0) {
+    fun put(title: String, genreIds: List<Int>, year: Int?, rating: Double = Double.NaN, votes: Int = 0, tv: Boolean? = null) {
         val k = keyOf(title)
-        if (map.put(k, Entry(genreIds, year, rating, votes)) == null) {   // só conta na 1ª vez
+        if (map.put(k, Entry(genreIds, year, rating, votes, tv)) == null) {   // só conta na 1ª vez
             genreIds.forEach { id -> tally.merge(id, 1) { a, b -> a + b } }
         }
         dirty = true
@@ -74,6 +77,7 @@ class VodIndex(context: Context) {
                 v.year?.let { o.put("y", it) }
                 if (!v.rating.isNaN()) o.put("r", v.rating)
                 if (v.votes > 0) o.put("v", v.votes)
+                v.tv?.let { o.put("mt", if (it) 1 else 0) }
                 root.put(k, o)
             }
             file.writeText(root.toString())
@@ -91,7 +95,8 @@ class VodIndex(context: Context) {
                 val y = if (o.has("y")) o.optInt("y") else null
                 val r = if (o.has("r")) o.optDouble("r") else Double.NaN
                 val v = o.optInt("v", 0)
-                map[k] = Entry(ids, y, r, v)
+                val tv = if (o.has("mt")) o.optInt("mt") == 1 else null
+                map[k] = Entry(ids, y, r, v, tv)
                 ids.forEach { id -> tally.merge(id, 1) { a, b -> a + b } }
             }
         }
