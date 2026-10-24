@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Séries marcam episódio assistido: ✓ no episódio quando termina (ou no autoplay), a tela da série já posiciona no primeiro episódio não visto, e dá pra marcar/desmarcar na mão segurando o episódio.
 - Autoplay de séries mais rápido: o player pré-aquece o próximo episódio (playlist nativa do ExoPlayer com pre-warming), então a troca entre episódios é quase instantânea. O episódio concluído sai de "Continuar" automaticamente.
 - Rolagem: os cartazes das próximas linhas são pré-carregados conforme você rola, então aparecem já prontos (menos "pop-in"/cinza).
 - Carregamento: zapping do ao vivo começa mais rápido (primeiro quadro em ~0,6s), splash mais ágil na abertura, e a indexação do TMDB prioriza a seção que você abriu (os cartazes/gêneros do que está na tela preenchem primeiro).

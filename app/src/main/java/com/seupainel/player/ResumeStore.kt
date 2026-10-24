@@ -75,6 +75,25 @@ class ResumeStore(context: Context) {
         saveRecents(recents().filterNot { it.key == key })
     }
 
+    // ---- "assistido" (episódios de série) ----
+    fun isWatched(key: String): Boolean =
+        key.isNotBlank() && prefs.getStringSet(WATCHED_KEY, emptySet())?.contains(key) == true
+
+    fun markWatched(key: String) {
+        if (key.isBlank()) return
+        val s = HashSet(prefs.getStringSet(WATCHED_KEY, emptySet()) ?: emptySet())
+        if (s.add(key)) prefs.edit().putStringSet(WATCHED_KEY, s).apply()
+    }
+
+    fun unmarkWatched(key: String) {
+        val s = HashSet(prefs.getStringSet(WATCHED_KEY, emptySet()) ?: emptySet())
+        if (s.remove(key)) prefs.edit().putStringSet(WATCHED_KEY, s).apply()
+    }
+
+    /** Alterna e devolve o novo estado (true = assistido). */
+    fun toggleWatched(key: String): Boolean =
+        if (isWatched(key)) { unmarkWatched(key); false } else { markWatched(key); true }
+
     private fun saveRecents(list: List<Item>) {
         val arr = JSONArray()
         for (it in list) {
@@ -88,6 +107,7 @@ class ResumeStore(context: Context) {
 
     companion object {
         private const val RECENTS_KEY = "recents"
+        private const val WATCHED_KEY = "watched"
         private const val MAX_RECENTS = 24
     }
 }

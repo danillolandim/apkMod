@@ -246,9 +246,11 @@ class PlayerActivity : FragmentActivity() {
                 if (queueUrls.size <= 1) return
                 val idx = pc.player.currentMediaItemIndex
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                    // O item anterior terminou -> sai de "Continuar".
+                    // O item anterior terminou -> sai de "Continuar" e vira assistido.
                     val prev = idx - 1
-                    queueUrls.getOrNull(prev)?.let { resume.clear(it); resume.removeRecent(it) }
+                    queueUrls.getOrNull(prev)?.let {
+                        resume.clear(it); resume.removeRecent(it); resume.markWatched(it)
+                    }
                 }
                 queueIdx = idx
                 resumeKey = queueUrls.getOrElse(idx) { resumeKey }
@@ -716,8 +718,10 @@ class PlayerActivity : FragmentActivity() {
         if (!settings.resumeEnabled) return
         val pos = pc.player.currentPosition
         val dur = pc.player.duration
-        if (isLive || resumeKind.isBlank()) resume.save(resumeKey, pos, dur)
-        else resume.remember(resumeKey, title, logoUrl, resumeKind, pos, dur)
+        if (isLive || resumeKind.isBlank()) { resume.save(resumeKey, pos, dur); return }
+        resume.remember(resumeKey, title, logoUrl, resumeKind, pos, dur)
+        // Episódio de série concluído -> marca como assistido (✓ na tela da série).
+        if (resumeKind == "series" && dur > 0 && pos > dur - 15_000) resume.markWatched(resumeKey)
     }
 
     override fun onStop() {

@@ -33,6 +33,7 @@ class SeriesActivity : FragmentActivity() {
     private var currentLeg = false
     private var currentSeason = 1
     private var title: String = ""
+    private val resume by lazy { ResumeStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,6 +57,14 @@ class SeriesActivity : FragmentActivity() {
         if (logo.isNotBlank()) loadImage(poster, logo)
 
         episodesView.setOnItemClickListener { _, _, pos, _ -> play(shownEps[pos]) }
+        // Segurar um episódio -> marca/desmarca como assistido (✓).
+        episodesView.setOnItemLongClickListener { _, _, pos, _ ->
+            val ep = shownEps.getOrNull(pos) ?: return@setOnItemLongClickListener true
+            val nowWatched = resume.toggleWatched(ep.url)
+            if (nowWatched) { resume.clear(ep.url); resume.removeRecent(ep.url) }
+            showSeason(currentSeason)
+            true
+        }
 
         val hasDub = allEps.any { !it.leg }
         val hasLeg = allEps.any { it.leg }
@@ -91,6 +100,12 @@ class SeriesActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Volta do player: atualiza os ✓ (o que acabou de ser assistido).
+        if (allEps.isNotEmpty()) showSeason(currentSeason)
     }
 
     private fun selectVariant(leg: Boolean) {
@@ -130,8 +145,13 @@ class SeriesActivity : FragmentActivity() {
         shownEps = allEps.filter { it.leg == currentLeg && it.season == season }.sortedBy { it.episode }
         episodesView.adapter = ArrayAdapter(
             this, android.R.layout.simple_list_item_1,
-            shownEps.map { "Episódio ${it.episode}" },
+            shownEps.map { ep ->
+                (if (resume.isWatched(ep.url)) "✓  " else "") + "Episódio ${ep.episode}"
+            },
         )
+        // Posiciona no primeiro episódio ainda não assistido (continuar de onde parou).
+        val firstUnwatched = shownEps.indexOfFirst { !resume.isWatched(it.url) }
+        if (firstUnwatched >= 0) episodesView.setSelection(firstUnwatched)
     }
 
     private fun play(ep: Ep) {
