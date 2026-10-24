@@ -428,8 +428,8 @@ class PlayerActivity : FragmentActivity() {
 
             // Setas = avançar/voltar 10s (sempre, a menos que o dock esteja aberto).
             // Com o dock fechado as setas NUNCA mexem na seekbar — elas são o seek.
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (dock.visibility != View.VISIBLE) { seekBy(+10_000); true } else super.onKeyDown(keyCode, event)
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (dock.visibility != View.VISIBLE) { seekBy(-10_000); true } else super.onKeyDown(keyCode, event)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (dock.visibility != View.VISIBLE) { seekBy(+seekStepMs()); true } else super.onKeyDown(keyCode, event)
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (dock.visibility != View.VISIBLE) { seekBy(-seekStepMs()); true } else super.onKeyDown(keyCode, event)
 
             // OK: abre o dock de ações (qualidade, áudio, legenda…) no ao vivo E no VOD.
             // Com o dock aberto, o OK seleciona o botão em foco.
@@ -448,6 +448,8 @@ class PlayerActivity : FragmentActivity() {
             else -> super.onKeyDown(keyCode, event)
         }
     }
+
+    private fun seekStepMs(): Long = settings.seekStepSec.coerceIn(5, 300) * 1000L
 
     private fun seekBy(deltaMs: Long) {
         if (isLive && !pc.player.isCurrentMediaItemSeekable) { showBadge("Ao vivo"); return }

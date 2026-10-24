@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Configurações: "Pulo das setas" — escolha quanto a seta avança/volta no filme/série (10s, 15s, 30s ou 1min). Padrão 10s.
 - Player: setas = avançar/voltar 10s (e mostram posição/duração); o OK abre o dock de ações (qualidade, áudio, legenda…) tanto no ao vivo quanto no filme/série. A barra de tempo não captura mais as setas, então navegar até a qualidade não "esfrega" mais o vídeo.
 - Corrigido filme aparecendo na lista de Séries: só movemos um item de Filmes pra Séries quando o nome tem um marcador forte de episódio (S01E02/T01E02); o formato frouxo "1x02" casava com números em nomes de filme.
 - Nova categoria "Populares" (em alta) em Filmes e Séries: as mais vistas pelo nº de votos do TMDB, da mais popular pra menos. E "Aclamadas" agora exige menos votos, então mostra mais títulos.

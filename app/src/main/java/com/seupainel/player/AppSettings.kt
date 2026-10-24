@@ -40,6 +40,11 @@ class AppSettings(context: Context) {
         get() = p.getInt("conn_mbps", 10)
         set(v) = p.edit().putInt("conn_mbps", v).apply()
 
+    /** Quantos segundos a seta esquerda/direita avança/volta no VOD. */
+    var seekStepSec: Int
+        get() = p.getInt("seek_step", 10)
+        set(v) = p.edit().putInt("seek_step", v).apply()
+
     /** Retomar de onde parou ("continuar assistindo"). */
     var resumeEnabled: Boolean
         get() = p.getBoolean("resume", true)
@@ -81,6 +86,8 @@ class AppSettings(context: Context) {
             "Cabo de rede (80 Mbps)" to 80,
         )
         val SUBTITLE_SIZES = listOf("Pequena" to 16f, "Média" to 20f, "Grande" to 26f, "Enorme" to 34f)
+        /** Passo do seek das setas (rótulo -> segundos). */
+        val SEEK_STEPS = listOf("10 segundos" to 10, "15 segundos" to 15, "30 segundos" to 30, "1 minuto" to 60)
         val LANG_OPTIONS = listOf(
             "Português" to "pt", "Inglês" to "en", "Espanhol" to "es",
             "Japonês" to "ja", "Original/qualquer" to "",

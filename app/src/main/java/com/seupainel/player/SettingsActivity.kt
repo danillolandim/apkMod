@@ -31,6 +31,7 @@ class SettingsActivity : FragmentActivity() {
     private lateinit var sizeSpin: Spinner
     private lateinit var aspectSpin: Spinner
     private lateinit var connSpin: Spinner
+    private lateinit var seekSpin: Spinner
     private lateinit var forceMax: CheckBox
     private lateinit var resumeChk: CheckBox
     private lateinit var retryChk: CheckBox
@@ -78,6 +79,7 @@ class SettingsActivity : FragmentActivity() {
         sizeSpin = spinner(R.id.set_sub_size, AppSettings.SUBTITLE_SIZES.map { it.first })
         aspectSpin = spinner(R.id.set_aspect, PlayerController.ASPECTS.map { it.second })
         connSpin = spinner(R.id.set_conn, AppSettings.CONNECTION_OPTIONS.map { it.first })
+        seekSpin = spinner(R.id.set_seek_step, AppSettings.SEEK_STEPS.map { it.first })
         forceMax = findViewById(R.id.set_force_max)
         resumeChk = findViewById(R.id.set_resume)
         retryChk = findViewById(R.id.set_retry)
@@ -87,6 +89,7 @@ class SettingsActivity : FragmentActivity() {
         sizeSpin.setSelection(AppSettings.SUBTITLE_SIZES.indexOfFirst { it.second == app.subtitleSizeSp }.coerceAtLeast(0))
         aspectSpin.setSelection(app.aspectIndex.coerceIn(PlayerController.ASPECTS.indices))
         connSpin.setSelection(AppSettings.CONNECTION_OPTIONS.indexOfFirst { it.second == app.connectionMbps }.coerceAtLeast(0))
+        seekSpin.setSelection(AppSettings.SEEK_STEPS.indexOfFirst { it.second == app.seekStepSec }.coerceAtLeast(0))
         forceMax.isChecked = app.forceMaxQuality
         resumeChk.isChecked = app.resumeEnabled
         retryChk.isChecked = app.autoRetry
@@ -121,6 +124,7 @@ class SettingsActivity : FragmentActivity() {
             app.subtitleSizeSp = AppSettings.SUBTITLE_SIZES[sizeSpin.selectedItemPosition].second
             app.aspectIndex = aspectSpin.selectedItemPosition
             app.connectionMbps = AppSettings.CONNECTION_OPTIONS[connSpin.selectedItemPosition].second
+            app.seekStepSec = AppSettings.SEEK_STEPS[seekSpin.selectedItemPosition].second
             app.forceMaxQuality = forceMax.isChecked
             app.resumeEnabled = resumeChk.isChecked
             app.autoRetry = retryChk.isChecked
@@ -191,6 +195,7 @@ class SettingsActivity : FragmentActivity() {
         app.subtitleSizeSp = AppSettings.SUBTITLE_SIZES[sizeSpin.selectedItemPosition].second
         app.aspectIndex = aspectSpin.selectedItemPosition
         app.connectionMbps = AppSettings.CONNECTION_OPTIONS[connSpin.selectedItemPosition].second
+        app.seekStepSec = AppSettings.SEEK_STEPS[seekSpin.selectedItemPosition].second
         app.forceMaxQuality = forceMax.isChecked
         app.resumeEnabled = resumeChk.isChecked
         app.autoRetry = retryChk.isChecked
