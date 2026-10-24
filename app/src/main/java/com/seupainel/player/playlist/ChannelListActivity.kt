@@ -330,6 +330,12 @@ class ChannelListActivity : FragmentActivity() {
         // e já pré-calcula os atalhos de gênero/lançamentos/aclamadas.
         ensureFilmesIndexed()
         buildFilmesIndex()
+        // EPG (guia "agora/a seguir"): carrega o XMLTV em 2º plano; quando pronto,
+        // atualiza a lista ao vivo pra mostrar o programa atual sob cada canal.
+        com.seupainel.player.meta.Epg.ensureLoaded(store.epgUrl, store.userAgent)
+        com.seupainel.player.meta.Epg.onReady {
+            runOnUiThread { if (currentSection == Sec.CANAIS) channelAdapter.notifyDataSetChanged() }
+        }
     }
 
     private enum class SubMode { GROUPS, ALPHA }
@@ -891,6 +897,7 @@ class ChannelListActivity : FragmentActivity() {
         override fun getItemId(position: Int) = position.toLong()
         private inner class CH(root: View) {
             val name: TextView = root.findViewById(R.id.ch_item_name)
+            val epg: TextView = root.findViewById(R.id.ch_item_epg)
             val logo: android.widget.ImageView = root.findViewById(R.id.ch_item_logo)
         }
         override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup?): View {
@@ -898,6 +905,9 @@ class ChannelListActivity : FragmentActivity() {
             val h = v.tag as CH
             val ch = items[position]
             h.name.text = if (favs.contains(ch.url)) "★ ${ch.name}" else ch.name
+            val now = com.seupainel.player.meta.Epg.nowText(ch.tvgId)
+            if (now.isBlank()) h.epg.visibility = View.GONE
+            else { h.epg.text = now; h.epg.visibility = View.VISIBLE }
             if (ch.logo.isNullOrBlank()) h.logo.setImageDrawable(null)
             else coil.Coil.imageLoader(this@ChannelListActivity).enqueue(
                 coil.request.ImageRequest.Builder(this@ChannelListActivity)
@@ -972,6 +982,7 @@ class ChannelListActivity : FragmentActivity() {
             putExtra(PlayerActivity.EXTRA_IS_LIVE, best.isLive)
             putExtra(PlayerActivity.EXTRA_TITLE, ch.name)
             putExtra(PlayerActivity.EXTRA_LOGO, ch.logo ?: "")
+            putExtra(PlayerActivity.EXTRA_TVG_ID, ch.tvgId ?: "")
             best.userAgent?.let { putExtra(PlayerActivity.EXTRA_USER_AGENT, it) }
             best.referer?.let { putExtra(PlayerActivity.EXTRA_REFERER, it) }
             putStringArrayListExtra(PlayerActivity.EXTRA_VARIANT_URLS, ArrayList(variants.map { it.url }))
@@ -986,6 +997,7 @@ class ChannelListActivity : FragmentActivity() {
             putExtra(PlayerActivity.EXTRA_IS_LIVE, ch.isLive)
             putExtra(PlayerActivity.EXTRA_TITLE, ch.name)
             putExtra(PlayerActivity.EXTRA_LOGO, ch.logo ?: "")
+            putExtra(PlayerActivity.EXTRA_TVG_ID, ch.tvgId ?: "")
             ch.userAgent?.let { putExtra(PlayerActivity.EXTRA_USER_AGENT, it) }
             ch.referer?.let { putExtra(PlayerActivity.EXTRA_REFERER, it) }
         })

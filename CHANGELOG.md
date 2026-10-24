@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Guia de programação (EPG) no ao vivo: lê o XMLTV da URL de EPG (Configurações; aceita .xml e .xml.gz) e mostra "agora / a seguir" na barra do canal e o programa atual sob cada canal na lista. Carrega em 2º plano; some sozinho se a lista não tiver EPG.
 - Configurações: "Pulo das setas" — escolha quanto a seta avança/volta no filme/série (10s, 15s, 30s ou 1min). Padrão 10s.
 - Player: setas = avançar/voltar 10s (e mostram posição/duração); o OK abre o dock de ações (qualidade, áudio, legenda…) tanto no ao vivo quanto no filme/série. A barra de tempo não captura mais as setas, então navegar até a qualidade não "esfrega" mais o vídeo.
 - Corrigido filme aparecendo na lista de Séries: só movemos um item de Filmes pra Séries quando o nome tem um marcador forte de episódio (S01E02/T01E02); o formato frouxo "1x02" casava com números em nomes de filme.

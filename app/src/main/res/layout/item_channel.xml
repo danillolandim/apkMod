@@ -16,14 +16,30 @@
         android:scaleType="fitCenter"
         android:contentDescription="Logo" />
 
-    <TextView
-        android:id="@+id/ch_item_name"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="14dp"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:maxLines="1"
-        android:ellipsize="end" />
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/ch_item_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/ch_item_epg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#8A97A6"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone" />
+    </LinearLayout>
 </LinearLayout>

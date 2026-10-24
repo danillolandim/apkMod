@@ -65,6 +65,7 @@ class PlayerActivity : FragmentActivity() {
     private var resumeKey: String = ""
     private var title: String = ""
     private var logoUrl: String = ""
+    private var tvgId: String = ""
     private lateinit var channelBar: android.widget.LinearLayout
     private lateinit var chName: TextView
     private lateinit var chEpg: TextView
@@ -121,6 +122,10 @@ class PlayerActivity : FragmentActivity() {
         )
         title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         logoUrl = intent.getStringExtra(EXTRA_LOGO).orEmpty()
+        tvgId = intent.getStringExtra(EXTRA_TVG_ID).orEmpty()
+        // Garante o EPG carregado (caso o player abra antes da tela de canais).
+        if (isLive) com.seupainel.player.meta.Epg.ensureLoaded(
+            com.seupainel.player.playlist.PlaylistStore(this).epgUrl, globalUa)
         channelBar = findViewById(R.id.channel_bar)
         chName = findViewById(R.id.ch_name)
         chEpg = findViewById(R.id.ch_epg)
@@ -288,7 +293,8 @@ class PlayerActivity : FragmentActivity() {
         if (inPip) return
         chName.text = title.ifBlank { "Canal" }
         val hint = if (variantUrls.size > 1) "OK: opções e qualidade" else "OK: opções"
-        chEpg.text = epgText.ifBlank { "${pc.shortQualityLabel()}  •  $hint" }
+        val epg = com.seupainel.player.meta.Epg.barText(tvgId)
+        chEpg.text = epg.ifBlank { "${pc.shortQualityLabel()}  •  $hint" }
         if (logoUrl.isNotBlank() && !logoLoaded) {
             logoLoaded = true
             coil.Coil.imageLoader(this).enqueue(
@@ -324,8 +330,6 @@ class PlayerActivity : FragmentActivity() {
         pm.show()
     }
 
-    /** EPG do canal atual (preenchido quando o EPG estiver ligado — próximo passo). */
-    private var epgText: String = ""
 
     // ---------- Aspecto (vermelho) ----------
     private val aspectModes = PlayerController.ASPECTS
@@ -695,6 +699,7 @@ class PlayerActivity : FragmentActivity() {
         const val EXTRA_DIRECT_URL = "direct_url"
         const val EXTRA_TITLE = "title"
         const val EXTRA_LOGO = "logo"
+        const val EXTRA_TVG_ID = "tvg_id"
         const val EXTRA_USER_AGENT = "user_agent"
         const val EXTRA_REFERER = "referer"
         const val EXTRA_P2P_ADDRESS = "p2p_address"
