@@ -1,28 +1,25 @@
-# Baseline Profile (formato HRF / profgen).
-# Orienta o ART a compilar (AOT) e pré-verificar os caminhos quentes logo no
-# 1º uso: abertura mais rápida e rolagem da grade mais fluida. Não altera
-# lógica — só diz "compile isto cedo".
-#
-# App: classes + métodos quentes (lista, adapters, parser, filtro, player).
-Lcom/seupainel/player/**;
-HSPLcom/seupainel/player/**;->**(**)**
-#
-# Coil (decodificação/exibição dos cartazes na grade).
-Lcoil/**;
-Lcoil/request/**;
-Lcoil/memory/**;
-Lcoil/disk/**;
-#
-# Media3 / ExoPlayer (reprodução — caminho de início do vídeo).
-Landroidx/media3/common/**;
-Landroidx/media3/exoplayer/**;
-Landroidx/media3/exoplayer/hls/**;
-Landroidx/media3/datasource/**;
-Landroidx/media3/datasource/okhttp/**;
-Landroidx/media3/extractor/**;
-Landroidx/media3/ui/**;
-#
-# Rede (OkHttp/Okio) e JSON (índice/EPG/recentes).
-Lokhttp3/**;
-Lokio/**;
-Lorg/json/**;
+Lcom/seupainel/player/App;
+Lcom/seupainel/player/MainActivity;
+Lcom/seupainel/player/SplashActivity;
+Lcom/seupainel/player/PlayerActivity;
+Lcom/seupainel/player/PlayerController;
+Lcom/seupainel/player/DetailActivity;
+Lcom/seupainel/player/SeriesActivity;
+Lcom/seupainel/player/SettingsActivity;
+Lcom/seupainel/player/ResumeStore;
+Lcom/seupainel/player/AppSettings;
+Lcom/seupainel/player/Updater;
+Lcom/seupainel/player/playlist/ChannelListActivity;
+Lcom/seupainel/player/playlist/M3uParser;
+Lcom/seupainel/player/playlist/SeriesGrouper;
+Lcom/seupainel/player/playlist/Dub;
+Lcom/seupainel/player/playlist/ChannelQuality;
+Lcom/seupainel/player/playlist/LiveGroups;
+Lcom/seupainel/player/playlist/NewItems;
+Lcom/seupainel/player/playlist/PlaylistHolder;
+Lcom/seupainel/player/playlist/PlaylistStore;
+Lcom/seupainel/player/meta/Tmdb;
+Lcom/seupainel/player/meta/VodIndex;
+Lcom/seupainel/player/meta/Epg;
+Lcom/seupainel/player/meta/PosterCache;
+Lcom/seupainel/player/net/Net;
