@@ -184,6 +184,12 @@ class PlayerActivity : FragmentActivity() {
                 setOnClickListener { openDock() }
                 contentDescription = "Opções"
             }
+            // A barra de tempo não deve capturar as setas (senão esfrega o vídeo
+            // quando o usuário só quer navegar); o seek é feito pelas setas via seekBy.
+            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_progress)?.apply {
+                isFocusable = false
+                isFocusableInTouchMode = false
+            }
         }
         bind()
         // Reaplica sempre que os controles reaparecem (a view pode ser recriada).
@@ -420,16 +426,16 @@ class PlayerActivity : FragmentActivity() {
             KeyEvent.KEYCODE_MEDIA_NEXT -> { seekBy(+10 * 60_000); true }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { seekBy(-10 * 60_000); true }
 
-            // D-pad com controles escondidos: seek rápido de 10s
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (!controllerVisible) { seekBy(+10_000); true } else super.onKeyDown(keyCode, event)
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (!controllerVisible) { seekBy(-10_000); true } else super.onKeyDown(keyCode, event)
+            // Setas = avançar/voltar 10s (sempre, a menos que o dock esteja aberto).
+            // Com o dock fechado as setas NUNCA mexem na seekbar — elas são o seek.
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (dock.visibility != View.VISIBLE) { seekBy(+10_000); true } else super.onKeyDown(keyCode, event)
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (dock.visibility != View.VISIBLE) { seekBy(-10_000); true } else super.onKeyDown(keyCode, event)
 
-            // OK: ao vivo abre o dock de ações; VOD mostra/esconde os controles.
+            // OK: abre o dock de ações (qualidade, áudio, legenda…) no ao vivo E no VOD.
+            // Com o dock aberto, o OK seleciona o botão em foco.
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
                 dock.visibility == View.VISIBLE -> super.onKeyDown(keyCode, event)
-                isLive -> { openDock(); true }
-                !controllerVisible -> { playerView.showController(); true }
-                else -> super.onKeyDown(keyCode, event)
+                else -> { openDock(); true }
             }
 
             // BACK: fecha o dock / os controles antes de sair
@@ -449,7 +455,7 @@ class PlayerActivity : FragmentActivity() {
         val target = (p.currentPosition + deltaMs).coerceIn(0, p.duration.coerceAtLeast(0))
         p.seekTo(target)
         val sign = if (deltaMs >= 0) "+" else "−"
-        showBadge("$sign${kotlin.math.abs(deltaMs) / 1000}s  •  ${fmtTime(target)}")
+        showBadge("$sign${kotlin.math.abs(deltaMs) / 1000}s  •  ${fmtTime(target)}  /  ${fmtTime(p.duration.coerceAtLeast(0))}")
     }
 
     private fun fmtTime(ms: Long): String {
