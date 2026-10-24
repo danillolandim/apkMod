@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Séries mostram progresso do episódio começado (ex.: "Episódio 4 · 32%") e deixam o episódio assistido mais apagado — como nos apps grandes.
 - Séries marcam episódio assistido: ✓ no episódio quando termina (ou no autoplay), a tela da série já posiciona no primeiro episódio não visto, e dá pra marcar/desmarcar na mão segurando o episódio.
 - Autoplay de séries mais rápido: o player pré-aquece o próximo episódio (playlist nativa do ExoPlayer com pre-warming), então a troca entre episódios é quase instantânea. O episódio concluído sai de "Continuar" automaticamente.
 - Rolagem: os cartazes das próximas linhas são pré-carregados conforme você rola, então aparecem já prontos (menos "pop-in"/cinza).

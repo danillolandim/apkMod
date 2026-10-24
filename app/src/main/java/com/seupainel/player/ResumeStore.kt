@@ -75,6 +75,13 @@ class ResumeStore(context: Context) {
         saveRecents(recents().filterNot { it.key == key })
     }
 
+    /** Progresso de um item em andamento, 1..99% (0 = não começado/sem dados). */
+    fun progress(key: String): Int {
+        val it = recents().firstOrNull { it.key == key } ?: return 0
+        if (it.dur <= 0) return 0
+        return ((it.pos * 100) / it.dur).toInt().coerceIn(1, 99)
+    }
+
     // ---- "assistido" (episódios de série) ----
     fun isWatched(key: String): Boolean =
         key.isNotBlank() && prefs.getStringSet(WATCHED_KEY, emptySet())?.contains(key) == true

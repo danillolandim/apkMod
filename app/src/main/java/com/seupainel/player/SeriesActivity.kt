@@ -143,12 +143,27 @@ class SeriesActivity : FragmentActivity() {
     private fun showSeason(season: Int) {
         currentSeason = season
         shownEps = allEps.filter { it.leg == currentLeg && it.season == season }.sortedBy { it.episode }
-        episodesView.adapter = ArrayAdapter(
-            this, android.R.layout.simple_list_item_1,
-            shownEps.map { ep ->
-                (if (resume.isWatched(ep.url)) "✓  " else "") + "Episódio ${ep.episode}"
-            },
-        )
+        // Rótulo: ✓ assistido; senão progresso (· NN%) se começou; senão só o nome.
+        val labels = shownEps.map { ep ->
+            when {
+                resume.isWatched(ep.url) -> "✓  Episódio ${ep.episode}"
+                else -> {
+                    val p = resume.progress(ep.url)
+                    if (p > 0) "Episódio ${ep.episode}   ·   $p%" else "Episódio ${ep.episode}"
+                }
+            }
+        }
+        episodesView.adapter = object : ArrayAdapter<String>(
+            this, android.R.layout.simple_list_item_1, labels
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val v = super.getView(position, convertView, parent)
+                // Episódio assistido fica mais apagado (como nos apps grandes).
+                val watched = shownEps.getOrNull(position)?.let { resume.isWatched(it.url) } == true
+                v.alpha = if (watched) 0.5f else 1f
+                return v
+            }
+        }
         // Posiciona no primeiro episódio ainda não assistido (continuar de onde parou).
         val firstUnwatched = shownEps.indexOfFirst { !resume.isWatched(it.url) }
         if (firstUnwatched >= 0) episodesView.setSelection(firstUnwatched)
