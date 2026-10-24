@@ -102,6 +102,27 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <!-- Dock de ações (sobe de baixo, estilo dock do Mac) -->
+    <LinearLayout
+        android:id="@+id/player_dock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="40dp"
+        android:orientation="horizontal"
+        android:padding="10dp"
+        android:background="@drawable/dialog_bg"
+        android:visibility="gone">
+
+        <TextView android:id="@+id/dock_quality" style="@style/DockItem" />
+        <TextView android:id="@+id/dock_audio" style="@style/DockItem" />
+        <TextView android:id="@+id/dock_sub" style="@style/DockItem" />
+        <TextView android:id="@+id/dock_aspect" style="@style/DockItem" />
+        <TextView android:id="@+id/dock_speed" style="@style/DockItem" />
+        <TextView android:id="@+id/dock_timer" style="@style/DockItem" />
+        <TextView android:id="@+id/dock_pip" style="@style/DockItem" />
+    </LinearLayout>
+
     <!-- HUD de diagnóstico (liga/desliga pelo botão INFO/azul) -->
     <TextView
         android:id="@+id/hud"

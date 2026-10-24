@@ -27,6 +27,27 @@
         <item name="android:layout_marginTop">6dp</item>
     </style>
 
+    <!-- Item do dock do player (estilo dock do Mac) -->
+    <style name="DockItem">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginEnd">10dp</item>
+        <item name="android:minWidth">104dp</item>
+        <item name="android:background">@drawable/card_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/card_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
     <!-- Chip de temporada / dublado-legendado (estilo Apple TV) -->
     <style name="SeasonChip">
         <item name="android:layout_width">wrap_content</item>

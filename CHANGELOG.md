@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Dock de ações no player (estilo dock do Mac): a engrenagem (ou OK no ao vivo) abre uma barra que sobe de baixo com Qualidade, Áudio, Legenda, Aspecto, Velocidade, Timer e PiP — cada botão alterna o valor na hora.
 - Dublado + Legendado juntos: filme "X" e "X (LEG)" viram um cartaz só; no detalhe aparecem os botões "Dublado" e "Legendado".
 - Série: tela redesenhada estilo Apple TV — alternar Dublado/Legendado, abas de temporada (1ª, 2ª…) e a lista de episódios abaixo; versões dub/leg da mesma série agora são a mesma série.
 - Zapping mais rápido: conexões mantidas vivas (reuso ao trocar de canal no mesmo servidor), DNS da lista pré-resolvido ao carregar, e cache do DNS-over-HTTPS (não re-consulta a cada troca).

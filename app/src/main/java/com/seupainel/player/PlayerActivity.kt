@@ -10,6 +10,7 @@ import android.util.Rational
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -70,6 +71,20 @@ class PlayerActivity : FragmentActivity() {
     private lateinit var chLogo: android.widget.ImageView
     private lateinit var qualityBtn: TextView
 
+    // Dock de ações (estilo dock do Mac)
+    private lateinit var dock: LinearLayout
+    private lateinit var dockQuality: TextView
+    private lateinit var dockAudio: TextView
+    private lateinit var dockSub: TextView
+    private lateinit var dockAspect: TextView
+    private lateinit var dockSpeed: TextView
+    private lateinit var dockTimer: TextView
+    private lateinit var dockPip: TextView
+    private val speedSteps = listOf(1f, 1.25f, 1.5f, 2f, 0.75f)
+    private var speedStep = 0
+    private val timerSteps = listOf(0, 15, 30, 60, 90)
+    private var timerStep = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -112,6 +127,7 @@ class PlayerActivity : FragmentActivity() {
         chLogo = findViewById(R.id.ch_logo)
         qualityBtn = findViewById(R.id.quality_btn)
         qualityBtn.setOnClickListener { showQualityPopup() }
+        setupDock()
         // Mantém a barra do canal aberta enquanto o botão de qualidade tem foco.
         qualityBtn.setOnFocusChangeListener { _, has ->
             if (has) ui.removeCallbacks(hideChannelBar)
@@ -165,7 +181,7 @@ class PlayerActivity : FragmentActivity() {
     private fun wireOptionsGear() {
         fun bind() {
             playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.apply {
-                setOnClickListener { showMenu() }
+                setOnClickListener { openDock() }
                 contentDescription = "Opções"
             }
         }
@@ -408,16 +424,20 @@ class PlayerActivity : FragmentActivity() {
             KeyEvent.KEYCODE_DPAD_RIGHT -> if (!controllerVisible) { seekBy(+10_000); true } else super.onKeyDown(keyCode, event)
             KeyEvent.KEYCODE_DPAD_LEFT -> if (!controllerVisible) { seekBy(-10_000); true } else super.onKeyDown(keyCode, event)
 
-            // OK: ao vivo abre o menu de opções (qualidade/áudio/legenda);
-            // VOD mostra/esconde os controles de avançar/retroceder.
+            // OK: ao vivo abre o dock de ações; VOD mostra/esconde os controles.
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
-                isLive -> { showMenu(); true }
+                dock.visibility == View.VISIBLE -> super.onKeyDown(keyCode, event)
+                isLive -> { openDock(); true }
                 !controllerVisible -> { playerView.showController(); true }
                 else -> super.onKeyDown(keyCode, event)
             }
 
-            // BACK: fecha controles antes de sair
-            KeyEvent.KEYCODE_BACK -> if (controllerVisible) { playerView.hideController(); true } else super.onKeyDown(keyCode, event)
+            // BACK: fecha o dock / os controles antes de sair
+            KeyEvent.KEYCODE_BACK -> when {
+                dock.visibility == View.VISIBLE -> { closeDock(); true }
+                controllerVisible -> { playerView.hideController(); true }
+                else -> super.onKeyDown(keyCode, event)
+            }
 
             else -> super.onKeyDown(keyCode, event)
         }
@@ -438,6 +458,112 @@ class PlayerActivity : FragmentActivity() {
     }
 
     // ---------- Menu (MENU / amarelo) ----------
+    // ---------- Dock de ações (estilo dock do Mac) ----------
+    private fun setupDock() {
+        dock = findViewById(R.id.player_dock)
+        dockQuality = findViewById(R.id.dock_quality)
+        dockAudio = findViewById(R.id.dock_audio)
+        dockSub = findViewById(R.id.dock_sub)
+        dockAspect = findViewById(R.id.dock_aspect)
+        dockSpeed = findViewById(R.id.dock_speed)
+        dockTimer = findViewById(R.id.dock_timer)
+        dockPip = findViewById(R.id.dock_pip)
+        dockQuality.setOnClickListener { cycleQuality() }
+        dockAudio.setOnClickListener { cycleAudio() }
+        dockSub.setOnClickListener { cycleSub() }
+        dockAspect.setOnClickListener { cycleAspect(); updateDock() }
+        dockSpeed.setOnClickListener { cycleSpeed() }
+        dockTimer.setOnClickListener { cycleTimer() }
+        dockPip.setOnClickListener { closeDock(); enterPip() }
+    }
+
+    private fun openDock() {
+        playerView.hideController()
+        ui.removeCallbacks(hideChannelBar); channelBar.visibility = View.GONE
+        dockSpeed.visibility = if (isLive) View.GONE else View.VISIBLE
+        updateDock()
+        if (dock.visibility != View.VISIBLE) {
+            dock.visibility = View.VISIBLE
+            dock.alpha = 0f
+            dock.post {
+                dock.translationY = dock.height.toFloat()
+                dock.animate().translationY(0f).alpha(1f).setDuration(200).start()
+            }
+        }
+        dockQuality.requestFocus()
+    }
+
+    private fun closeDock() {
+        if (dock.visibility != View.VISIBLE) return
+        dock.animate().translationY(dock.height.toFloat()).alpha(0f).setDuration(180)
+            .withEndAction { dock.visibility = View.GONE; dock.translationY = 0f; dock.alpha = 1f }.start()
+    }
+
+    private fun dockLabel(action: String, value: String) = "$action\n$value"
+
+    private fun updateDock() {
+        dockQuality.text = dockLabel("Qualidade", qualityValue())
+        dockAudio.text = dockLabel("Áudio", audioValue())
+        dockSub.text = dockLabel("Legenda", subValue())
+        dockAspect.text = dockLabel("Aspecto", aspectModes[aspectIdx].second)
+        dockSpeed.text = dockLabel("Velocidade", "${speedSteps[speedStep]}x")
+        dockTimer.text = dockLabel("Timer", if (timerSteps[timerStep] == 0) "Off" else "${timerSteps[timerStep]}m")
+        dockPip.text = "PiP"
+    }
+
+    private fun qualityValue(): String =
+        if (variantUrls.size > 1) variantLabels.getOrElse(variantIdx) { "—" }
+        else pc.videoTracks().firstOrNull { it.isSelected }?.label?.substringBefore(" ") ?: "Auto"
+
+    private fun audioValue(): String = pc.audioTracks().firstOrNull { it.isSelected }?.label ?: "—"
+    private fun subValue(): String = pc.textTracks().firstOrNull { it.isSelected }?.label ?: "Off"
+
+    private fun cycleQuality() {
+        if (variantUrls.size > 1) switchVariant((variantIdx + 1) % variantUrls.size)
+        else {
+            val v = pc.videoTracks()
+            if (v.size > 1) {
+                val sel = v.indexOfFirst { it.isSelected }.coerceAtLeast(0)
+                pc.selectTrack(v[(sel + 1) % v.size])
+            }
+        }
+        ui.postDelayed({ updateDock() }, 150)
+    }
+
+    private fun cycleAudio() {
+        val a = pc.audioTracks()
+        if (a.size > 1) {
+            val sel = a.indexOfFirst { it.isSelected }.coerceAtLeast(0)
+            val next = a[(sel + 1) % a.size]
+            pc.selectTrack(next); showBadge("Áudio: ${next.label}")
+        }
+        ui.postDelayed({ updateDock() }, 150)
+    }
+
+    private fun cycleSub() {
+        val t = pc.textTracks()
+        val sel = t.indexOfFirst { it.isSelected }
+        when {
+            t.isEmpty() -> {}
+            sel < 0 -> { pc.selectTrack(t[0]); showBadge("Legenda: ${t[0].label}") }
+            sel >= t.size - 1 -> { pc.disableSubtitles(); showBadge("Legenda desligada") }
+            else -> { pc.selectTrack(t[sel + 1]); showBadge("Legenda: ${t[sel + 1].label}") }
+        }
+        ui.postDelayed({ updateDock() }, 150)
+    }
+
+    private fun cycleSpeed() {
+        speedStep = (speedStep + 1) % speedSteps.size
+        pc.setSpeed(speedSteps[speedStep]); showBadge("Velocidade ${speedSteps[speedStep]}x")
+        updateDock()
+    }
+
+    private fun cycleTimer() {
+        timerStep = (timerStep + 1) % timerSteps.size
+        setSleepTimer(timerSteps[timerStep])
+        updateDock()
+    }
+
     /** Menu compacto: 1 linha por tipo (com o valor atual); cada uma abre um submenu curto. */
     private fun showMenu() {
         val video = pc.videoTracks()
