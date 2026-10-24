@@ -1,0 +1,28 @@
+# Baseline Profile (formato HRF / profgen).
+# Orienta o ART a compilar (AOT) e pré-verificar os caminhos quentes logo no
+# 1º uso: abertura mais rápida e rolagem da grade mais fluida. Não altera
+# lógica — só diz "compile isto cedo".
+#
+# App: classes + métodos quentes (lista, adapters, parser, filtro, player).
+Lcom/seupainel/player/**;
+HSPLcom/seupainel/player/**;->**(**)**
+#
+# Coil (decodificação/exibição dos cartazes na grade).
+Lcoil/**;
+Lcoil/request/**;
+Lcoil/memory/**;
+Lcoil/disk/**;
+#
+# Media3 / ExoPlayer (reprodução — caminho de início do vídeo).
+Landroidx/media3/common/**;
+Landroidx/media3/exoplayer/**;
+Landroidx/media3/exoplayer/hls/**;
+Landroidx/media3/datasource/**;
+Landroidx/media3/datasource/okhttp/**;
+Landroidx/media3/extractor/**;
+Landroidx/media3/ui/**;
+#
+# Rede (OkHttp/Okio) e JSON (índice/EPG/recentes).
+Lokhttp3/**;
+Lokio/**;
+Lorg/json/**;

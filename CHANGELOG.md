@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Baseline Profile: o app compila os caminhos quentes (abertura, lista, reprodução) logo no primeiro uso — abertura mais rápida e rolagem mais fluida, sem mudar nada do funcionamento.
 - Rolagem: os cartazes das próximas linhas são pré-carregados conforme você rola, então aparecem já prontos (menos "pop-in"/cinza).
 - Carregamento: zapping do ao vivo começa mais rápido (primeiro quadro em ~0,6s), splash mais ágil na abertura, e a indexação do TMDB prioriza a seção que você abriu (os cartazes/gêneros do que está na tela preenchem primeiro).
 - Desempenho: a reclassificação Filme/Série roda no máximo a cada 8s (antes, a cada 200 itens indexados) e o mapeamento de grupo→seção é memoizado — menos CPU/GC em 2º plano durante a indexação, sem travar a navegação.

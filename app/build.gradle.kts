@@ -71,4 +71,6 @@ dependencies {
     implementation("androidx.leanback:leanback:1.0.0")
     // Carregamento de imagens (pôsteres de filmes/séries)
     implementation("io.coil-kt:coil:2.7.0")
+    // Instala o Baseline Profile (AOT dos caminhos quentes) no 1º uso.
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 }
