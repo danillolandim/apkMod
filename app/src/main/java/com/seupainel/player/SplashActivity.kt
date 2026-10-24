@@ -32,9 +32,9 @@ class SplashActivity : FragmentActivity() {
             while (expectCache && PlaylistHolder.channels == null &&
                 System.currentTimeMillis() - startAt < 6000
             ) runCatching { Thread.sleep(60) }
-            // mantém a animação visível por um tempo mínimo agradável
+            // mantém a animação visível por um tempo mínimo agradável (curto)
             val elapsed = System.currentTimeMillis() - startAt
-            if (elapsed < 900) runCatching { Thread.sleep(900 - elapsed) }
+            if (elapsed < 450) runCatching { Thread.sleep(450 - elapsed) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 startActivity(Intent(this, MainActivity::class.java))

@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Carregamento: zapping do ao vivo começa mais rápido (primeiro quadro em ~0,6s), splash mais ágil na abertura, e a indexação do TMDB prioriza a seção que você abriu (os cartazes/gêneros do que está na tela preenchem primeiro).
 - Desempenho: a reclassificação Filme/Série roda no máximo a cada 8s (antes, a cada 200 itens indexados) e o mapeamento de grupo→seção é memoizado — menos CPU/GC em 2º plano durante a indexação, sem travar a navegação.
 - Classificação Filme × Série pelo TMDB: o tipo (filme/série) do TMDB passa a mandar na hora de separar as seções, corrigindo itens que a lista pôs no grupo errado — nos dois sentidos. Vai se ajustando conforme o catálogo é indexado.
 - Autoplay de séries: ao terminar um episódio, emenda sozinho no próximo (mesma versão dublada/legendada), mostrando "A seguir…".

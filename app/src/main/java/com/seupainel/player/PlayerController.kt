@@ -121,7 +121,8 @@ class PlayerController(
             // LIVE: começa a tocar rápido (zapping) e mantém um colchão maior
             // (cabo enche fácil), evitando engasgo em picos do provedor.
             Mode.LIVE -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(10_000, 50_000, 1_000, 2_000)
+                // 600ms p/ começar (zapping mais rápido); mantém colchão grande.
+                .setBufferDurationsMs(10_000, 50_000, 600, 2_000)
                 .setBackBuffer(30_000, true)   // rewind instantâneo em live
             // VOD: buffer folgado (até 90s) — zero rebuffer sem pesar a memória
             // da TV com streams 4K de bitrate alto.

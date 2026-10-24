@@ -536,7 +536,13 @@ class ChannelListActivity : FragmentActivity() {
             // pulando os já indexados; novidades primeiro.
             val seenKeys = HashSet<String>()
             val todo = ArrayList<M3uParser.Channel>()
-            for (ch in vod.sortedByDescending { if (newItems.isNew(it.url)) 1 else 0 }) {
+            // Prioriza a seção aberta (o que o usuário vê agora), depois novidades.
+            val openSec = currentSection
+            val ordered = vod.sortedWith(
+                compareByDescending<M3uParser.Channel> { if (secOfChannel(it) == openSec) 1 else 0 }
+                    .thenByDescending { if (newItems.isNew(it.url)) 1 else 0 }
+            )
+            for (ch in ordered) {
                 val key = vodIndex.keyFor(ch.name)
                 if (key.isBlank() || indexMiss.contains(ch.name)) continue
                 val e = vodIndex.getByKey(key)
