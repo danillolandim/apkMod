@@ -67,6 +67,9 @@ class PlayerActivity : FragmentActivity() {
     private var logoUrl: String = ""
     private var tvgId: String = ""
     private var resumeKind: String = ""   // "movie" | "series" | "" (não guardar na fileira)
+    private var queueUrls: List<String> = emptyList()   // próximos episódios (autoplay)
+    private var queueTitles: List<String> = emptyList()
+    private var queueIdx: Int = 0
     private lateinit var channelBar: android.widget.LinearLayout
     private lateinit var chName: TextView
     private lateinit var chEpg: TextView
@@ -125,6 +128,9 @@ class PlayerActivity : FragmentActivity() {
         logoUrl = intent.getStringExtra(EXTRA_LOGO).orEmpty()
         tvgId = intent.getStringExtra(EXTRA_TVG_ID).orEmpty()
         resumeKind = intent.getStringExtra(EXTRA_KIND).orEmpty()
+        queueUrls = intent.getStringArrayListExtra(EXTRA_QUEUE_URLS) ?: emptyList()
+        queueTitles = intent.getStringArrayListExtra(EXTRA_QUEUE_TITLES) ?: emptyList()
+        queueIdx = 0
         // Garante o EPG carregado (caso o player abra antes da tela de canais).
         if (isLive) com.seupainel.player.meta.Epg.ensureLoaded(
             com.seupainel.player.playlist.PlaylistStore(this).epgUrl, globalUa)
@@ -229,6 +235,8 @@ class PlayerActivity : FragmentActivity() {
                         showBadge(if (title.isNotBlank()) "$title\n$q" else q, announce = true)
                     }
                 }
+                // Fim do episódio/filme -> emenda no próximo da fila (séries).
+                if (state == Player.STATE_ENDED) playNextInQueue()
             }
 
             // Muda rendição (ABR) ou faixa -> mostra a qualidade nova.
@@ -453,6 +461,20 @@ class PlayerActivity : FragmentActivity() {
 
             else -> super.onKeyDown(keyCode, event)
         }
+    }
+
+    /** Emenda no próximo episódio da fila (autoplay). Retorna false se não há. */
+    private fun playNextInQueue(): Boolean {
+        if (queueIdx + 1 >= queueUrls.size) return false
+        persistResume()                       // marca o episódio atual como concluído
+        queueIdx++
+        directUrl = queueUrls[queueIdx]
+        resumeKey = directUrl
+        title = queueTitles.getOrElse(queueIdx) { title }
+        startMs = 0
+        showBadge("A seguir\n$title", announce = true)
+        pc.play(directUrl, subtitles = subs, startPositionMs = 0)
+        return true
     }
 
     private fun seekStepMs(): Long = settings.seekStepSec.coerceIn(5, 300) * 1000L
@@ -712,6 +734,8 @@ class PlayerActivity : FragmentActivity() {
         const val EXTRA_LOGO = "logo"
         const val EXTRA_TVG_ID = "tvg_id"
         const val EXTRA_KIND = "kind"   // "movie" | "series" para a fileira "Continuar"
+        const val EXTRA_QUEUE_URLS = "queue_urls"     // próximos episódios (autoplay)
+        const val EXTRA_QUEUE_TITLES = "queue_titles"
         const val EXTRA_USER_AGENT = "user_agent"
         const val EXTRA_REFERER = "referer"
         const val EXTRA_P2P_ADDRESS = "p2p_address"

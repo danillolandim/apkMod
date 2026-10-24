@@ -135,12 +135,22 @@ class SeriesActivity : FragmentActivity() {
     }
 
     private fun play(ep: Ep) {
+        // Fila de autoplay: do episódio clicado em diante, na mesma versão (dub/leg).
+        val ordered = allEps.filter { it.leg == ep.leg }
+            .sortedWith(compareBy({ it.season }, { it.episode }))
+        val startIdx = ordered.indexOfFirst {
+            it.season == ep.season && it.episode == ep.episode && it.url == ep.url
+        }.coerceAtLeast(0)
+        val queue = ordered.drop(startIdx)
         startActivity(Intent(this, PlayerActivity::class.java).apply {
             putExtra(PlayerActivity.EXTRA_DIRECT_URL, ep.url)
             putExtra(PlayerActivity.EXTRA_IS_LIVE, false)
             putExtra(PlayerActivity.EXTRA_TITLE, "$title — T${ep.season}E${ep.episode}")
             putExtra(PlayerActivity.EXTRA_LOGO, intent.getStringExtra(EXTRA_LOGO).orEmpty())
             putExtra(PlayerActivity.EXTRA_KIND, "series")
+            putStringArrayListExtra(PlayerActivity.EXTRA_QUEUE_URLS, ArrayList(queue.map { it.url }))
+            putStringArrayListExtra(PlayerActivity.EXTRA_QUEUE_TITLES,
+                ArrayList(queue.map { "$title — T${it.season}E${it.episode}" }))
         })
     }
 
