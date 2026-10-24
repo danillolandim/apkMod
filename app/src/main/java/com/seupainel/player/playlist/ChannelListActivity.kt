@@ -43,6 +43,7 @@ class ChannelListActivity : FragmentActivity() {
     private var sectionGroups: Map<Sec, List<String>> = emptyMap()
     private var currentSection: Sec = Sec.CANAIS
     private val resumeStore by lazy { com.seupainel.player.ResumeStore(this) }
+    @Volatile private var lastRepartition = 0L
     private var startSection: Sec = Sec.CANAIS               // seção escolhida na home
     private var currentSub: String? = null                  // null = tudo da seção
     private var canaisDerived = false                       // canais agrupados por tema (do nome)
@@ -65,9 +66,12 @@ class ChannelListActivity : FragmentActivity() {
     @Volatile private var buildingFilmes = false
     private var shown: List<M3uParser.Channel> = emptyList()
 
-    private fun secOf(group: String): Sec {
+    // group-title -> Sec é determinístico e há poucos grupos distintos: memoiza
+    // (evita re-uppercase/contains por item em listas de dezenas de milhares).
+    private val groupSecCache = java.util.concurrent.ConcurrentHashMap<String, Sec>()
+    private fun secOf(group: String): Sec = groupSecCache.getOrPut(group) {
         val u = group.uppercase()
-        return when {
+        when {
             u.contains("SERIE") || u.contains("SÉRIE") -> Sec.SERIES
             u.contains("FILME") || u.contains("MOVIE") || u.contains("VOD") || u.contains("CINEMA") -> Sec.FILMES
             else -> Sec.CANAIS
@@ -419,10 +423,13 @@ class ChannelListActivity : FragmentActivity() {
         thread(name = "vod-fast") {
             // Reparticiona considerando o tipo do TMDB (melhora conforme indexa):
             // um filme que a lista pôs em "Séries" (ou vice-versa) volta pro lugar.
-            if (all.isNotEmpty()) {
+            // Throttle: no máximo a cada 8s (a indexação chama isto dezenas de vezes).
+            val nowMs = System.currentTimeMillis()
+            if (all.isNotEmpty() && (secLists == null || nowMs - lastRepartition > 8_000)) {
                 val m = HashMap<Sec, MutableList<M3uParser.Channel>>()
                 for (ch in all) m.getOrPut(secOfChannel(ch)) { ArrayList() }.add(ch)
                 secLists = m
+                lastRepartition = nowMs
             }
             // Filmes
             val movies = secLists?.get(Sec.FILMES) ?: all.filter { secOfChannel(it) == Sec.FILMES }
