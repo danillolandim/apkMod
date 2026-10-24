@@ -3,11 +3,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="6dp">
+    android:padding="5dp">
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="300dp">
+        android:layout_height="185dp">
 
         <ImageView
             android:id="@+id/poster"
@@ -38,10 +38,10 @@
         android:id="@+id/poster_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="5dp"
         android:lines="2"
         android:ellipsize="end"
         android:textColor="#FFFFFF"
-        android:textSize="13sp"
+        android:textSize="12sp"
         android:gravity="center" />
 </LinearLayout>
