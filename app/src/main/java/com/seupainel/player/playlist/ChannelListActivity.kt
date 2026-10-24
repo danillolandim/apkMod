@@ -831,8 +831,11 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
-    /** Pôster menor (w342) para a grade — menos banda/memória; o detalhe usa w500. */
-    private fun gridPosterUrl(url: String): String = url.replace("/t/p/w500", "/t/p/w342")
+    /**
+     * Mantém o pôster em w500 na grade: no card grande de uma TV 4K, reduzir
+     * para w342 deixava a imagem borrada. O cache de disco já evita re-baixar.
+     */
+    private fun gridPosterUrl(url: String): String = url
 
     override fun onPause() {
         super.onPause()
