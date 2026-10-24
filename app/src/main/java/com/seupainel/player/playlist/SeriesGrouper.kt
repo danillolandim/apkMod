@@ -51,11 +51,13 @@ object SeriesGrouper {
         val logos = HashMap<String, String?>()
         for (ch in channels) {
             val p = parse(ch.name)
+            val frag = p?.first ?: ch.name
             // Chave sem a marca de dub/leg -> as duas versões caem na MESMA série.
-            val key = Dub.base(p?.first ?: ch.name).lowercase()
+            // O flag leg vem do MESMO fragmento (consistente com a chave).
+            val key = Dub.base(frag).lowercase()
             val season = p?.second ?: 1
             val episode = p?.third ?: 1
-            map.getOrPut(key) { ArrayList() }.add(Ep(season, episode, ch, Dub.isLeg(ch.name)))
+            map.getOrPut(key) { ArrayList() }.add(Ep(season, episode, ch, Dub.isLeg(frag)))
             if (logos[key].isNullOrBlank() && !ch.logo.isNullOrBlank()) logos[key] = ch.logo
         }
         return map.entries.map { (key, eps) ->

@@ -570,6 +570,7 @@ class ChannelListActivity : FragmentActivity() {
             // Atalho pré-computado p/ Filmes (gênero/lançamentos) -> instantâneo.
             val fast = fastGenre ?: fastLanc
             if (fast != null) {
+                if (gen != filterGen) return@thread     // filtro antigo: não mexe no estado
                 var r = if (q.isEmpty()) fast else fast.filter { it.name.lowercase().contains(q) }
                 if (sec == Sec.FILMES) r = collapseDubLeg(r)   // junta dublado+legendado
                 val out = r
@@ -606,6 +607,8 @@ class ChannelListActivity : FragmentActivity() {
                 ACLAMADAS -> result = result.sortedByDescending { vodIndex.rating(it.name).let { r -> if (r.isNaN()) 0.0 else r } }
             }
             // Junta variações num item só: canais por qualidade; filmes por dub/leg.
+            // Só o filtro atual mexe nos mapas de variações (evita estado velho).
+            if (gen != filterGen) return@thread
             if (sec == Sec.CANAIS) result = collapseLive(result)
             else if (sec == Sec.FILMES) result = collapseDubLeg(result)
             if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(result, favs, sec) }

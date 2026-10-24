@@ -7,8 +7,10 @@ package com.seupainel.player.playlist
  */
 object Dub {
 
-    private val LEG = Regex("""(?i)(\(\s*(leg|legendado|legendada)\s*\)|\[\s*(leg|legendado|legendada)\s*\]|[-–]\s*(legendado|legendada)\s*$|\s(leg|legendado|legendada)\s*$)""")
-    private val DUB = Regex("""(?i)(\(\s*(dub|dublado|dublada)\s*\)|\[\s*(dub|dublado|dublada)\s*\]|[-–]\s*(dublado|dublada)\s*$|\s(dub|dublado|dublada)\s*$)""")
+    // Marca em QUALQUER posição (com ou sem colchetes/parênteses), não só no fim,
+    // para pegar "Nome LEGENDADO S01E05" e também "Nome S01E05 (LEG)".
+    private val LEG = Regex("""(?i)[\(\[]?\b(legendado|legendada|leg)\b[\)\]]?""")
+    private val DUB = Regex("""(?i)[\(\[]?\b(dublado|dublada|dub)\b[\)\]]?""")
 
     private val reTrailSep = Regex("""[\s\-–|•:]+$""")
     private val reLeadSep = Regex("""^[\s\-–|•:]+""")

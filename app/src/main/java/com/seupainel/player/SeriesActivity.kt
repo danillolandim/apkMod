@@ -111,7 +111,7 @@ class SeriesActivity : FragmentActivity() {
         seasonsRow.removeAllViews()
         if (currentSeason !in seasons) currentSeason = seasons.firstOrNull() ?: 1
         val d = resources.displayMetrics.density
-        seasons.forEachIndexed { i, s ->
+        seasons.forEach { s ->
             val chip = TextView(this, null, 0, R.style.SeasonChip).apply {
                 text = "${s}ª temporada"
                 layoutParams = LinearLayout.LayoutParams(
@@ -121,7 +121,6 @@ class SeriesActivity : FragmentActivity() {
                 setOnClickListener { showSeason(s); episodesView.requestFocus() }
             }
             seasonsRow.addView(chip)
-            if (i == 0) chip.post { /* primeira temporada visível já listada abaixo */ }
         }
         showSeason(currentSeason)
     }
