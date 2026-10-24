@@ -44,6 +44,7 @@ class ChannelListActivity : FragmentActivity() {
     private var currentSection: Sec = Sec.CANAIS
     private val resumeStore by lazy { com.seupainel.player.ResumeStore(this) }
     @Volatile private var lastRepartition = 0L
+    private var lastPrefetchEnd = -1
     private var startSection: Sec = Sec.CANAIS               // seção escolhida na home
     private var currentSub: String? = null                  // null = tudo da seção
     private var canaisDerived = false                       // canais agrupados por tema (do nome)
@@ -140,6 +141,15 @@ class ChannelListActivity : FragmentActivity() {
         gridView.setOnItemLongClickListener { _, _, pos, _ ->
             if (!seriesMode) shown.getOrNull(pos)?.let { toggleFav(it) }; true
         }
+        // Pré-carrega os cartazes das próximas linhas conforme rola (sem "pop-in").
+        gridView.setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
+            override fun onScroll(v: android.widget.AbsListView?, first: Int, visible: Int, total: Int) {
+                if (visible <= 0) return
+                val target = first + visible
+                if (target != lastPrefetchEnd) { lastPrefetchEnd = target; prefetchPosters(target, visible) }
+            }
+            override fun onScrollStateChanged(v: android.widget.AbsListView?, state: Int) {}
+        })
         search.setOnEditorActionListener { _, _, _ -> applyFilter(); groupsView.requestFocus(); true }
 
         // Barra de navegação por seções.
@@ -690,6 +700,7 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun publish(list: List<M3uParser.Channel>, favs: Set<String>, sec: Sec) {
         shown = list
+        lastPrefetchEnd = -1
         findViewById<View>(R.id.empty).visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
 
         if (sec == Sec.SERIES && list.isNotEmpty()) { publishSeries(list); return }
@@ -922,6 +933,29 @@ class ChannelListActivity : FragmentActivity() {
      * suave). O cartaz cheio (w500) aparece na tela de detalhes.
      */
     private fun gridPosterUrl(url: String): String = url.replace("/t/p/w500", "/t/p/w342")
+
+    /**
+     * Aquece o cache de imagem dos próximos [count] itens da grade, para o
+     * cartaz já estar pronto quando o foco chegar neles. Só pré-carrega URLs
+     * JÁ conhecidas (pôster do TMDB em cache ou capa da lista); a busca no TMDB
+     * dos itens ainda sem pôster fica para a célula visível (que atualiza a
+     * própria view) — assim o prefetch nunca "segura" um item na tela.
+     */
+    private fun prefetchPosters(start: Int, count: Int) {
+        if (seriesMode) return
+        val list = shown
+        val end = minOf(start + count, list.size)
+        val loader = coil.Coil.imageLoader(this)
+        for (i in start until end) {
+            if (i < 0) continue
+            val ch = list[i]
+            val url = com.seupainel.player.meta.PosterCache.get(ch.name)
+                ?: tmdbCache[ch.name]?.posterUrl ?: ch.logo
+            if (!url.isNullOrBlank()) {
+                loader.enqueue(coil.request.ImageRequest.Builder(this).data(gridPosterUrl(url)).build())
+            }
+        }
+    }
 
     override fun onPause() {
         super.onPause()
