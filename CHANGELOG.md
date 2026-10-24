@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Autoplay de séries mais rápido: o player pré-aquece o próximo episódio (playlist nativa do ExoPlayer com pre-warming), então a troca entre episódios é quase instantânea. O episódio concluído sai de "Continuar" automaticamente.
 - Rolagem: os cartazes das próximas linhas são pré-carregados conforme você rola, então aparecem já prontos (menos "pop-in"/cinza).
 - Carregamento: zapping do ao vivo começa mais rápido (primeiro quadro em ~0,6s), splash mais ágil na abertura, e a indexação do TMDB prioriza a seção que você abriu (os cartazes/gêneros do que está na tela preenchem primeiro).
 - Desempenho: a reclassificação Filme/Série roda no máximo a cada 8s (antes, a cada 200 itens indexados) e o mapeamento de grupo→seção é memoizado — menos CPU/GC em 2º plano durante a indexação, sem travar a navegação.

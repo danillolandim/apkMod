@@ -17,6 +17,7 @@ import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentActivity
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
@@ -169,8 +170,10 @@ class PlayerActivity : FragmentActivity() {
 
         setupListeners()
         if (directUrl.isNotBlank()) {
-            // Modo URL direta: ExoPlayer puro, sem motor P2P.
-            pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
+            // Série com fila de episódios -> playlist nativa (pre-warming do
+            // próximo episódio). Caso contrário, item único.
+            if (queueUrls.size > 1) pc.playQueue(queueUrls, startIndex = 0, startPositionMs = startMs)
+            else pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
         } else {
             startEngine(address)
         }
@@ -235,8 +238,25 @@ class PlayerActivity : FragmentActivity() {
                         showBadge(if (title.isNotBlank()) "$title\n$q" else q, announce = true)
                     }
                 }
-                // Fim do episódio/filme -> emenda no próximo da fila (séries).
-                if (state == Player.STATE_ENDED) playNextInQueue()
+            }
+
+            // Transição automática entre episódios (playlist nativa): atualiza
+            // título/chave de retomada e marca o episódio anterior como visto.
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (queueUrls.size <= 1) return
+                val idx = pc.player.currentMediaItemIndex
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    // O item anterior terminou -> sai de "Continuar".
+                    val prev = idx - 1
+                    queueUrls.getOrNull(prev)?.let { resume.clear(it); resume.removeRecent(it) }
+                }
+                queueIdx = idx
+                resumeKey = queueUrls.getOrElse(idx) { resumeKey }
+                directUrl = resumeKey
+                title = queueTitles.getOrElse(idx) { title }
+                startMs = 0
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
+                    showBadge("A seguir\n$title", announce = true)
             }
 
             // Muda rendição (ABR) ou faixa -> mostra a qualidade nova.
@@ -461,20 +481,6 @@ class PlayerActivity : FragmentActivity() {
 
             else -> super.onKeyDown(keyCode, event)
         }
-    }
-
-    /** Emenda no próximo episódio da fila (autoplay). Retorna false se não há. */
-    private fun playNextInQueue(): Boolean {
-        if (queueIdx + 1 >= queueUrls.size) return false
-        persistResume()                       // marca o episódio atual como concluído
-        queueIdx++
-        directUrl = queueUrls[queueIdx]
-        resumeKey = directUrl
-        title = queueTitles.getOrElse(queueIdx) { title }
-        startMs = 0
-        showBadge("A seguir\n$title", announce = true)
-        pc.play(directUrl, subtitles = subs, startPositionMs = 0)
-        return true
     }
 
     private fun seekStepMs(): Long = settings.seekStepSec.coerceIn(5, 300) * 1000L

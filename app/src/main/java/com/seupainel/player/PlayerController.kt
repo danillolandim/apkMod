@@ -138,6 +138,9 @@ class PlayerController(
         val renderers = DefaultRenderersFactory(context)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            // Pré-aquece o vídeo do PRÓXIMO item da playlist (Media3 1.6+): a
+            // transição entre episódios (autoplay de séries) fica quase instantânea.
+            .experimentalSetEnableMediaCodecVideoRendererPrewarming(true)
 
         ExoPlayer.Builder(context)
             .setRenderersFactory(renderers)
@@ -240,6 +243,18 @@ class PlayerController(
             .build()
 
         player.setMediaItem(item, startPositionMs)
+        player.prepare()
+        player.playWhenReady = true
+    }
+
+    /**
+     * Toca uma FILA de itens (ex.: episódios de uma série) como playlist nativa
+     * do ExoPlayer — assim o player pré-aquece o próximo (pre-warming) e a
+     * transição entre episódios é quase instantânea. Começa no [startIndex].
+     */
+    fun playQueue(urls: List<String>, startIndex: Int = 0, startPositionMs: Long = 0) {
+        val items = urls.map { MediaItem.Builder().setUri(it).build() }
+        player.setMediaItems(items, startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0)), startPositionMs)
         player.prepare()
         player.playWhenReady = true
     }
