@@ -952,7 +952,13 @@ class ChannelListActivity : FragmentActivity() {
             val url = com.seupainel.player.meta.PosterCache.get(ch.name)
                 ?: tmdbCache[ch.name]?.posterUrl ?: ch.logo
             if (!url.isNullOrBlank()) {
-                loader.enqueue(coil.request.ImageRequest.Builder(this).data(gridPosterUrl(url)).build())
+                // Só aquece o cache de DISCO (mata a latência de rede adiantada);
+                // não escreve na memória pra não despejar os cartazes visíveis.
+                loader.enqueue(
+                    coil.request.ImageRequest.Builder(this)
+                        .data(gridPosterUrl(url))
+                        .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                        .build())
             }
         }
     }
