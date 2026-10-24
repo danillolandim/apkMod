@@ -139,6 +139,8 @@ class SeriesActivity : FragmentActivity() {
             putExtra(PlayerActivity.EXTRA_DIRECT_URL, ep.url)
             putExtra(PlayerActivity.EXTRA_IS_LIVE, false)
             putExtra(PlayerActivity.EXTRA_TITLE, "$title — T${ep.season}E${ep.episode}")
+            putExtra(PlayerActivity.EXTRA_LOGO, intent.getStringExtra(EXTRA_LOGO).orEmpty())
+            putExtra(PlayerActivity.EXTRA_KIND, "series")
         })
     }
 

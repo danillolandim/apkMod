@@ -45,6 +45,8 @@ class DetailActivity : FragmentActivity() {
                 putExtra(PlayerActivity.EXTRA_DIRECT_URL, u)
                 putExtra(PlayerActivity.EXTRA_IS_LIVE, isLive)
                 putExtra(PlayerActivity.EXTRA_TITLE, title)
+                putExtra(PlayerActivity.EXTRA_LOGO, logo)
+                if (!isLive) putExtra(PlayerActivity.EXTRA_KIND, if (isSeries) "series" else "movie")
             })
         }
 

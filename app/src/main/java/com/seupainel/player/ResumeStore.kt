@@ -1,14 +1,27 @@
 package com.seupainel.player
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
- * "Continuar assistindo": guarda a última posição por conteúdo.
- * Simples e sem dependências (SharedPreferences). Chave = address.
+ * "Continuar assistindo": guarda a última posição por conteúdo (chave = URL) e
+ * também uma lista dos itens em andamento (com título/capa/tipo) para a fileira
+ * "Continuar" na tela de Filmes/Séries. Tudo em SharedPreferences, sem libs.
  */
 class ResumeStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("resume", Context.MODE_PRIVATE)
+
+    data class Item(
+        val key: String,        // URL do conteúdo (chave de posição)
+        val title: String,
+        val logo: String,
+        val kind: String,       // "movie" | "series"
+        val pos: Long,
+        val dur: Long,
+        val ts: Long,
+    )
 
     fun save(key: String, positionMs: Long, durationMs: Long) {
         if (key.isBlank()) return
@@ -23,4 +36,58 @@ class ResumeStore(context: Context) {
     fun get(key: String): Long = prefs.getLong(key, 0L)
 
     fun clear(key: String) = prefs.edit().remove(key).apply()
+
+    /**
+     * Guarda posição E atualiza a fileira "Continuar". Chamado pelo player ao
+     * pausar/sair. Remove da fileira quando o conteúdo é concluído.
+     */
+    fun remember(key: String, title: String, logo: String, kind: String, positionMs: Long, durationMs: Long) {
+        if (key.isBlank()) return
+        save(key, positionMs, durationMs)
+        val finished = durationMs > 0 && positionMs > durationMs - 15_000
+        val list = recents().filterNot { it.key == key }.toMutableList()
+        if (!finished && positionMs > 10_000 && title.isNotBlank()) {
+            list.add(0, Item(key, title, logo, kind, positionMs, durationMs, System.currentTimeMillis()))
+        }
+        saveRecents(list.take(MAX_RECENTS))
+    }
+
+    /** Itens em andamento, mais recentes primeiro; opcionalmente só de um tipo. */
+    fun recents(kind: String? = null): List<Item> {
+        val raw = prefs.getString(RECENTS_KEY, null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            val out = ArrayList<Item>(arr.length())
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val it = Item(
+                    key = o.optString("k"), title = o.optString("t"), logo = o.optString("l"),
+                    kind = o.optString("kind", "movie"),
+                    pos = o.optLong("p"), dur = o.optLong("d"), ts = o.optLong("ts"),
+                )
+                if (it.key.isNotBlank() && (kind == null || it.kind == kind)) out.add(it)
+            }
+            out
+        } catch (_: Throwable) { emptyList() }
+    }
+
+    fun removeRecent(key: String) {
+        saveRecents(recents().filterNot { it.key == key })
+    }
+
+    private fun saveRecents(list: List<Item>) {
+        val arr = JSONArray()
+        for (it in list) {
+            arr.put(JSONObject().apply {
+                put("k", it.key); put("t", it.title); put("l", it.logo)
+                put("kind", it.kind); put("p", it.pos); put("d", it.dur); put("ts", it.ts)
+            })
+        }
+        prefs.edit().putString(RECENTS_KEY, arr.toString()).apply()
+    }
+
+    companion object {
+        private const val RECENTS_KEY = "recents"
+        private const val MAX_RECENTS = 24
+    }
 }

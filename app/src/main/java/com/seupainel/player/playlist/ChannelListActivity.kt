@@ -42,6 +42,7 @@ class ChannelListActivity : FragmentActivity() {
     private var groups: List<String> = emptyList()          // subcategorias da seção atual
     private var sectionGroups: Map<Sec, List<String>> = emptyMap()
     private var currentSection: Sec = Sec.CANAIS
+    private val resumeStore by lazy { com.seupainel.player.ResumeStore(this) }
     private var startSection: Sec = Sec.CANAIS               // seção escolhida na home
     private var currentSub: String? = null                  // null = tudo da seção
     private var canaisDerived = false                       // canais agrupados por tema (do nome)
@@ -120,8 +121,11 @@ class ChannelListActivity : FragmentActivity() {
         channelsView.setOnItemClickListener { _, _, pos, _ -> onChannelClick(shown[pos]) }
         channelsView.setOnItemLongClickListener { _, _, pos, _ -> toggleFav(shown[pos]); true }
         gridView.setOnItemClickListener { _, _, pos, _ ->
-            if (seriesMode) shownSeries.getOrNull(pos)?.let { openSeries(it) }
-            else shown.getOrNull(pos)?.let { openDetail(it) }
+            when {
+                currentSub == CONTINUAR -> shown.getOrNull(pos)?.let { resumeItem(it) }
+                seriesMode -> shownSeries.getOrNull(pos)?.let { openSeries(it) }
+                else -> shown.getOrNull(pos)?.let { openDetail(it) }
+            }
         }
         gridView.setOnItemLongClickListener { _, _, pos, _ ->
             if (!seriesMode) shown.getOrNull(pos)?.let { toggleFav(it) }; true
@@ -466,7 +470,9 @@ class ChannelListActivity : FragmentActivity() {
             .map { it.value }
         val aclamadas = if (sec == Sec.SERIES) seriesAclamadas else filmesAclamadas
         val populares = if (sec == Sec.SERIES) seriesPopulares else filmesPopulares
+        val resumeKind = if (sec == Sec.SERIES) "series" else "movie"
         return buildList {
+            if (resumeStore.recents(resumeKind).isNotEmpty()) add(CONTINUAR)
             add(ALL_SEC); add(LANCAMENTOS)
             if (!populares.isNullOrEmpty()) add(POPULARES)
             if (!aclamadas.isNullOrEmpty()) add(ACLAMADAS)
@@ -572,6 +578,16 @@ class ChannelListActivity : FragmentActivity() {
         val sub = currentSub
         val derivedLive = canaisDerived
         val gen = ++filterGen
+        // Fileira "Continuar assistindo": itens em andamento (grade plana).
+        if (sub == CONTINUAR && (sec == Sec.FILMES || sec == Sec.SERIES)) {
+            val kind = if (sec == Sec.SERIES) "series" else "movie"
+            val items = resumeStore.recents(kind).map {
+                M3uParser.Channel(name = it.title, url = it.key, group = "",
+                    logo = it.logo.ifBlank { null }, duration = 0)
+            }
+            publish(items, favs, Sec.FILMES)   // grade plana, sem reagrupar séries
+            return
+        }
         // Resolve o tipo da subcategoria uma vez (fora do loop).
         val genreId = com.seupainel.player.meta.VodIndex.GENRE_BY_NAME[sub]
         val lists = secLists
@@ -787,10 +803,23 @@ class ChannelListActivity : FragmentActivity() {
 
     /** Canal clicado: filme/série abre detalhes; ao vivo toca direto. */
     private fun onChannelClick(ch: M3uParser.Channel) {
+        if (currentSub == CONTINUAR) { resumeItem(ch); return }
         when (secOfChannel(ch)) {
             Sec.FILMES, Sec.SERIES -> openDetail(ch)
             else -> playLive(ch)
         }
+    }
+
+    /** Retoma direto um item da fileira "Continuar" (a posição vem pela URL). */
+    private fun resumeItem(ch: M3uParser.Channel) {
+        val kind = if (currentSection == Sec.SERIES) "series" else "movie"
+        startActivity(Intent(this, PlayerActivity::class.java).apply {
+            putExtra(PlayerActivity.EXTRA_DIRECT_URL, ch.url)
+            putExtra(PlayerActivity.EXTRA_IS_LIVE, false)
+            putExtra(PlayerActivity.EXTRA_TITLE, ch.name)
+            putExtra(PlayerActivity.EXTRA_LOGO, ch.logo ?: "")
+            putExtra(PlayerActivity.EXTRA_KIND, kind)
+        })
     }
 
     private inner class PH(val root: View) {
@@ -873,6 +902,8 @@ class ChannelListActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         if (indexStarted) synchronized(indexGate) { indexPaused = false; indexGate.notifyAll() }
+        // Volta do player: atualiza a fileira "Continuar" (entrou/concluiu algo).
+        if (currentSection == Sec.FILMES || currentSection == Sec.SERIES) rebuildFilmesGroups()
     }
 
     override fun onDestroy() {
@@ -1125,6 +1156,7 @@ class ChannelListActivity : FragmentActivity() {
         private const val ALL_SEC = "Tudo"
         private const val RECENTES = "Recentes"
         private const val NOVIDADES = "Novidades"
+        private const val CONTINUAR = "▶ Continuar"
         private const val LANCAMENTOS = "Lançamentos"
         private const val ACLAMADAS = "Aclamadas"
         private const val POPULARES = "Populares"

@@ -66,6 +66,7 @@ class PlayerActivity : FragmentActivity() {
     private var title: String = ""
     private var logoUrl: String = ""
     private var tvgId: String = ""
+    private var resumeKind: String = ""   // "movie" | "series" | "" (não guardar na fileira)
     private lateinit var channelBar: android.widget.LinearLayout
     private lateinit var chName: TextView
     private lateinit var chEpg: TextView
@@ -123,6 +124,7 @@ class PlayerActivity : FragmentActivity() {
         title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         logoUrl = intent.getStringExtra(EXTRA_LOGO).orEmpty()
         tvgId = intent.getStringExtra(EXTRA_TVG_ID).orEmpty()
+        resumeKind = intent.getStringExtra(EXTRA_KIND).orEmpty()
         // Garante o EPG carregado (caso o player abra antes da tela de canais).
         if (isLive) com.seupainel.player.meta.Epg.ensureLoaded(
             com.seupainel.player.playlist.PlaylistStore(this).epgUrl, globalUa)
@@ -681,16 +683,25 @@ class PlayerActivity : FragmentActivity() {
     private fun mark(selected: Boolean) = if (selected) "● " else "○ "
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
 
+    /** Salva posição e atualiza a fileira "Continuar" (só VOD). */
+    private fun persistResume() {
+        if (!settings.resumeEnabled) return
+        val pos = pc.player.currentPosition
+        val dur = pc.player.duration
+        if (isLive || resumeKind.isBlank()) resume.save(resumeKey, pos, dur)
+        else resume.remember(resumeKey, title, logoUrl, resumeKind, pos, dur)
+    }
+
     override fun onStop() {
         super.onStop()
-        if (settings.resumeEnabled) resume.save(resumeKey, pc.player.currentPosition, pc.player.duration)
+        persistResume()
         if (!inPip) pc.player.pause()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         ui.removeCallbacksAndMessages(null)
-        if (settings.resumeEnabled) resume.save(resumeKey, pc.player.currentPosition, pc.player.duration)
+        persistResume()
         pc.release()
         if (directUrl.isBlank()) engine.stop()
     }
@@ -700,6 +711,7 @@ class PlayerActivity : FragmentActivity() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_LOGO = "logo"
         const val EXTRA_TVG_ID = "tvg_id"
+        const val EXTRA_KIND = "kind"   // "movie" | "series" para a fileira "Continuar"
         const val EXTRA_USER_AGENT = "user_agent"
         const val EXTRA_REFERER = "referer"
         const val EXTRA_P2P_ADDRESS = "p2p_address"
