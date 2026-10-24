@@ -71,6 +71,8 @@ class PlayerActivity : FragmentActivity() {
     private var queueUrls: List<String> = emptyList()   // próximos episódios (autoplay)
     private var queueTitles: List<String> = emptyList()
     private var queueIdx: Int = 0
+    private lateinit var nextEpBar: TextView
+    private var autoNextCancelled = false   // usuário cancelou o "próximo episódio"
     private lateinit var channelBar: android.widget.LinearLayout
     private lateinit var chName: TextView
     private lateinit var chEpg: TextView
@@ -140,6 +142,7 @@ class PlayerActivity : FragmentActivity() {
         chEpg = findViewById(R.id.ch_epg)
         chLogo = findViewById(R.id.ch_logo)
         qualityBtn = findViewById(R.id.quality_btn)
+        nextEpBar = findViewById(R.id.next_ep_bar)
         qualityBtn.setOnClickListener { showQualityPopup() }
         setupDock()
         // Mantém a barra do canal aberta enquanto o botão de qualidade tem foco.
@@ -172,7 +175,7 @@ class PlayerActivity : FragmentActivity() {
         if (directUrl.isNotBlank()) {
             // Série com fila de episódios -> playlist nativa (pre-warming do
             // próximo episódio). Caso contrário, item único.
-            if (queueUrls.size > 1) pc.playQueue(queueUrls, startIndex = 0, startPositionMs = startMs)
+            if (queueUrls.size > 1) { pc.playQueue(queueUrls, startIndex = 0, startPositionMs = startMs); startNextEpPolling() }
             else pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
         } else {
             startEngine(address)
@@ -257,6 +260,7 @@ class PlayerActivity : FragmentActivity() {
                 directUrl = resumeKey
                 title = queueTitles.getOrElse(idx) { title }
                 startMs = 0
+                hideNextEpBar()
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
                     showBadge("A seguir\n$title", announce = true)
             }
@@ -471,18 +475,61 @@ class PlayerActivity : FragmentActivity() {
             // Com o dock aberto, o OK seleciona o botão em foco.
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
                 dock.visibility == View.VISIBLE -> super.onKeyDown(keyCode, event)
+                // Contagem do próximo episódio visível: OK pula pro próximo agora.
+                nextEpBar.visibility == View.VISIBLE && p.hasNextMediaItem() -> {
+                    hideNextEpBar(); p.seekToNextMediaItem(); true
+                }
                 else -> { openDock(); true }
             }
 
-            // BACK: fecha o dock / os controles antes de sair
+            // BACK: cancela o "próximo episódio" / fecha o dock / os controles antes de sair
             KeyEvent.KEYCODE_BACK -> when {
                 dock.visibility == View.VISIBLE -> { closeDock(); true }
+                nextEpBar.visibility == View.VISIBLE -> {
+                    autoNextCancelled = true
+                    pc.player.pauseAtEndOfMediaItems = true   // não emenda sozinho
+                    hideNextEpBar(); showBadge("Autoplay cancelado", announce = true); true
+                }
                 controllerVisible -> { playerView.hideController(); true }
                 else -> super.onKeyDown(keyCode, event)
             }
 
             else -> super.onKeyDown(keyCode, event)
         }
+    }
+
+    // ---- "Próximo episódio em N" (contagem nos últimos segundos) ----
+    private val nextLeadMs = 10_000L
+    private val nextEpPoll = object : Runnable {
+        override fun run() {
+            maybeShowNextCountdown()
+            ui.postDelayed(this, 500)
+        }
+    }
+
+    private fun startNextEpPolling() {
+        ui.removeCallbacks(nextEpPoll)
+        if (queueUrls.size > 1) ui.postDelayed(nextEpPoll, 1_000)
+    }
+
+    private fun maybeShowNextCountdown() {
+        val p = pc.player
+        if (queueUrls.size <= 1 || autoNextCancelled || inPip ||
+            !p.hasNextMediaItem() || dock.visibility == View.VISIBLE) {
+            hideNextEpBar(); return
+        }
+        val dur = p.duration
+        val remain = dur - p.currentPosition
+        if (dur > 0 && p.isPlaying && remain in 1_000..nextLeadMs) {
+            val secs = ((remain + 999) / 1000).toInt()
+            val next = queueTitles.getOrElse(queueIdx + 1) { "próximo episódio" }
+            nextEpBar.text = "Próximo em ${secs}s  ·  $next\nOK: agora   •   Voltar: cancelar"
+            if (nextEpBar.visibility != View.VISIBLE) nextEpBar.visibility = View.VISIBLE
+        } else hideNextEpBar()
+    }
+
+    private fun hideNextEpBar() {
+        if (nextEpBar.visibility != View.GONE) nextEpBar.visibility = View.GONE
     }
 
     private fun seekStepMs(): Long = settings.seekStepSec.coerceIn(5, 300) * 1000L

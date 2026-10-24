@@ -31,6 +31,22 @@
         android:importantForAccessibility="yes"
         android:visibility="gone" />
 
+    <!-- Aviso de "próximo episódio em N" nos últimos segundos (séries) -->
+    <TextView
+        android:id="@+id/next_ep_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="40dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:background="@drawable/badge_bg"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
     <!-- Barra de info do canal (nome, logo, EPG) — experiência de TV -->
     <LinearLayout
         android:id="@+id/channel_bar"
