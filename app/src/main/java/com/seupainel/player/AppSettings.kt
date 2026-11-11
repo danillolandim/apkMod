@@ -60,6 +60,11 @@ class AppSettings(context: Context) {
         get() = p.getBoolean("auto_update", true)
         set(v) = p.edit().putBoolean("auto_update", v).apply()
 
+    /** Filmes pela API Xtream do provedor (ordem, categorias e cartaz do painel). Desligar = lista M3U. */
+    var useXtream: Boolean
+        get() = p.getBoolean("use_xtream", true)
+        set(v) = p.edit().putBoolean("use_xtream", v).apply()
+
     /** Papel de parede: chave de tema (ver WALLPAPERS) ou "custom". */
     var wallpaper: String
         get() = p.getString("wallpaper", "emerald") ?: "emerald"

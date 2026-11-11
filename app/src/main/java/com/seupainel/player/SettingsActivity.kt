@@ -101,6 +101,8 @@ class SettingsActivity : FragmentActivity() {
         wallpaperSpin.setSelection(AppSettings.WALLPAPERS.indexOfFirst { it.second == app.wallpaper }.coerceAtLeast(0))
         wallpaperUrl.setText(app.wallpaperUrl)
         autoUpdate.isChecked = app.autoUpdate
+        val useXtream = findViewById<CheckBox>(R.id.set_xtream)
+        useXtream.isChecked = app.useXtream
         findViewById<Button>(R.id.set_check_update).setOnClickListener {
             Toast.makeText(this, "Verificando…", Toast.LENGTH_SHORT).show()
             Updater.check(this, silent = false)
@@ -131,6 +133,7 @@ class SettingsActivity : FragmentActivity() {
             app.wallpaper = AppSettings.WALLPAPERS[wallpaperSpin.selectedItemPosition].second
             app.wallpaperUrl = wallpaperUrl.text.toString()
             app.autoUpdate = autoUpdate.isChecked
+            app.useXtream = useXtream.isChecked
         }
 
         findViewById<Button>(R.id.set_save).setOnClickListener {
@@ -202,5 +205,6 @@ class SettingsActivity : FragmentActivity() {
         app.wallpaper = AppSettings.WALLPAPERS[findViewById<Spinner>(R.id.set_wallpaper).selectedItemPosition].second
         app.wallpaperUrl = findViewById<EditText>(R.id.set_wallpaper_url).text.toString()
         app.autoUpdate = findViewById<CheckBox>(R.id.set_auto_update).isChecked
+        app.useXtream = findViewById<CheckBox>(R.id.set_xtream).isChecked
     }
 }

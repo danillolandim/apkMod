@@ -25,6 +25,11 @@ object M3uParser {
         val duration: Int = -1,
         val userAgent: String? = null,
         val referer: String? = null,
+        /** Preenchidos só quando o item vem da API Xtream (ver [XtreamCatalog]). */
+        val kind: String? = null,        // "movie" = filme confirmado pela API (sem adivinhar pelo nome)
+        val added: Long = 0L,            // unix (s) de quando entrou no painel
+        val rating: Double = 0.0,        // 0..10
+        val tmdbId: Int = 0,
     ) {
         /**
          * Ao vivo x VOD. Muitas listas (Xtream) usam `#EXTINF:-1` para TUDO,

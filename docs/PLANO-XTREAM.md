@@ -24,3 +24,12 @@ exato, `stream_icon` (pôster TMDB), `rating`, `added` (unix), `category_id`,
   precisa ser idêntica à do M3U (esquema/host/porta). Calibrar pelo prefixo `/movie/` do M3U.
 - Se a API falhar ou vier vazia, cair no caminho M3U atual sem perder a lista.
 - Credenciais nunca entram em log, nota ou commit.
+
+## Depois do teste (ideias, em ordem)
+- Trocar o HttpURLConnection do `XtreamApi` por OkHttp (já é dependência) e usar parser testável
+  no JVM (Moshi ou kotlinx.serialization). Verificar versões com `ctx7` antes de adotar.
+- `get_vod_info`/`get_series_info` (gênero, sinopse, tmdb_id do provedor) no lugar do TMDB.
+- `get_short_epg` por canal em foco no lugar do XMLTV completo; `user_info` (vencimento,
+  `max_connections`); catch-up via `tv_archive` (confirmar no painel).
+- WorkManager para atualizar o catálogo em segundo plano.
+- Só se medir lentidão: Room + FTS + Paging 3; grade em RecyclerView/Leanback; coroutines/Flow.

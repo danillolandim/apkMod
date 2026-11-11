@@ -33,6 +33,7 @@ object XtreamApi {
         val added: Long,         // unix, segundos; 0 = desconhecido
         val categoryId: String,
         val ext: String,
+        val isAdult: Boolean = false,
     )
 
     /** `http://host:porta/get.php?username=U&password=P&...` -> conta, ou null se não for Xtream. */
@@ -67,6 +68,24 @@ object XtreamApi {
 
     fun vodStreams(acc: Account, userAgent: String?): List<Vod> =
         fetch(apiUrl(acc, "get_vod_streams"), userAgent) { readVod(it) }
+
+    /** Baixa direto para um arquivo (o catálogo não passa inteiro pela memória). */
+    fun downloadTo(url: String, userAgent: String?, dest: java.io.File) {
+        val conn = open(url, userAgent)
+        try {
+            val raw = if (conn.contentEncoding?.contains("gzip", true) == true)
+                GZIPInputStream(conn.inputStream) else conn.inputStream
+            raw.use { input -> dest.outputStream().use { input.copyTo(it) } }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    fun parseVod(file: java.io.File): List<Vod> =
+        JsonReader(file.reader(Charsets.UTF_8)).use { readVod(it) }
+
+    fun parseCategories(file: java.io.File): List<Category> =
+        JsonReader(file.reader(Charsets.UTF_8)).use { readCategories(it) }
 
     private fun <T> fetch(url: String, userAgent: String?, parse: (JsonReader) -> T): T {
         val conn = open(url, userAgent)
@@ -139,7 +158,7 @@ object XtreamApi {
             if (r.peek() != JsonToken.BEGIN_OBJECT) { r.skipValue(); continue }
             var id = 0L; var name: String? = null; var tmdb = 0
             var icon: String? = null; var rating = 0.0; var added = 0L
-            var cat = ""; var ext = "mp4"
+            var cat = ""; var ext = "mp4"; var adult = false
             r.beginObject()
             while (r.hasNext()) {
                 when (r.nextName()) {
@@ -151,11 +170,13 @@ object XtreamApi {
                     "added" -> added = r.lenientString()?.toLongOrNull() ?: 0L
                     "category_id" -> cat = r.lenientString().orEmpty()
                     "container_extension" -> ext = r.lenientString()?.takeIf { it.isNotBlank() } ?: "mp4"
+                    "is_adult" -> adult = r.lenientString().let { it == "1" || it.equals("true", true) }
                     else -> r.skipValue()
                 }
             }
             r.endObject()
-            if (id > 0 && !name.isNullOrBlank()) out.add(Vod(id, name.trim(), tmdb, icon, rating, added, cat, ext))
+            if (id > 0 && !name.isNullOrBlank())
+                out.add(Vod(id, name.trim(), tmdb, icon, rating, added, cat, ext, adult))
         }
         r.endArray()
         return out

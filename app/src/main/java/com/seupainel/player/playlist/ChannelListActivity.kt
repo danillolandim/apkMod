@@ -66,6 +66,8 @@ class ChannelListActivity : FragmentActivity() {
     @Volatile private var seriesGenreCounts: Map<Int, Int> = emptyMap()
     @Volatile private var buildingFilmes = false
     private var shown: List<M3uParser.Channel> = emptyList()
+    // Categorias de filmes na ordem do painel (API Xtream). Vazio = filmes vêm só do M3U.
+    @Volatile private var apiOrder: List<String> = emptyList()
 
     // group-title -> Sec é determinístico e há poucos grupos distintos: memoiza
     // (evita re-uppercase/contains por item em listas de dezenas de milhares).
@@ -84,6 +86,7 @@ class ChannelListActivity : FragmentActivity() {
      * "filmes"; aqui eles voltam para Séries. Canais ao vivo não são tocados.
      */
     private fun secOfChannel(ch: M3uParser.Channel): Sec {
+        if (ch.kind == XtreamCatalog.KIND_MOVIE) return Sec.FILMES   // a API já diz o que é
         val byGroup = secOf(ch.group)
         if (byGroup == Sec.CANAIS) return byGroup
         // 1) Tipo do TMDB manda (resolve grupo mal nomeado, nos dois sentidos).
@@ -174,8 +177,14 @@ class ChannelListActivity : FragmentActivity() {
         val preloaded = PlaylistHolder.channels
         if (fromSettings && preloaded != null && !force) {
             // Já veio pronto do Splash -> abre instantâneo, sem tela de carregando.
-            findViewById<View>(R.id.loading).visibility = View.GONE
-            show(preloaded)
+            if (!com.seupainel.player.AppSettings(this).useXtream) {
+                findViewById<View>(R.id.loading).visibility = View.GONE
+                apiOrder = emptyList()
+                show(preloaded)
+            } else thread(name = "playlist-merge") {
+                val merged = mergeApi(preloaded)      // lê o cache da API (ou baixa na 1ª vez)
+                runOnUiThread { show(merged, preloaded) }
+            }
             if (!store.cacheFresh()) resolveAndLoad(silent = true)
         } else if (fromSettings) {
             // 1) Tem cache? Mostra IMEDIATAMENTE (parse em 2º plano).
@@ -185,7 +194,8 @@ class ChannelListActivity : FragmentActivity() {
                     val cached = store.readCache()
                     val res = cached?.let { M3uParser.parse(it) }
                     if (res is M3uParser.Result.Playlist) {
-                        runOnUiThread { show(res.channels); status.text = "${res.channels.size} canais (cache)" }
+                        val merged = mergeApi(res.channels)
+                        runOnUiThread { show(merged, res.channels); status.text = "${merged.size} itens (cache)" }
                         // 2) Se o cache está velho, atualiza em silêncio por trás.
                         if (!store.cacheFresh()) resolveAndLoad(silent = true)
                     } else {
@@ -292,14 +302,15 @@ class ChannelListActivity : FragmentActivity() {
                             // compara com a versão anterior e marca as novidades
                             newItems.update(res.channels.map { it.url })
                         }
+                        val merged = mergeApi(res.channels)
                         runOnUiThread {
                             if (silent) {
                                 // Atualização por trás: só troca os dados se mudou, mantém a categoria.
-                                if (res.channels.size != all.size) {
-                                    show(res.channels)
-                                    status.text = "${res.channels.size} canais (atualizado)"
+                                if (merged.size != all.size) {
+                                    show(merged, res.channels)
+                                    status.text = "${merged.size} itens (atualizado)"
                                 }
-                            } else show(res.channels)
+                            } else show(merged, res.channels)
                         }
                     }
                 }
@@ -328,9 +339,27 @@ class ChannelListActivity : FragmentActivity() {
             .withEndAction { v.visibility = View.GONE }.start()
     }
 
-    private fun show(channels: List<M3uParser.Channel>) {
+    /**
+     * Troca os filmes da lista M3U pelos da API Xtream, quando ligada e disponível.
+     * Séries e TV ao vivo continuam vindo do M3U. Bloqueia (rede/disco): chamar fora da UI.
+     * Qualquer falha devolve a lista M3U intacta.
+     */
+    private fun mergeApi(raw: List<M3uParser.Channel>): List<M3uParser.Channel> {
+        apiOrder = emptyList()
+        if (!com.seupainel.player.AppSettings(this).useXtream) return raw
+        val m = XtreamCatalog.movies(applicationContext, store) ?: return raw
+        apiOrder = m.categoryOrder
+        return raw.filter { !it.url.contains("/movie/", ignoreCase = true) } + m.channels
+    }
+
+    /** Rótulo na tela: o painel prefixa as categorias com "Filmes | "; a chave interna continua inteira. */
+    private fun groupsAdapter() = ArrayAdapter(this, android.R.layout.simple_list_item_1,
+        groups.map { if (apiOrder.isNotEmpty() && currentSection == Sec.FILMES) it.removePrefix("Filmes | ") else it })
+
+    /** [raw] = lista M3U crua, guardada no PlaylistHolder (sem os filmes da API). */
+    private fun show(channels: List<M3uParser.Channel>, raw: List<M3uParser.Channel> = channels) {
         all = channels
-        PlaylistHolder.channels = channels          // mantém a memória compartilhada em dia
+        PlaylistHolder.channels = raw               // mantém a memória compartilhada em dia
         // Particiona por seção em 2º plano -> filtros/categorias ficam instantâneos.
         thread(name = "partition") {
             val m = HashMap<Sec, MutableList<M3uParser.Channel>>()
@@ -344,8 +373,12 @@ class ChannelListActivity : FragmentActivity() {
             val topHosts = hostCount.entries.sortedByDescending { it.value }.map { it.key }.take(12)
             com.seupainel.player.net.Net.warmDns(topHosts)
         }
-        val realGroups = channels.map { it.group }.distinct()
-        sectionGroups = realGroups.groupBy { secOf(it) }
+        val bySec = HashMap<Sec, LinkedHashSet<String>>()
+        for (ch in channels) {
+            val s = if (ch.kind != null) Sec.FILMES else secOf(ch.group)
+            bySec.getOrPut(s) { LinkedHashSet() }.add(ch.group)
+        }
+        sectionGroups = bySec.mapValues { it.value.toList() }
         status.text = "${channels.size} itens"
         selectSection(startSection)
         groupsView.requestFocus()
@@ -383,6 +416,14 @@ class ChannelListActivity : FragmentActivity() {
                 subMode = SubMode.GROUPS
                 groups = emptyList()
             }
+            sec == Sec.FILMES && apiOrder.isNotEmpty() -> {
+                // Filmes da API: Tudo/Recentes (mais novos primeiro) + categorias na ordem do painel.
+                subMode = SubMode.GROUPS
+                groups = buildList {
+                    if (resumeStore.recents("movie").isNotEmpty()) add(CONTINUAR)
+                    add(ALL_SEC); add(RECENTES); addAll(apiOrder)
+                }
+            }
             subs.size > 1 -> {
                 // A lista já traz categorias reais para esta seção. Usa-as direto.
                 subMode = SubMode.GROUPS
@@ -415,7 +456,7 @@ class ChannelListActivity : FragmentActivity() {
                 buildFilmesIndex()
             }
         }
-        groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
+        groupsView.adapter = groupsAdapter()
         currentSub = if (groups.isNotEmpty() && groups[0] != ALL_SEC) groups[0] else null
         if (groups.isNotEmpty()) groupsView.setSelection(0)
         applyFilter()
@@ -529,7 +570,7 @@ class ChannelListActivity : FragmentActivity() {
         // Se o usuário está navegando a lista de categorias, preserva a posição.
         val keepPos = if (groupsView.hasFocus()) groupsView.selectedItemPosition else -1
         groups = newGroups
-        groupsView.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, groups)
+        groupsView.adapter = groupsAdapter()
         val sel = if (keepPos in newGroups.indices) keepPos
                   else newGroups.indexOf(currentSub ?: ALL_SEC).coerceAtLeast(0)
         groupsView.setSelection(sel)
@@ -541,7 +582,8 @@ class ChannelListActivity : FragmentActivity() {
         indexing = true
         indexStarted = true
         thread(name = "index-dispatch") {
-            val vod = all.filter { val s = secOfChannel(it); s == Sec.FILMES || s == Sec.SERIES }
+            // Itens da API já trazem tmdb_id, nota e cartaz: não precisam da busca por título.
+            val vod = all.filter { it.kind == null && secOfChannel(it).let { s -> s == Sec.FILMES || s == Sec.SERIES } }
             // Um item por TÍTULO (episódios de uma série colapsam na mesma chave),
             // pulando os já indexados; novidades primeiro.
             val seenKeys = HashSet<String>()
@@ -679,9 +721,12 @@ class ChannelListActivity : FragmentActivity() {
                 }
                 inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
             }
+            // Filmes da API: o que entrou há menos tempo vem primeiro, em qualquer categoria.
+            val byApi = sec == Sec.FILMES && apiOrder.isNotEmpty()
+            if (byApi) result = result.sortedByDescending { it.added }
             // Ordenação por subcategoria.
             when (sub) {
-                RECENTES -> result = result.takeLast(200).reversed()      // últimos adicionados
+                RECENTES -> result = if (byApi) result.take(200) else result.takeLast(200).reversed()  // últimos adicionados
                 NOVIDADES -> result = result.sortedByDescending { newItems.firstSeen(it.url) }
                 LANCAMENTOS -> result = result.sortedByDescending { vodIndex.year(it.name) ?: 0 }
                 ACLAMADAS -> result = result.sortedByDescending { vodIndex.rating(it.name).let { r -> if (r.isNaN()) 0.0 else r } }
@@ -882,6 +927,7 @@ class ChannelListActivity : FragmentActivity() {
             val ch = items[position]
             h.key = ch.url
             h.title.text = ch.name
+            if (ch.kind != null) { bindApi(h, ch); return v }
             val series = currentIsSeries()
 
             // Capa da lista como base (fallback). Em séries ela costuma ser um
@@ -892,6 +938,14 @@ class ChannelListActivity : FragmentActivity() {
 
             bindTmdb(h, ch, series)
             return v
+        }
+
+        /** Filme da API: cartaz e nota são os do próprio painel (sem busca no TMDB pelo título). */
+        private fun bindApi(h: PH, ch: M3uParser.Channel) {
+            if (ch.rating > 0) { h.badge.text = "★ ${"%.1f".format(ch.rating)}"; h.badge.visibility = View.VISIBLE }
+            else h.badge.visibility = View.GONE
+            val logo = ch.logo
+            if (logo.isNullOrBlank()) h.poster.setImageDrawable(null) else loadPoster(h.poster, logo)
         }
 
         private fun bindTmdb(h: PH, ch: M3uParser.Channel, series: Boolean) {
@@ -932,7 +986,8 @@ class ChannelListActivity : FragmentActivity() {
      * bate com o tamanho exibido, então fica nítida e pesa menos (rolagem mais
      * suave). O cartaz cheio (w500) aparece na tela de detalhes.
      */
-    private fun gridPosterUrl(url: String): String = url.replace("/t/p/w500", "/t/p/w342")
+    private fun gridPosterUrl(url: String): String =
+        url.replace("/t/p/w500", "/t/p/w342").replace("/t/p/w600_and_h900_bestv2", "/t/p/w342")
 
     /**
      * Aquece o cache de imagem dos próximos [count] itens da grade, para o
@@ -949,8 +1004,9 @@ class ChannelListActivity : FragmentActivity() {
         for (i in start until end) {
             if (i < 0) continue
             val ch = list[i]
-            val url = com.seupainel.player.meta.PosterCache.get(ch.name)
-                ?: tmdbCache[ch.name]?.posterUrl ?: ch.logo
+            val url = if (ch.kind != null) ch.logo
+                else com.seupainel.player.meta.PosterCache.get(ch.name)
+                    ?: tmdbCache[ch.name]?.posterUrl ?: ch.logo
             if (!url.isNullOrBlank()) {
                 // Só aquece o cache de DISCO (mata a latência de rede adiantada);
                 // não escreve na memória pra não despejar os cartazes visíveis.
