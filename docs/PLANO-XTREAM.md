@@ -78,3 +78,19 @@ por plataforma (pendente: o usuário ainda não colou as categorias de séries).
   (cores, tipografia, raios) e aplicar nos layouts XML sem quebrar foco por controle remoto/D-pad.
 - Antes de começar, pedir a logo (SVG ou PNG com fundo transparente, de preferência 1024px) e
   confirmar o escopo (só Home + listas, ou o app todo).
+
+## Referência de UX: NuvioTV (indicada pelo usuário, 11/11/2026)
+- https://github.com/youngchris29-art/NuvioTV é um app de **Apple TV (tvOS)**, SwiftUI + Kotlin Multiplatform,
+  licença **GPLv3**: não é Android e **não se copia código/imagens** (obrigaria o app a ser GPL). Serve só de
+  referência de experiência de uso. O ecossistema de addons/plugins de fontes de terceiros fica fora do escopo.
+- Ideias que cabem no Landimflix (ordem sugerida):
+  1. **Home "Stage"**: fundo = arte horizontal (backdrop) do título em foco, com título, nota e sinopse;
+     **uma fileira visível por vez** (as outras espiam embaixo). Resolve o aperto vertical da Home e dá o ar
+     cinematográfico. Dados: TMDB `/movie/{id}` ou `/tv/{id}` pelo `tmdb_id` (backdrop_path, overview,
+     gêneros, duração), buscados ao focar (com atraso curto) e guardados em cache; sem chave do TMDB,
+     cai no destaque atual com o cartaz.
+  2. **Detalhe "Cinematic"** (filme e série): mesmo fundo de arte + botões redondos (Assistir, Favoritar,
+     Marcar como visto) + sinopse e elenco. Reaproveita o cache de detalhes do item 1.
+  3. **Configurações em painéis** (Aparência, Reprodução, Fontes…) com a explicação da linha em foco à esquerda.
+  4. **Biblioteca com filtros** (Não assistidos / Em andamento / Assistidos) para Favoritos e Continuar.
+  5. Aparência opcional: cor de destaque, tamanho dos cartazes, cantos.
