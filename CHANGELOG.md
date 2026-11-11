@@ -1,6 +1,8 @@
 # Novidades
 
 ## Esta versão
+- Home fluida: a tela inicial agora mostra um destaque que muda conforme o cartaz em foco e fileiras de cartazes (Continuar assistindo, Adicionados recentemente, Aclamados, Populares e as categorias do provedor). TV ao vivo, Filmes, Séries e Favoritos ficam nas abas no topo.
+- Foco refeito no app todo: anel roxo fino sobre fundo escuro, com o texto sempre legível (antes a seleção virava uma faixa roxa que escondia o nome). O roxo cheio ficou só no botão principal.
 - Visual Landimflix (parte 1): Home, barra de seções e grade de cartazes no novo estilo — fundo grafite com brilho roxo, foco em roxo, cartazes com título e categoria sobre a imagem, selo de nota, categoria atual marcada no menu, estado vazio com ícone. Fontes Rammetto One, Rajdhani e Nunito Sans embutidas. Detalhes, séries e configurações vêm na parte 2. O fundo padrão agora é o da marca (dá pra trocar em Configurações).
 - Novo nome e identidade: o app agora se chama Landimflix, com ícone e banner da TV novos (símbolo "L" em roxo). Seus dados, favoritos e configurações continuam como estavam.
 - TESTE 2 — Séries e TV ao vivo também pela API do provedor (cache em disco, categorias na ordem do painel, cartaz e nota do painel). Nas séries, os episódios são buscados ao abrir a série. Na TV ao vivo, as URLs seguem o mesmo formato da sua lista, então os Favoritos continuam valendo. Aclamadas e Populares voltam em Filmes e Séries: são calculadas casando o tmdb_id do painel com as listas do TMDB; na primeira vez levam de 1 a 2 minutos em segundo plano e aparecem no menu quando ficam prontas. O botão "Testar API" agora também testa Séries e TV.

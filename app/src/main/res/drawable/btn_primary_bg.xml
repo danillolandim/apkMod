@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Botão principal (um por tela): roxo cheio; foco = mais claro com anel. -->
+<!-- Botão de ação principal (um por tela): roxo cheio; foco = anel claro. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <solid android:color="@color/lf_accent" />
-            <stroke android:width="3dp" android:color="#FFFFFFFF" />
+            <solid android:color="@color/lf_primary" />
+            <stroke android:width="3dp" android:color="@color/lf_text" />
             <corners android:radius="10dp" />
         </shape>
     </item>

@@ -185,6 +185,7 @@ class ChannelListActivity : FragmentActivity() {
         startSection = when (intent.getStringExtra(EXTRA_SECTION)) {
             "filmes" -> Sec.FILMES
             "series" -> Sec.SERIES
+            "fav" -> Sec.FAV
             else -> Sec.CANAIS
         }
 

@@ -40,6 +40,7 @@ object TmdbLists {
     }
 
     /** Baixa o que estiver velho ou faltando. Bloqueia. Devolve true se algo novo entrou. */
+    @Synchronized
     fun ensure(ctx: Context, apiKey: String): Boolean {
         var changed = false
         for (tv in listOf(false, true)) {
