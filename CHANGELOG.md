@@ -1,7 +1,7 @@
 # Novidades
 
 ## Esta versão
-- Home fluida: a tela inicial agora mostra um destaque que muda conforme o cartaz em foco e fileiras de cartazes (Continuar assistindo, Adicionados recentemente, Aclamados, Populares e as categorias do provedor). TV ao vivo, Filmes, Séries e Favoritos ficam nas abas no topo.
+- Home simples e sem cortes: marca, relógio e três botões grandes (TV ao vivo, Filmes, Séries) com ícone, contagem de itens e saudação. O foco agora é um anel desenhado dentro do botão e o botão não aumenta de tamanho, então nada é cortado nas bordas. Os botões ocupam a largura da tela por proporção.
 - Foco refeito no app todo: anel roxo fino sobre fundo escuro, com o texto sempre legível (antes a seleção virava uma faixa roxa que escondia o nome). O roxo cheio ficou só no botão principal.
 - Visual Landimflix (parte 1): Home, barra de seções e grade de cartazes no novo estilo — fundo grafite com brilho roxo, foco em roxo, cartazes com título e categoria sobre a imagem, selo de nota, categoria atual marcada no menu, estado vazio com ícone. Fontes Rammetto One, Rajdhani e Nunito Sans embutidas. Detalhes, séries e configurações vêm na parte 2. O fundo padrão agora é o da marca (dá pra trocar em Configurações).
 - Novo nome e identidade: o app agora se chama Landimflix, com ícone e banner da TV novos (símbolo "L" em roxo). Seus dados, favoritos e configurações continuam como estavam.

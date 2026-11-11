@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Botão grande da Home. O foco é um anel DENTRO do próprio botão (o Android não corta), sem aumentar o botão. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/lf_surface_hi" />
+                    <stroke android:width="3dp" android:color="@color/lf_accent" />
+                    <corners android:radius="20dp" />
+                </shape>
+            </item>
+            <item android:top="3dp" android:left="3dp" android:right="3dp" android:bottom="3dp">
+                <shape android:shape="rectangle">
+                    <gradient android:angle="315" android:startColor="#00A85FDD" android:endColor="#47A85FDD" />
+                    <corners android:radius="17dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/lf_stroke" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/lf_surface" />
+                    <stroke android:width="1dp" android:color="@color/lf_stroke" />
+                    <corners android:radius="20dp" />
+                </shape>
+            </item>
+            <item android:top="1dp" android:left="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <gradient android:angle="315" android:startColor="#00892CCD" android:endColor="#26892CCD" />
+                    <corners android:radius="19dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

@@ -58,8 +58,8 @@ https://www.figma.com/design/k8bpT4yyYaGwsv5k18jAee/Gerenciador-de-Filmes--Commu
 - Sem hover: **foco é tudo**. Foco = **anel roxo fino (`lf_accent`, 2–3dp) sobre fundo escuro, sem
   preenchimento**, para o texto nunca ficar escondido (o roxo cheio com texto branco foi descartado:
   feedback do usuário). **Roxo cheio só no botão de ação principal** (um por tela).
-  Item ativo de lista = fundo `lf_surface_hi` + barra roxa + texto claro. Animação só de escala ≤ 6%
-  em ~140 ms, desligada quando o Android está sem animações.
+  Item ativo de lista = fundo `lf_surface_hi` + barra roxa + texto claro. **Nada de escala no foco** (o aumento é recortado pelo container e corta a borda: problema clássico do Android);
+  o anel é desenhado dentro do próprio botão e todo container ao redor fica com `clipChildren=false` e folga.
 - Grade: 6 por linha (rolagem ajustada), cartão ~109dp × 172dp com cartaz inteiro, degradê embaixo,
   selo de nota no canto e título + categoria sobre o cartaz.
 - Estados em toda tela: padrão, carregando, vazio (ícone + frase), erro, foco.
@@ -68,7 +68,7 @@ https://www.figma.com/design/k8bpT4yyYaGwsv5k18jAee/Gerenciador-de-Filmes--Commu
 | Figma | App |
 |---|---|
 | Navbar com abas (Explorar / Meus filmes) | Barra superior com abas: TV ao vivo · Filmes · Séries · Favoritos (também na Home) |
-| (sem equivalente) | **Home fluida**: destaque que acompanha o foco + fileiras de cartazes rolando na horizontal (Continuar, Recentes, Aclamados, Populares, categorias do painel) |
+| (sem equivalente) | **Home simples**: saudação + 3 botões grandes (TV ao vivo, Filmes, Séries) com ícone e contagem. Home "Stage" com fileiras fica como ideia futura (ver NuvioTV no plano) |
 | Explorar (grade + busca) | `ChannelListActivity` (grade de cartazes, busca, menu de categorias) |
 | Meus filmes | "▶ Continuar" e Favoritos |
 | Detalhe do Filme | `DetailActivity` e `SeriesActivity` (fundo desfocado, capa, sinopse, botão "Assistir" roxo) |

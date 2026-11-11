@@ -48,6 +48,12 @@ object XtreamCatalog {
                     XtreamApi.accountFromStreamUrl(ch.url) else null
             }
 
+    /** Quantos itens a seção já tem em memória (0 se ainda não carregou). Não bloqueia. */
+    fun cachedCount(kind: Kind): Int = memos[kind]?.section?.channels?.size ?: 0
+
+    /** Há cache em disco desta seção (dá para abrir sem baixar nada)? */
+    fun hasCache(ctx: Context, kind: Kind): Boolean = File(ctx.filesDir, kind.file + ".json").let { it.exists() && it.length() > 2 }
+
     fun load(kind: Kind, ctx: Context, store: PlaylistStore, raw: List<M3uParser.Channel>): Section? =
         synchronized(locks.getValue(kind)) {
             val acc = accountFor(store, raw)
