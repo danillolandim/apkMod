@@ -2,12 +2,14 @@ package com.seupainel.player.playlist
 
 import android.util.JsonReader
 import android.util.JsonToken
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
+import com.seupainel.player.net.Net
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.net.InetAddress
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
-import java.util.zip.GZIPInputStream
+import java.util.concurrent.TimeUnit
 
 /**
  * Cliente da API Xtream (`player_api.php`), a mesma que serve o `get.php` da lista M3U.
@@ -99,22 +101,21 @@ object XtreamApi {
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
     // ---------------- rede ----------------
+    // Cliente do app: DNS do sistema com DNS-over-HTTPS de reserva, segue http<->https e
+    // descompacta gzip. Leitura mais longa: o painel pode demorar para montar o catálogo todo.
+    private val http: OkHttpClient by lazy {
+        Net.client.newBuilder().readTimeout(120, TimeUnit.SECONDS).build()
+    }
 
-    fun vodCategories(acc: Account, userAgent: String?): List<Category> =
-        fetch(apiUrl(acc, "get_vod_categories"), userAgent) { readCategories(it) }
-
-    fun vodStreams(acc: Account, userAgent: String?): List<Vod> =
-        fetch(apiUrl(acc, "get_vod_streams"), userAgent) { readVod(it) }
+    private fun request(url: String, userAgent: String?) =
+        Request.Builder().url(url).header("User-Agent", userAgent?.ifBlank { null } ?: DEFAULT_UA).build()
 
     /** Baixa direto para um arquivo (o catálogo não passa inteiro pela memória). */
     fun downloadTo(url: String, userAgent: String?, dest: java.io.File) {
-        val conn = open(url, userAgent)
-        try {
-            val raw = if (conn.contentEncoding?.contains("gzip", true) == true)
-                GZIPInputStream(conn.inputStream) else conn.inputStream
-            raw.use { input -> dest.outputStream().use { input.copyTo(it) } }
-        } finally {
-            conn.disconnect()
+        http.newCall(request(url, userAgent)).execute().use { r ->
+            if (!r.isSuccessful) throw java.io.IOException("HTTP ${r.code}")
+            val body = r.body ?: throw java.io.IOException("Resposta vazia")
+            body.byteStream().use { input -> dest.outputStream().use { input.copyTo(it) } }
         }
     }
 
@@ -124,40 +125,52 @@ object XtreamApi {
     fun parseCategories(file: java.io.File): List<Category> =
         JsonReader(file.reader(Charsets.UTF_8)).use { readCategories(it) }
 
-    private fun <T> fetch(url: String, userAgent: String?, parse: (JsonReader) -> T): T {
-        val conn = open(url, userAgent)
-        try {
-            val raw = if (conn.contentEncoding?.contains("gzip", true) == true)
-                GZIPInputStream(conn.inputStream) else conn.inputStream
-            return JsonReader(InputStreamReader(raw, Charsets.UTF_8)).use(parse)
-        } finally {
-            conn.disconnect()
+    /** Nome curto da falha, sem a mensagem: algumas exceções trazem a URL (com a senha). */
+    fun describe(e: Throwable): String =
+        if (e is java.io.IOException && e.message?.startsWith("HTTP") == true) e.message.orEmpty()
+        else e.javaClass.simpleName
+
+    /** Relatório para a tela de Configurações. Nunca inclui host, usuário nem senha. */
+    fun diagnose(acc: Account, userAgent: String?): String {
+        val host = runCatching { URL(acc.base).host }.getOrDefault("")
+        fun dns(lookup: () -> Any) = if (runCatching { lookup() }.isSuccess) "ok" else "FALHOU"
+        return buildString {
+            appendLine("DNS do sistema: " + dns { InetAddress.getByName(host) })
+            appendLine("DNS do app (com DoH): " + dns { Net.client.dns.lookup(host) })
+            appendLine(probe("Categorias", apiUrl(acc, "get_vod_categories"), userAgent))
+            append(probe("Filmes", apiUrl(acc, "get_vod_streams"), userAgent))
         }
     }
 
-    /** Segue redirecionamentos à mão: o provedor pode saltar entre http e https. */
-    private fun open(start: String, userAgent: String?): HttpURLConnection {
-        var current = start
-        repeat(MAX_REDIRECTS + 1) {
-            val c = (URL(current).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 20_000
-                readTimeout = 60_000          // o catálogo de filmes é grande
-                instanceFollowRedirects = false
-                setRequestProperty("User-Agent", userAgent?.ifBlank { null } ?: DEFAULT_UA)
-                setRequestProperty("Accept-Encoding", "gzip")
+    private fun probe(label: String, url: String, userAgent: String?): String {
+        val t0 = System.currentTimeMillis()
+        fun ms() = System.currentTimeMillis() - t0
+        return try {
+            http.newCall(request(url, userAgent)).execute().use { r ->
+                val type = r.header("Content-Type")?.substringBefore(';') ?: "?"
+                var bytes = 0L
+                var first = ' '
+                r.body?.byteStream()?.use { s ->
+                    val buf = ByteArray(65_536)
+                    while (true) {
+                        val n = s.read(buf)
+                        if (n <= 0) break
+                        if (bytes == 0L) first = firstChar(buf, n)
+                        bytes += n
+                    }
+                }
+                "$label: HTTP ${r.code}, ${bytes / 1024} KB em ${ms()} ms, começa com '$first', $type"
             }
-            val code = c.responseCode
-            if (code in REDIRECTS) {
-                val loc = c.getHeaderField("Location")
-                c.disconnect()
-                if (loc.isNullOrBlank()) throw java.io.IOException("HTTP $code sem destino")
-                current = URL(URL(current), loc).toString()
-                return@repeat
-            }
-            if (code !in 200..299) { c.disconnect(); throw java.io.IOException("HTTP $code") }
-            return c
+        } catch (e: Exception) {
+            "$label: falhou (${describe(e)}) após ${ms()} ms"
         }
-        throw java.io.IOException("Muitos redirecionamentos")
+    }
+
+    private fun firstChar(b: ByteArray, n: Int): Char {
+        var i = 0
+        if (n >= 3 && b[0] == 0xEF.toByte() && b[1] == 0xBB.toByte() && b[2] == 0xBF.toByte()) i = 3
+        while (i < n && b[i].toInt().toChar().isWhitespace()) i++
+        return if (i < n) b[i].toInt().toChar() else ' '
     }
 
     // ---------------- parse em streaming ----------------
@@ -227,8 +240,6 @@ object XtreamApi {
         else -> { skipValue(); null }
     }
 
-    private val REDIRECTS = setOf(301, 302, 303, 307, 308)
-    private const val MAX_REDIRECTS = 6
     // Mesmo UA da lista M3U: alguns painéis filtram por User-Agent.
     private const val DEFAULT_UA = "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 Chrome/120 Safari/537.36"
 }

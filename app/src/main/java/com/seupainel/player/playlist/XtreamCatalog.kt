@@ -25,18 +25,18 @@ object XtreamCatalog {
     /** Situação da última tentativa, para o app avisar na tela (nunca contém usuário/senha). */
     @Volatile var lastStatus: String = ""
 
-    private fun describe(e: Throwable): String =
-        if (e is java.io.IOException && e.message?.startsWith("HTTP") == true) e.message.orEmpty()
-        else e.javaClass.simpleName   // a mensagem de algumas exceções traz a URL (com a senha)
-
-    @Synchronized
-    fun movies(ctx: Context, store: PlaylistStore, raw: List<M3uParser.Channel>): Movies? {
-        val acc = XtreamApi.accountFrom(store.lastUrl)
+    /** Conta da API: URL da lista, ou as credenciais embutidas nos links dos itens. */
+    fun accountFor(store: PlaylistStore, raw: List<M3uParser.Channel>): XtreamApi.Account? =
+        XtreamApi.accountFrom(store.lastUrl)
             ?: XtreamApi.accountFrom(store.playlistUrl)
             ?: raw.firstNotNullOfOrNull { ch ->
                 if (ch.url.contains("/movie/", true) || ch.url.contains("/series/", true))
                     XtreamApi.accountFromStreamUrl(ch.url) else null
             }
+
+    @Synchronized
+    fun movies(ctx: Context, store: PlaylistStore, raw: List<M3uParser.Channel>): Movies? {
+        val acc = accountFor(store, raw)
         if (acc == null) {
             lastStatus = "API: não achei usuário/senha (lista: ${XtreamApi.shape(store.lastUrl ?: store.playlistUrl)}; " +
                 "links /movie/: ${raw.count { it.url.contains("/movie/", true) }}); usando a lista M3U"
@@ -49,7 +49,7 @@ object XtreamCatalog {
         if (!vodFile.exists() || vodFile.length() < 3) {
             val r = runCatching { fetchAndStore(acc, ua, vodFile, catFile) }
             r.exceptionOrNull()?.let {
-                lastStatus = "API indisponível (${describe(it)}); usando a lista M3U"
+                lastStatus = "API indisponível (${XtreamApi.describe(it)}); usando a lista M3U. Veja Configurações > Testar API"
                 return null
             }
             val m = r.getOrNull()

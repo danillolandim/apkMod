@@ -103,6 +103,25 @@ class SettingsActivity : FragmentActivity() {
         autoUpdate.isChecked = app.autoUpdate
         val useXtream = findViewById<CheckBox>(R.id.set_xtream)
         useXtream.isChecked = app.useXtream
+        findViewById<Button>(R.id.set_test_api).setOnClickListener { btn ->
+            val b = btn as Button
+            b.isEnabled = false; b.text = "Testando… (pode levar alguns segundos)"
+            kotlin.concurrent.thread(name = "api-test") {
+                val raw = com.seupainel.player.playlist.PlaylistHolder.channels.orEmpty()
+                val acc = com.seupainel.player.playlist.XtreamCatalog.accountFor(store, raw)
+                val report = if (acc == null) {
+                    "Não achei usuário e senha.\nLista: " +
+                        com.seupainel.player.playlist.XtreamApi.shape(store.lastUrl ?: store.playlistUrl) +
+                        "\nLinks /movie/ ou /series/ na lista: " +
+                        raw.count { it.url.contains("/movie/", true) || it.url.contains("/series/", true) }
+                } else com.seupainel.player.playlist.XtreamApi.diagnose(acc, store.userAgent)
+                runOnUiThread {
+                    b.isEnabled = true; b.text = "Testar API do provedor"
+                    android.app.AlertDialog.Builder(this).setTitle("Teste da API")
+                        .setMessage(report).setPositiveButton("OK", null).show()
+                }
+            }
+        }
         findViewById<Button>(R.id.set_check_update).setOnClickListener {
             Toast.makeText(this, "Verificando…", Toast.LENGTH_SHORT).show()
             Updater.check(this, silent = false)
