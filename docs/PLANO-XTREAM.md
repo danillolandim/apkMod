@@ -56,3 +56,13 @@ por plataforma (pendente: o usuário ainda não colou as categorias de séries).
 - `XtreamApi` e o download do M3U usam HttpURLConnection (DNS do sistema); o player usa
   `Net.client` (OkHttp + DoH). Se a API falhar com UnknownHostException, trocar `XtreamApi` para
   `Net.client` resolve sem precisar de outro DNS.
+
+## Status (11/11/2026)
+- Etapas 1-3 feitas e validadas pelo usuário em Filmes (API ✓, categorias e cartaz do painel).
+- Causa do "API indisponível": UnknownHostException (DNS do sistema da TV). API passou a usar `Net.client`.
+- Feito, aguardando teste no aparelho: Séries (`get_series` + `get_series_info` ao abrir), TV ao vivo
+  (`get_live_streams`, URL copiada do formato do M3U), Aclamadas/Populares via `TmdbLists`
+  (top_rated + popular casados por `tmdb_id`, cache 7 dias).
+- Pendente: login Smarters (servidor/usuário/senha); download do M3U ainda usa HttpURLConnection
+  (DNS do sistema) e pode falhar em silêncio; gêneros/Lançamentos por ano em modo API (os dados
+  das listas TMDB já trazem `genre_ids` e ano); `get_vod_info` para detalhes.

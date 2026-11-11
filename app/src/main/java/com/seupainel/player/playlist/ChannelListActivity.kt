@@ -67,8 +67,26 @@ class ChannelListActivity : FragmentActivity() {
     @Volatile private var buildingFilmes = false
     private var shown: List<M3uParser.Channel> = emptyList()
     // Categorias de filmes na ordem do painel (API Xtream). Vazio = filmes vêm só do M3U.
-    @Volatile private var apiOrder: List<String> = emptyList()
+    @Volatile private var apiOrder: List<String> = emptyList()          // Filmes
+    @Volatile private var apiOrderSeries: List<String> = emptyList()    // Séries
+    @Volatile private var apiOrderLive: List<String> = emptyList()      // TV ao vivo
     private var apiToastShown = false
+    private var listsStarted = false
+
+    private fun apiOrderOf(sec: Sec): List<String> = when (sec) {
+        Sec.FILMES -> apiOrder
+        Sec.SERIES -> apiOrderSeries
+        Sec.CANAIS -> apiOrderLive
+        else -> emptyList()
+    }
+
+    /** Seção a que um item da API pertence (a API já diz o que é: nada de adivinhar pelo nome). */
+    private fun kindSec(kind: String?): Sec? = when (kind) {
+        XtreamCatalog.KIND_MOVIE -> Sec.FILMES
+        XtreamCatalog.KIND_SERIES -> Sec.SERIES
+        XtreamCatalog.KIND_LIVE -> Sec.CANAIS
+        else -> null
+    }
 
     // group-title -> Sec é determinístico e há poucos grupos distintos: memoiza
     // (evita re-uppercase/contains por item em listas de dezenas de milhares).
@@ -87,7 +105,7 @@ class ChannelListActivity : FragmentActivity() {
      * "filmes"; aqui eles voltam para Séries. Canais ao vivo não são tocados.
      */
     private fun secOfChannel(ch: M3uParser.Channel): Sec {
-        if (ch.kind == XtreamCatalog.KIND_MOVIE) return Sec.FILMES   // a API já diz o que é
+        kindSec(ch.kind)?.let { return it }
         val byGroup = secOf(ch.group)
         if (byGroup == Sec.CANAIS) return byGroup
         // 1) Tipo do TMDB manda (resolve grupo mal nomeado, nos dois sentidos).
@@ -346,19 +364,84 @@ class ChannelListActivity : FragmentActivity() {
      * Qualquer falha devolve a lista M3U intacta.
      */
     private fun mergeApi(raw: List<M3uParser.Channel>): List<M3uParser.Channel> {
-        apiOrder = emptyList()
+        apiOrder = emptyList(); apiOrderSeries = emptyList(); apiOrderLive = emptyList()
         if (!com.seupainel.player.AppSettings(this).useXtream) {
             XtreamCatalog.lastStatus = "API desligada nas Configurações; usando a lista M3U"
             return raw
         }
-        val m = XtreamCatalog.movies(applicationContext, store, raw) ?: return raw
-        apiOrder = m.categoryOrder
-        return raw.filter { !it.url.contains("/movie/", ignoreCase = true) } + m.channels
+        XtreamCatalog.lastStatus = ""
+        // As três seções carregam em paralelo (na 1ª vez baixam; depois leem do cache).
+        val kinds = XtreamCatalog.Kind.values()
+        val results = arrayOfNulls<XtreamCatalog.Section>(kinds.size)
+        kinds.mapIndexed { i, k ->
+            thread(name = "xtream-${k.tag}") { results[i] = XtreamCatalog.load(k, applicationContext, store, raw) }
+        }.forEach { it.join() }
+        val movies = results[XtreamCatalog.Kind.MOVIE.ordinal]
+        val series = results[XtreamCatalog.Kind.SERIES.ordinal]
+        val live = results[XtreamCatalog.Kind.LIVE.ordinal]
+        if (movies == null && series == null && live == null) return raw
+        apiOrder = movies?.categoryOrder.orEmpty()
+        apiOrderSeries = series?.categoryOrder.orEmpty()
+        apiOrderLive = live?.categoryOrder.orEmpty()
+        // Cada seção que veio da API sai da lista M3U (a API cobre); as demais ficam como estavam.
+        val rest = raw.filter { ch ->
+            !(movies != null && ch.url.contains("/movie/", ignoreCase = true)) &&
+                !(series != null && ch.url.contains("/series/", ignoreCase = true)) &&
+                !(live != null && ch.isLive)
+        }
+        return rest + live?.channels.orEmpty() + movies?.channels.orEmpty() + series?.channels.orEmpty()
     }
 
-    /** Rótulo na tela: o painel prefixa as categorias com "Filmes | "; a chave interna continua inteira. */
+    /** Menu de uma seção vinda da API: Tudo/Recentes, Aclamadas/Populares (quando há) e as categorias do painel. */
+    private fun apiGroups(sec: Sec): List<String> = buildList {
+        if (sec == Sec.FILMES || sec == Sec.SERIES) {
+            if (resumeStore.recents(if (sec == Sec.SERIES) "series" else "movie").isNotEmpty()) add(CONTINUAR)
+            add(ALL_SEC); add(RECENTES)
+            if (!(if (sec == Sec.SERIES) seriesAclamadas else filmesAclamadas).isNullOrEmpty()) add(ACLAMADAS)
+            if (!(if (sec == Sec.SERIES) seriesPopulares else filmesPopulares).isNullOrEmpty()) add(POPULARES)
+        } else add(ALL_SEC)
+        addAll(apiOrderOf(sec))
+    }
+
+    /** Refaz o menu da seção da API quando Aclamadas/Populares ficam prontas, mantendo a posição. */
+    private fun refreshApiGroups() {
+        val sec = currentSection
+        if (sec != Sec.FILMES && sec != Sec.SERIES) return
+        if (apiOrderOf(sec).isEmpty()) return
+        val newGroups = apiGroups(sec)
+        if (newGroups == groups) return
+        val keepPos = if (groupsView.hasFocus()) groupsView.selectedItemPosition else -1
+        groups = newGroups
+        groupsView.adapter = groupsAdapter()
+        val sel = if (keepPos in newGroups.indices) keepPos
+                  else newGroups.indexOf(currentSub ?: ALL_SEC).coerceAtLeast(0)
+        groupsView.setSelection(sel)
+    }
+
+    /** Rótulo na tela: o painel prefixa as categorias ("Filmes | Netflix"); a chave interna continua inteira. */
     private fun groupsAdapter() = ArrayAdapter(this, android.R.layout.simple_list_item_1,
-        groups.map { if (apiOrder.isNotEmpty() && currentSection == Sec.FILMES) it.removePrefix("Filmes | ") else it })
+        groups.map { if (apiOrderOf(currentSection).isNotEmpty()) it.substringAfter(" | ", it) else it })
+
+    /**
+     * Notas/votos/gêneros do TMDB em lote (listas "mais bem avaliados" e "populares"), casados
+     * com o catálogo pelo tmdb_id do painel: devolvem Aclamadas e Populares sem uma busca por título.
+     */
+    private fun startTmdbLists() {
+        if (listsStarted || tmdbKey.isBlank()) return
+        if (apiOrder.isEmpty() && apiOrderSeries.isEmpty()) return
+        listsStarted = true
+        thread(name = "tmdb-lists") {
+            val ctx = applicationContext
+            if (com.seupainel.player.meta.TmdbLists.loadCached(ctx)) rebuildAfterLists()
+            val fetched = runCatching { com.seupainel.player.meta.TmdbLists.ensure(ctx, tmdbKey) }.getOrDefault(false)
+            if (fetched) rebuildAfterLists()
+        }
+    }
+
+    private fun rebuildAfterLists() {
+        while (buildingFilmes) runCatching { Thread.sleep(200) }
+        buildFilmesIndex { refreshApiGroups() }
+    }
 
     /** [raw] = lista M3U crua, guardada no PlaylistHolder (sem os filmes da API). */
     private fun show(channels: List<M3uParser.Channel>, raw: List<M3uParser.Channel> = channels) {
@@ -379,7 +462,7 @@ class ChannelListActivity : FragmentActivity() {
         }
         val bySec = HashMap<Sec, LinkedHashSet<String>>()
         for (ch in channels) {
-            val s = if (ch.kind != null) Sec.FILMES else secOf(ch.group)
+            val s = kindSec(ch.kind) ?: secOf(ch.group)
             bySec.getOrPut(s) { LinkedHashSet() }.add(ch.group)
         }
         sectionGroups = bySec.mapValues { it.value.toList() }
@@ -396,6 +479,7 @@ class ChannelListActivity : FragmentActivity() {
         // e já pré-calcula os atalhos de gênero/lançamentos/aclamadas.
         ensureFilmesIndexed()
         buildFilmesIndex()
+        startTmdbLists()
         // EPG (guia "agora/a seguir"): carrega o XMLTV em 2º plano; quando pronto,
         // atualiza a lista ao vivo pra mostrar o programa atual sob cada canal.
         com.seupainel.player.meta.Epg.ensureLoaded(store.epgUrl, store.userAgent)
@@ -425,13 +509,10 @@ class ChannelListActivity : FragmentActivity() {
                 subMode = SubMode.GROUPS
                 groups = emptyList()
             }
-            sec == Sec.FILMES && apiOrder.isNotEmpty() -> {
-                // Filmes da API: Tudo/Recentes (mais novos primeiro) + categorias na ordem do painel.
+            apiOrderOf(sec).isNotEmpty() -> {
+                // Seção da API: categorias na ordem do painel (Filmes/Séries ainda com Tudo/Recentes/Aclamadas…).
                 subMode = SubMode.GROUPS
-                groups = buildList {
-                    if (resumeStore.recents("movie").isNotEmpty()) add(CONTINUAR)
-                    add(ALL_SEC); add(RECENTES); addAll(apiOrder)
-                }
+                groups = apiGroups(sec)
             }
             subs.size > 1 -> {
                 // A lista já traz categorias reais para esta seção. Usa-as direto.
@@ -477,7 +558,7 @@ class ChannelListActivity : FragmentActivity() {
     }
 
     /** Pré-computa gênero->conteúdo e lançamentos de Filmes E Séries (em 2º plano). */
-    private fun buildFilmesIndex() {
+    private fun buildFilmesIndex(onDone: (() -> Unit)? = null) {
         if (buildingFilmes) return
         buildingFilmes = true
         thread(name = "vod-fast") {
@@ -498,7 +579,7 @@ class ChannelListActivity : FragmentActivity() {
             val mAcl = ArrayList<Pair<M3uParser.Channel, Double>>()
             val mPop = ArrayList<Pair<M3uParser.Channel, Int>>()
             for (ch in movies) {
-                val e = vodIndex.get(ch.name) ?: continue
+                val e = entryOf(ch) ?: continue
                 e.genreIds.forEach { mByGenre.getOrPut(it) { ArrayList() }.add(ch) }
                 val y = e.year
                 if (y != null && y >= lancCutoff) mYear.add(ch to y)
@@ -520,7 +601,7 @@ class ChannelListActivity : FragmentActivity() {
             val sAcl = ArrayList<Pair<M3uParser.Channel, Double>>()
             val sPop = ArrayList<Pair<M3uParser.Channel, Int>>()
             for (ch in series) {
-                val e = vodIndex.get(ch.name) ?: continue
+                val e = entryOf(ch) ?: continue
                 val tkey = vodIndex.keyFor(ch.name)
                 e.genreIds.forEach {
                     sByGenre.getOrPut(it) { ArrayList() }.add(ch)
@@ -539,8 +620,16 @@ class ChannelListActivity : FragmentActivity() {
             seriesPopulares = sPop.sortedByDescending { it.second }.map { it.first }
 
             buildingFilmes = false
+            if (onDone != null) runOnUiThread { onDone() }
         }
     }
+
+    /** Dados de gênero/ano/nota/votos de um item: pelo tmdb_id do painel (exato) ou, no M3U, pelo título. */
+    private fun entryOf(ch: M3uParser.Channel): com.seupainel.player.meta.VodIndex.Entry? =
+        if (ch.tmdbId > 0)
+            com.seupainel.player.meta.TmdbLists.entry(tv = ch.kind == XtreamCatalog.KIND_SERIES, id = ch.tmdbId)
+        else if (ch.kind != null) null
+        else vodIndex.get(ch.name)
 
     /** Subcategorias de Filmes/Séries: fixos + gêneros presentes (ordem canônica). */
     private fun vodGroups(sec: Sec): List<String> {
@@ -731,7 +820,7 @@ class ChannelListActivity : FragmentActivity() {
                 inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
             }
             // Filmes da API: o que entrou há menos tempo vem primeiro, em qualquer categoria.
-            val byApi = sec == Sec.FILMES && apiOrder.isNotEmpty()
+            val byApi = (sec == Sec.FILMES || sec == Sec.SERIES) && apiOrderOf(sec).isNotEmpty()
             if (byApi) result = result.sortedByDescending { it.added }
             // Ordenação por subcategoria.
             when (sub) {
@@ -783,8 +872,11 @@ class ChannelListActivity : FragmentActivity() {
         val gen = filterGen
         val sub = currentSub
         thread(name = "series-group") {
-            var series = SeriesGrouper.group(list)
-            when (sub) {
+            // Séries da API já vêm uma por item (e na ordem certa): sem agrupar episódios.
+            val apiList = list.isNotEmpty() && list.all { it.kind == XtreamCatalog.KIND_SERIES }
+            var series = if (apiList) list.map { SeriesGrouper.Series(it.name, it.logo, emptyList(), it.rating, it.apiId) }
+                         else SeriesGrouper.group(list)
+            if (!apiList) when (sub) {
                 LANCAMENTOS -> series = series.sortedByDescending { vodIndex.year(it.title) ?: 0 }
                 ACLAMADAS -> series = series.sortedByDescending { vodIndex.rating(it.title).let { r -> if (r.isNaN()) 0.0 else r } }
                 POPULARES -> series = series.sortedByDescending { vodIndex.votes(it.title) }
@@ -804,7 +896,33 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
+    /** Série da API: busca os episódios agora (o catálogo só traz as séries) e abre a tela da série. */
+    private fun openApiSeries(s: SeriesGrouper.Series) {
+        status.text = "Carregando episódios…"
+        thread(name = "series-info") {
+            val result = runCatching {
+                val acc = XtreamCatalog.accountFor(store, PlaylistHolder.channels.orEmpty()) ?: error("sem conta")
+                XtreamApi.seriesEpisodes(acc, store.userAgent, s.apiId, s.title, s.logo)
+            }
+            runOnUiThread {
+                status.text = "${shownSeries.size} séries"
+                val eps = result.getOrNull()
+                if (eps.isNullOrEmpty()) {
+                    val why = result.exceptionOrNull()?.let { XtreamApi.describe(it) } ?: "sem episódios"
+                    android.widget.Toast.makeText(this, "Não consegui carregar os episódios ($why)",
+                        android.widget.Toast.LENGTH_LONG).show()
+                } else startActivity(Intent(this, com.seupainel.player.SeriesActivity::class.java).apply {
+                    putExtra(com.seupainel.player.SeriesActivity.EXTRA_TITLE, s.title)
+                    putExtra(com.seupainel.player.SeriesActivity.EXTRA_LOGO, s.logo ?: "")
+                    putExtra(com.seupainel.player.SeriesActivity.EXTRA_EPISODES,
+                        com.seupainel.player.SeriesActivity.episodesToJson(eps))
+                })
+            }
+        }
+    }
+
     private fun openSeries(s: SeriesGrouper.Series) {
+        if (s.apiId > 0) { openApiSeries(s); return }
         startActivity(Intent(this, com.seupainel.player.SeriesActivity::class.java).apply {
             putExtra(com.seupainel.player.SeriesActivity.EXTRA_TITLE, s.title)
             putExtra(com.seupainel.player.SeriesActivity.EXTRA_LOGO, s.logo ?: "")
@@ -825,6 +943,13 @@ class ChannelListActivity : FragmentActivity() {
             val s = items[position]
             h.key = s.title
             h.title.text = s.title
+            if (s.apiId > 0) {   // série da API: cartaz e nota do próprio painel
+                if (s.rating > 0) { h.badge.text = "★ ${"%.1f".format(s.rating)}"; h.badge.visibility = View.VISIBLE }
+                else h.badge.visibility = View.GONE
+                val cover = s.logo
+                if (cover.isNullOrBlank()) h.poster.setImageDrawable(null) else loadImg(h.poster, cover)
+                return v
+            }
             // Cartaz: usa o do TMDB (mesmo do detalhe) quando já conhecido.
             val known = com.seupainel.player.meta.PosterCache.get(s.title)
             when {

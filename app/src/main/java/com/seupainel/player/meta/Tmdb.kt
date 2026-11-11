@@ -176,7 +176,7 @@ object Tmdb {
     }
 
     /** Monta a requisição com v3 (api_key=) ou v4 (Bearer), devolve (código, json). */
-    private fun req(apiKey: String, path: String, params: Map<String, String>): Pair<Int, JSONObject?> {
+    fun req(apiKey: String, path: String, params: Map<String, String>): Pair<Int, JSONObject?> {
         val isV4 = apiKey.startsWith("eyJ")
         val qp = StringBuilder()
         params.forEach { (k, v) -> qp.append(if (qp.isEmpty()) "?" else "&").append(k).append("=").append(URLEncoder.encode(v, "UTF-8")) }

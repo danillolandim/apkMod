@@ -30,6 +30,7 @@ object M3uParser {
         val added: Long = 0L,            // unix (s) de quando entrou no painel
         val rating: Double = 0.0,        // 0..10
         val tmdbId: Int = 0,
+        val apiId: Long = 0L,            // stream_id / series_id do painel
     ) {
         /**
          * Ao vivo x VOD. Muitas listas (Xtream) usam `#EXTINF:-1` para TUDO,

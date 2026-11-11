@@ -25,6 +25,8 @@ object SeriesGrouper {
         val title: String,
         val logo: String?,
         val episodes: List<Ep>,
+        val rating: Double = 0.0,      // só séries vindas da API
+        val apiId: Long = 0L,          // series_id: os episódios são buscados ao abrir
     ) {
         val seasons: List<Int> get() = episodes.map { it.season }.distinct().sorted()
         fun episodesOf(season: Int) = episodes.filter { it.season == season }.sortedBy { it.episode }

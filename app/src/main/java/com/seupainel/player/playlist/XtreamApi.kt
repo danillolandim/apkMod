@@ -4,6 +4,8 @@ import android.util.JsonReader
 import android.util.JsonToken
 import com.seupainel.player.net.Net
 import okhttp3.OkHttpClient
+import org.json.JSONArray
+import org.json.JSONObject
 import okhttp3.Request
 import java.net.InetAddress
 import java.net.URL
@@ -35,6 +37,26 @@ object XtreamApi {
         val categoryId: String,
         val ext: String,
         val isAdult: Boolean = false,
+    )
+
+    data class SeriesRow(
+        val id: Long,
+        val name: String,
+        val cover: String?,
+        val rating: Double,
+        val modified: Long,      // last_modified (unix, s)
+        val categoryId: String,
+        val tmdbId: Int,
+    )
+
+    data class LiveRow(
+        val id: Long,
+        val name: String,
+        val icon: String?,
+        val epgId: String?,
+        val added: Long,
+        val categoryId: String,
+        val isAdult: Boolean,
     )
 
     /** `http://host:porta/get.php?username=U&password=P&...` -> conta, ou null se não for Xtream. */
@@ -125,6 +147,50 @@ object XtreamApi {
     fun parseCategories(file: java.io.File): List<Category> =
         JsonReader(file.reader(Charsets.UTF_8)).use { readCategories(it) }
 
+    fun parseSeries(file: java.io.File): List<SeriesRow> =
+        JsonReader(file.reader(Charsets.UTF_8)).use { readSeries(it) }
+
+    fun parseLive(file: java.io.File): List<LiveRow> =
+        JsonReader(file.reader(Charsets.UTF_8)).use { readLive(it) }
+
+    /**
+     * Episódios de uma série (`get_series_info`), buscados ao abrir a série: o catálogo traz só
+     * as séries, não os milhares de episódios. O painel devolve "episodes" como objeto por
+     * temporada ({"1":[...]}) ou, às vezes, como lista de listas; os dois formatos são aceitos.
+     */
+    fun seriesEpisodes(
+        acc: Account, userAgent: String?, seriesId: Long, seriesTitle: String, logo: String?,
+    ): List<SeriesGrouper.Ep> {
+        val text = http.newCall(request(apiUrl(acc, "get_series_info") + "&series_id=$seriesId", userAgent))
+            .execute().use { r ->
+                if (!r.isSuccessful) throw java.io.IOException("HTTP ${r.code}")
+                r.body?.string().orEmpty()
+            }
+        val eps = JSONObject(text).opt("episodes")
+        val out = ArrayList<SeriesGrouper.Ep>()
+        fun addSeason(arr: JSONArray?, seasonHint: Int) {
+            if (arr == null) return
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val id = o.optString("id").takeIf { it.isNotBlank() } ?: continue
+                val season = o.optInt("season", 0).takeIf { it > 0 } ?: seasonHint
+                val num = o.optInt("episode_num", i + 1)
+                val ext = o.optString("container_extension").ifBlank { "mp4" }
+                val ch = M3uParser.Channel(
+                    name = "%s S%02dE%02d".format(seriesTitle, season, num),
+                    url = "${acc.base}/series/${acc.user}/${acc.pass}/$id.$ext",
+                    group = "", logo = logo, duration = 0,
+                )
+                out.add(SeriesGrouper.Ep(season, num, ch, false))
+            }
+        }
+        when (eps) {
+            is JSONObject -> eps.keys().forEach { k -> addSeason(eps.optJSONArray(k), k.toIntOrNull() ?: 1) }
+            is JSONArray -> for (i in 0 until eps.length()) addSeason(eps.optJSONArray(i), i + 1)
+        }
+        return out.sortedWith(compareBy({ it.season }, { it.episode }))
+    }
+
     /** Nome curto da falha, sem a mensagem: algumas exceções trazem a URL (com a senha). */
     fun describe(e: Throwable): String =
         if (e is java.io.IOException && e.message?.startsWith("HTTP") == true) e.message.orEmpty()
@@ -138,7 +204,9 @@ object XtreamApi {
             appendLine("DNS do sistema: " + dns { InetAddress.getByName(host) })
             appendLine("DNS do app (com DoH): " + dns { Net.client.dns.lookup(host) })
             appendLine(probe("Categorias", apiUrl(acc, "get_vod_categories"), userAgent))
-            append(probe("Filmes", apiUrl(acc, "get_vod_streams"), userAgent))
+            appendLine(probe("Filmes", apiUrl(acc, "get_vod_streams"), userAgent))
+            appendLine(probe("Séries", apiUrl(acc, "get_series"), userAgent))
+            append(probe("TV", apiUrl(acc, "get_live_streams"), userAgent))
         }
     }
 
@@ -230,6 +298,73 @@ object XtreamApi {
         }
         r.endArray()
         return out
+    }
+
+    internal fun readSeries(r: JsonReader): List<SeriesRow> {
+        if (r.peek() != JsonToken.BEGIN_ARRAY) { r.skipValue(); return emptyList() }
+        val out = ArrayList<SeriesRow>(6_000)
+        r.beginArray()
+        while (r.hasNext()) {
+            if (r.peek() != JsonToken.BEGIN_OBJECT) { r.skipValue(); continue }
+            var id = 0L; var name: String? = null; var cover: String? = null; var rating = 0.0
+            var modified = 0L; var cat = ""; var tmdb = 0
+            r.beginObject()
+            while (r.hasNext()) {
+                when (r.nextName()) {
+                    "series_id" -> id = r.lenientString()?.toLongOrNull() ?: 0L
+                    "name" -> name = r.lenientString()
+                    "cover" -> cover = r.lenientString()?.takeIf { it.isNotBlank() }
+                    "rating" -> rating = r.lenientString()?.toDoubleOrNull() ?: 0.0
+                    "last_modified" -> modified = r.lenientString()?.toLongOrNull() ?: 0L
+                    "category_id" -> cat = r.lenientString().orEmpty()
+                    "category_ids" -> if (cat.isEmpty()) cat = r.firstOfArray() else r.skipValue()
+                    "tmdb", "tmdb_id" -> tmdb = r.lenientString()?.toIntOrNull() ?: 0
+                    else -> r.skipValue()
+                }
+            }
+            r.endObject()
+            if (id > 0 && !name.isNullOrBlank()) out.add(SeriesRow(id, name.trim(), cover, rating, modified, cat, tmdb))
+        }
+        r.endArray()
+        return out
+    }
+
+    internal fun readLive(r: JsonReader): List<LiveRow> {
+        if (r.peek() != JsonToken.BEGIN_ARRAY) { r.skipValue(); return emptyList() }
+        val out = ArrayList<LiveRow>(12_000)
+        r.beginArray()
+        while (r.hasNext()) {
+            if (r.peek() != JsonToken.BEGIN_OBJECT) { r.skipValue(); continue }
+            var id = 0L; var name: String? = null; var icon: String? = null; var epg: String? = null
+            var added = 0L; var cat = ""; var adult = false
+            r.beginObject()
+            while (r.hasNext()) {
+                when (r.nextName()) {
+                    "stream_id" -> id = r.lenientString()?.toLongOrNull() ?: 0L
+                    "name" -> name = r.lenientString()
+                    "stream_icon" -> icon = r.lenientString()?.takeIf { it.isNotBlank() }
+                    "epg_channel_id" -> epg = r.lenientString()?.takeIf { it.isNotBlank() }
+                    "added" -> added = r.lenientString()?.toLongOrNull() ?: 0L
+                    "category_id" -> cat = r.lenientString().orEmpty()
+                    "category_ids" -> if (cat.isEmpty()) cat = r.firstOfArray() else r.skipValue()
+                    "is_adult" -> adult = r.lenientString().let { it == "1" || it.equals("true", true) }
+                    else -> r.skipValue()
+                }
+            }
+            r.endObject()
+            if (id > 0 && !name.isNullOrBlank()) out.add(LiveRow(id, name.trim(), icon, epg, added, cat, adult))
+        }
+        r.endArray()
+        return out
+    }
+
+    private fun JsonReader.firstOfArray(): String {
+        if (peek() != JsonToken.BEGIN_ARRAY) { skipValue(); return "" }
+        var first = ""
+        beginArray()
+        while (hasNext()) { val v = lenientString().orEmpty(); if (first.isEmpty()) first = v }
+        endArray()
+        return first
     }
 
     /** O painel mistura string/número/null no mesmo campo ("rating":"5", "tmdb_id":123, "": ""). */
