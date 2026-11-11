@@ -9,7 +9,13 @@ https://www.figma.com/design/k8bpT4yyYaGwsv5k18jAee/Gerenciador-de-Filmes--Commu
 
 ## Marca
 - Nome exibido: **Landimflix** (o Figma usa "ab filmes").
-- Logo: **pendente** (o usuário vai enviar). Gerar: ícone adaptativo, banner da Android TV (320×180).
+- Logo: **recebida** (símbolo "L" facetado em roxo + "LAND​IM" branco e "FLIX" roxo, sobre grafite).
+  As fontes originais são JPG com o fundo desenhado; recortei por saturação/brilho. Se o usuário tiver
+  SVG ou PNG com transparência real, trocar: as bordas ficam mais nítidas.
+- Arquivos gerados em `res/drawable-nodpi/`: `logo_symbol.png`, `logo_full.png`, `logo_short.png`
+  (L + FLIX, composta por mim a partir do recorte), `ic_launcher_fg.png` (camada adaptativa),
+  `app_banner.png` (TV, 1280×720). Ícone adaptativo em `drawable-v26/ic_launcher.xml`.
+- Feito: nome "Landimflix" (`app_name` e títulos), ícone e banner. `applicationId` intacto.
 - **Não mudar `applicationId`** (`com.seupainel.player`): quebra a atualização por cima e perde dados.
   Muda só `app_name`, rótulo do launcher, banner e ícone.
 
