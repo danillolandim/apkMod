@@ -22,15 +22,34 @@ object XtreamCatalog {
     @Volatile private var memoStamp = ""
     private val refreshing = AtomicBoolean(false)
 
+    /** Situação da última tentativa, para o app avisar na tela (nunca contém usuário/senha). */
+    @Volatile var lastStatus: String = ""
+
+    private fun describe(e: Throwable): String =
+        if (e is java.io.IOException && e.message?.startsWith("HTTP") == true) e.message.orEmpty()
+        else e.javaClass.simpleName   // a mensagem de algumas exceções traz a URL (com a senha)
+
     @Synchronized
     fun movies(ctx: Context, store: PlaylistStore): Movies? {
-        val acc = XtreamApi.accountFrom(store.lastUrl ?: store.playlistUrl) ?: return null
+        val acc = XtreamApi.accountFrom(store.lastUrl ?: store.playlistUrl)
+        if (acc == null) {
+            lastStatus = "API: a URL da lista não é do tipo Xtream (get.php?username=…); usando a lista M3U"
+            return null
+        }
         val vodFile = File(ctx.filesDir, "xtream_vod.json")
         val catFile = File(ctx.filesDir, "xtream_vod_cats.json")
         val ua = store.userAgent
 
         if (!vodFile.exists() || vodFile.length() < 3) {
-            return runCatching { fetchAndStore(acc, ua, vodFile, catFile) }.getOrNull()
+            val r = runCatching { fetchAndStore(acc, ua, vodFile, catFile) }
+            r.exceptionOrNull()?.let {
+                lastStatus = "API indisponível (${describe(it)}); usando a lista M3U"
+                return null
+            }
+            val m = r.getOrNull()
+            lastStatus = if (m == null) "API respondeu sem filmes válidos; usando a lista M3U"
+                         else "API ✓ ${m.channels.size} filmes"
+            return m
         }
         if (isStale(vodFile, store.refreshHours) && refreshing.compareAndSet(false, true)) {
             Thread({
@@ -39,9 +58,14 @@ object XtreamCatalog {
             }, "xtream-refresh").start()
         }
         val stamp = "${vodFile.lastModified()}:${vodFile.length()}:${acc.base}"
-        memo?.let { if (memoStamp == stamp) return it }
-        val built = runCatching { build(acc, vodFile, catFile) }.getOrNull() ?: return null
+        memo?.let { if (memoStamp == stamp) { lastStatus = "API ✓ ${it.channels.size} filmes (cache)"; return it } }
+        val built = runCatching { build(acc, vodFile, catFile) }.getOrNull()
+        if (built == null) {
+            lastStatus = "Cache da API ilegível; usando a lista M3U"
+            return null
+        }
         memo = built; memoStamp = stamp
+        lastStatus = "API ✓ ${built.channels.size} filmes (cache)"
         return built
     }
 

@@ -68,6 +68,7 @@ class ChannelListActivity : FragmentActivity() {
     private var shown: List<M3uParser.Channel> = emptyList()
     // Categorias de filmes na ordem do painel (API Xtream). Vazio = filmes vêm só do M3U.
     @Volatile private var apiOrder: List<String> = emptyList()
+    private var apiToastShown = false
 
     // group-title -> Sec é determinístico e há poucos grupos distintos: memoiza
     // (evita re-uppercase/contains por item em listas de dezenas de milhares).
@@ -346,7 +347,10 @@ class ChannelListActivity : FragmentActivity() {
      */
     private fun mergeApi(raw: List<M3uParser.Channel>): List<M3uParser.Channel> {
         apiOrder = emptyList()
-        if (!com.seupainel.player.AppSettings(this).useXtream) return raw
+        if (!com.seupainel.player.AppSettings(this).useXtream) {
+            XtreamCatalog.lastStatus = "API desligada nas Configurações; usando a lista M3U"
+            return raw
+        }
         val m = XtreamCatalog.movies(applicationContext, store) ?: return raw
         apiOrder = m.categoryOrder
         return raw.filter { !it.url.contains("/movie/", ignoreCase = true) } + m.channels
@@ -380,6 +384,11 @@ class ChannelListActivity : FragmentActivity() {
         }
         sectionGroups = bySec.mapValues { it.value.toList() }
         status.text = "${channels.size} itens"
+        // Avisa uma vez por abertura se os Filmes estão na API ou caíram na lista M3U.
+        if (!apiToastShown && XtreamCatalog.lastStatus.isNotBlank()) {
+            apiToastShown = true
+            android.widget.Toast.makeText(this, XtreamCatalog.lastStatus, android.widget.Toast.LENGTH_LONG).show()
+        }
         selectSection(startSection)
         groupsView.requestFocus()
         hideLoading()

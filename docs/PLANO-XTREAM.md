@@ -19,6 +19,14 @@ exato, `stream_icon` (pôster TMDB), `rating`, `added` (unix), `category_id`,
 5. Gêneros por `tmdb_id` (`/movie/{id}`, sem busca fuzzy), só sob demanda e em segundo plano.
 6. (Avaliar depois) TV ao vivo por `get_live_streams`.
 
+## Requisito do usuário (11/11/2026)
+Aclamadas e Populares são úteis ("muita coisa boa sem procurar") e NÃO podem sumir no modo API.
+A API só traz nota arredondada, sem votos. Plano: voltar Aclamadas/Populares/Lançamentos/gêneros
+pelo `tmdb_id` exato — listas do TMDB (`top_rated`, `popular`, `discover` por gênero; até 500
+páginas cada) casadas com o catálogo por id, em vez de uma consulta por filme. Confirmar
+endpoints/limites com `ctx7` antes de implementar. Séries: usar `get_series_categories` se vier
+por plataforma (pendente: o usuário ainda não colou as categorias de séries).
+
 ## Riscos
 - Favoritos e "Continuar assistindo" usam a URL do item como chave: a URL montada pela API
   precisa ser idêntica à do M3U (esquema/host/porta). Calibrar pelo prefixo `/movie/` do M3U.
