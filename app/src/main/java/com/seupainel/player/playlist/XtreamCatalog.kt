@@ -30,10 +30,16 @@ object XtreamCatalog {
         else e.javaClass.simpleName   // a mensagem de algumas exceções traz a URL (com a senha)
 
     @Synchronized
-    fun movies(ctx: Context, store: PlaylistStore): Movies? {
-        val acc = XtreamApi.accountFrom(store.lastUrl ?: store.playlistUrl)
+    fun movies(ctx: Context, store: PlaylistStore, raw: List<M3uParser.Channel>): Movies? {
+        val acc = XtreamApi.accountFrom(store.lastUrl)
+            ?: XtreamApi.accountFrom(store.playlistUrl)
+            ?: raw.firstNotNullOfOrNull { ch ->
+                if (ch.url.contains("/movie/", true) || ch.url.contains("/series/", true))
+                    XtreamApi.accountFromStreamUrl(ch.url) else null
+            }
         if (acc == null) {
-            lastStatus = "API: a URL da lista não é do tipo Xtream (get.php?username=…); usando a lista M3U"
+            lastStatus = "API: não achei usuário/senha (lista: ${XtreamApi.shape(store.lastUrl ?: store.playlistUrl)}; " +
+                "links /movie/: ${raw.count { it.url.contains("/movie/", true) }}); usando a lista M3U"
             return null
         }
         val vodFile = File(ctx.filesDir, "xtream_vod.json")

@@ -351,7 +351,7 @@ class ChannelListActivity : FragmentActivity() {
             XtreamCatalog.lastStatus = "API desligada nas Configurações; usando a lista M3U"
             return raw
         }
-        val m = XtreamCatalog.movies(applicationContext, store) ?: return raw
+        val m = XtreamCatalog.movies(applicationContext, store, raw) ?: return raw
         apiOrder = m.categoryOrder
         return raw.filter { !it.url.contains("/movie/", ignoreCase = true) } + m.channels
     }

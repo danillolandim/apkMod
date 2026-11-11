@@ -4,7 +4,6 @@ import android.util.JsonReader
 import android.util.JsonToken
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -38,20 +37,58 @@ object XtreamApi {
 
     /** `http://host:porta/get.php?username=U&password=P&...` -> conta, ou null se não for Xtream. */
     fun accountFrom(playlistUrl: String?): Account? {
-        if (playlistUrl.isNullOrBlank()) return null
-        val uri = runCatching { URI(playlistUrl.trim()) }.getOrNull() ?: return null
-        val scheme = uri.scheme?.lowercase() ?: return null
-        val host = uri.host ?: return null
-        if (scheme != "http" && scheme != "https") return null
-        val params = (uri.rawQuery ?: "").split('&').mapNotNull { p ->
+        val url = parseHttp(playlistUrl) ?: return null
+        val params = (url.query ?: "").split('&').mapNotNull { p ->
             val i = p.indexOf('=')
-            if (i <= 0) null else p.substring(0, i) to URLDecoder.decode(p.substring(i + 1), "UTF-8")
+            if (i <= 0) null else p.substring(0, i).lowercase() to safeDecode(p.substring(i + 1))
         }.toMap()
         val user = params["username"]?.takeIf { it.isNotBlank() } ?: return null
         val pass = params["password"]?.takeIf { it.isNotBlank() } ?: return null
-        val port = if (uri.port > 0) ":${uri.port}" else ""
-        return Account("$scheme://$host$port", user, pass)
+        return Account(baseOf(url), user, pass)
     }
+
+    /**
+     * Conta a partir de um link de stream (`http://host/movie/USUARIO/SENHA/123.mp4`).
+     * Serve quando a URL da lista foi digitada de outro jeito (link curto, redirecionamento),
+     * mas os itens da lista, que o app precisa tocar, sempre carregam as credenciais.
+     */
+    fun accountFromStreamUrl(streamUrl: String?): Account? {
+        val url = parseHttp(streamUrl) ?: return null
+        val seg = url.path.split('/').filter { it.isNotEmpty() }
+        if (seg.size < 4 || seg[0].lowercase() !in STREAM_KINDS) return null
+        return Account(baseOf(url), safeDecode(seg[1]), safeDecode(seg[2]))
+    }
+
+    /** Só o "formato" da URL, sem host nem valores: serve para diagnosticar na tela sem vazar senha. */
+    fun shape(url: String?): String {
+        if (url.isNullOrBlank()) return "sem URL"
+        val u = runCatching { URL(url.trim()) }.getOrNull() ?: return "URL ilegível"
+        val file = u.path.substringAfterLast('/')
+        val shownFile = if (SAFE_FILE.matches(file)) file else "(outro)"
+        val keys = u.query?.split('&')?.map { it.substringBefore('=') }?.filter { it.isNotBlank() }
+            ?.joinToString(",")?.ifBlank { null } ?: "nenhum"
+        return "${u.protocol}:/…/$shownFile params: $keys"
+    }
+
+    // java.net.URI rejeita a URL toda por um caractere especial ou "_" no host; URL é tolerante.
+    private fun parseHttp(raw: String?): URL? {
+        if (raw.isNullOrBlank()) return null
+        val url = runCatching { URL(raw.trim()) }.getOrNull() ?: return null
+        val proto = url.protocol?.lowercase()
+        if (proto != "http" && proto != "https") return null
+        return url.takeIf { it.host.isNotBlank() }
+    }
+
+    private fun baseOf(url: URL): String {
+        val port = if (url.port > 0) ":${url.port}" else ""
+        return "${url.protocol.lowercase()}://${url.host}$port"
+    }
+
+    private fun safeDecode(s: String): String =
+        runCatching { URLDecoder.decode(s, "UTF-8") }.getOrDefault(s)
+
+    private val STREAM_KINDS = setOf("live", "movie", "series")
+    private val SAFE_FILE = Regex("""(?i)[\w.-]+\.(php|m3u8?|txt)""")
 
     fun apiUrl(acc: Account, action: String): String =
         "${acc.base}/player_api.php?username=${enc(acc.user)}&password=${enc(acc.pass)}&action=$action"
