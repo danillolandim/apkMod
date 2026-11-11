@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fundo da marca: grafite azulado com um brilho roxo discreto no canto superior esquerdo. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/lf_bg" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.12"
+                android:centerY="0.0"
+                android:gradientRadius="1100dp"
+                android:startColor="#38892CCD"
+                android:endColor="#00892CCD" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tokens do Landimflix (ver DESIGN.md na raiz do projeto). -->
+<resources>
+    <color name="lf_bg">#0F0F1A</color>
+    <color name="lf_surface">#131320</color>
+    <color name="lf_surface_hi">#1A1B2D</color>
+    <color name="lf_stroke">#25263A</color>
+    <color name="lf_primary">#892CCD</color>
+    <color name="lf_primary_dark">#6F22A6</color>
+    <color name="lf_accent">#A85FDD</color>
+    <color name="lf_text">#E4E5EC</color>
+    <color name="lf_text_2">#B5B6C9</color>
+    <color name="lf_text_3">#7A7B9F</color>
+</resources>

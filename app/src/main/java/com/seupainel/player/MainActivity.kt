@@ -44,6 +44,15 @@ class MainActivity : FragmentActivity() {
         findViewById<View>(R.id.card_live).setOnClickListener { openSection("canais") }
         findViewById<View>(R.id.card_filmes).setOnClickListener { openSection("filmes") }
         findViewById<View>(R.id.card_series).setOnClickListener { openSection("series") }
+        // Foco: leve aumento (140 ms). Respeita "sem animações" do Android (acessibilidade).
+        val animate = android.provider.Settings.Global.getFloat(
+            contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+        listOf(R.id.card_live, R.id.card_filmes, R.id.card_series).forEach { id ->
+            findViewById<View>(id).setOnFocusChangeListener { v, focused ->
+                val scale = if (focused && animate) 1.04f else 1f
+                v.animate().scaleX(scale).scaleY(scale).setDuration(140).start()
+            }
+        }
 
         findViewById<View>(R.id.card_live).requestFocus()
     }
