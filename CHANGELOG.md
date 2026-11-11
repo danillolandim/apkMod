@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- TESTE — Filmes pela API do provedor: a lista de filmes agora vem direto do painel (rápido, sem esperar a indexação do TMDB). Cartaz e nota são os do próprio painel, "Tudo" e "Recentes" mostram o que entrou há menos tempo primeiro, e as categorias seguem a ordem do painel (Cinema, Lançamentos, Netflix…). A categoria Adulto fica escondida. Na primeira abertura baixa o catálogo (um pouco mais lenta); depois abre do cache. Gêneros e Populares/Aclamadas ficam de fora por enquanto. Dá pra comparar com o jeito antigo desligando "Filmes pela API do provedor" em Configurações.
 - Autoplay com contagem "Próximo em Ns": nos últimos segundos do episódio aparece o aviso do próximo — OK pula na hora, Voltar cancela o autoplay.
 - Séries mostram progresso do episódio começado (ex.: "Episódio 4 · 32%") e deixam o episódio assistido mais apagado — como nos apps grandes.
 - Séries marcam episódio assistido: ✓ no episódio quando termina (ou no autoplay), a tela da série já posiciona no primeiro episódio não visto, e dá pra marcar/desmarcar na mão segurando o episódio.
