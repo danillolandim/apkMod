@@ -41,3 +41,18 @@ por plataforma (pendente: o usuário ainda não colou as categorias de séries).
   `max_connections`); catch-up via `tv_archive` (confirmar no painel).
 - WorkManager para atualizar o catálogo em segundo plano.
 - Só se medir lentidão: Room + FTS + Paging 3; grade em RecyclerView/Leanback; coroutines/Flow.
+
+## Login estilo IPTV Smarters (pedido do usuário, 11/11/2026)
+- Configurações ganham 3 campos: servidor (DNS que o provedor fornece), usuário e senha. Têm
+  prioridade sobre a conta derivada da URL da lista; a URL do M3U passa a ser montada
+  (`get.php?username=…&password=…&type=m3u_plus&output=m3u8`) a partir deles.
+- Rota alternativa: tentar o servidor informado e, se falhar, o da URL da lista (e vice-versa).
+  Atenção: a URL de reprodução usa o host da conta escolhida; Favoritos e "Continuar assistindo"
+  são chaveados pela URL, então trocar de host pode "esquecer" o que já estava salvo.
+- Credenciais ficam só nas preferências do app (como a URL da lista hoje). Nunca no repositório.
+- Hostname do provedor NÃO entra em código, testes, docs ou commits.
+
+## DNS bloqueado
+- `XtreamApi` e o download do M3U usam HttpURLConnection (DNS do sistema); o player usa
+  `Net.client` (OkHttp + DoH). Se a API falhar com UnknownHostException, trocar `XtreamApi` para
+  `Net.client` resolve sem precisar de outro DNS.
