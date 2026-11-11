@@ -80,7 +80,10 @@ object XtreamCatalog {
             }
             if (isStale(listFile, store.refreshHours) && refreshing.getValue(kind).compareAndSet(false, true)) {
                 Thread({
-                    try { runCatching { fetchAndStore(kind, acc, ua, listFile, catFile, raw) } }
+                    try {
+                        com.seupainel.player.net.Net.awaitIdle()   // não disputa a rede com um vídeo
+                        runCatching { fetchAndStore(kind, acc, ua, listFile, catFile, raw) }
+                    }
                     finally { refreshing.getValue(kind).set(false) }
                 }, "xtream-refresh-${kind.tag}").start()
             }

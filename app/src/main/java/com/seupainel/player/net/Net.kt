@@ -35,6 +35,41 @@ object Net {
             .build()
     }
 
+    /**
+     * Cliente da REPRODUÇÃO: mesma rede resiliente (DNS, pool de conexões), mas falha mais cedo.
+     * Esperar 30 s por um servidor que não responde é o que parece "travado".
+     */
+    val playerClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(25, TimeUnit.SECONDS)
+            .build()
+    }
+
+    /** true enquanto um vídeo está na tela: trabalhos de fundo (TMDB, catálogo) esperam. */
+    @Volatile var playbackActive = false
+
+    /** Bloqueia o chamador (thread de fundo) enquanto um vídeo toca, para não disputar a rede. */
+    fun awaitIdle() {
+        while (playbackActive) {
+            try { Thread.sleep(1_000) } catch (_: InterruptedException) { return }
+        }
+    }
+
+    /**
+     * Abre a conexão com o servidor do vídeo ANTES de o usuário apertar Assistir: resolve o DNS, faz
+     * o TLS e segue o redirecionamento do provedor. Pede só 1 byte; o player reaproveita a conexão.
+     */
+    fun prewarm(url: String, userAgent: String?) {
+        warmExec.execute {
+            runCatching {
+                val req = okhttp3.Request.Builder().url(url).header("Range", "bytes=0-0")
+                    .apply { if (!userAgent.isNullOrBlank()) header("User-Agent", userAgent) }.build()
+                playerClient.newCall(req).execute().use { }
+            }
+        }
+    }
+
     private val warmExec by lazy { Executors.newSingleThreadExecutor() }
 
     /**

@@ -1,6 +1,9 @@
 # Novidades
 
 ## Esta versão
+- Reprodução mais rápida e sem "carregar para sempre": quando um vídeo não existe mais no servidor, está num formato que a TV não abre ou o acesso foi recusado, a falha aparece em poucos segundos com o motivo em português (antes o app repetia até mais de 1 minuto). Só o que é passageiro (rede, servidor ocupado) é repetido, com espera curta. Se o decodificador da TV falhar, o app tenta sozinho um modo de compatibilidade.
+- A conexão com o servidor do filme é aberta enquanto você lê a sinopse, então o Assistir começa mais rápido. Trabalhos de fundo (catálogo, notas do TMDB) esperam enquanto um vídeo toca.
+- Configurações > Testar API agora mostra a situação da conta: ativa, validade e conexões em uso (conta com limite de conexões é uma causa comum de vídeo que não abre).
 - Home simples e sem cortes: marca, relógio e três botões grandes (TV ao vivo, Filmes, Séries) com ícone, contagem de itens e saudação. O foco agora é um anel desenhado dentro do botão e o botão não aumenta de tamanho, então nada é cortado nas bordas. Os botões ocupam a largura da tela por proporção.
 - Foco refeito no app todo: anel roxo fino sobre fundo escuro, com o texto sempre legível (antes a seleção virava uma faixa roxa que escondia o nome). O roxo cheio ficou só no botão principal.
 - Visual Landimflix (parte 1): Home, barra de seções e grade de cartazes no novo estilo — fundo grafite com brilho roxo, foco em roxo, cartazes com título e categoria sobre a imagem, selo de nota, categoria atual marcada no menu, estado vazio com ícone. Fontes Rammetto One, Rajdhani e Nunito Sans embutidas. Detalhes, séries e configurações vêm na parte 2. O fundo padrão agora é o da marca (dá pra trocar em Configurações).

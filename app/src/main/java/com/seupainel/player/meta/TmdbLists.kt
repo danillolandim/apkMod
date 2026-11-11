@@ -80,6 +80,7 @@ object TmdbLists {
         out: ConcurrentHashMap<Int, VodIndex.Entry>,
     ): Int? {
         repeat(3) {
+            com.seupainel.player.net.Net.awaitIdle()   // um vídeo tocando tem prioridade na rede
             val (code, json) = Tmdb.req(apiKey, "/$kind/$list", mapOf("page" to p.toString()))
             if (code == 429) { Thread.sleep(RETRY_WAIT_MS); return@repeat }
             if (code !in 200..299 || json == null) return null

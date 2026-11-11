@@ -203,10 +203,29 @@ object XtreamApi {
         return buildString {
             appendLine("DNS do sistema: " + dns { InetAddress.getByName(host) })
             appendLine("DNS do app (com DoH): " + dns { Net.client.dns.lookup(host) })
+            appendLine(accountLine(acc, userAgent))
             appendLine(probe("Categorias", apiUrl(acc, "get_vod_categories"), userAgent))
             appendLine(probe("Filmes", apiUrl(acc, "get_vod_streams"), userAgent))
             appendLine(probe("Séries", apiUrl(acc, "get_series"), userAgent))
             append(probe("TV", apiUrl(acc, "get_live_streams"), userAgent))
+        }
+    }
+
+    /** Situação da conta no painel: ativa?, validade e conexões em uso (limite de conexões trava vídeos). */
+    private fun accountLine(acc: Account, userAgent: String?): String {
+        return try {
+            val url = "${acc.base}/player_api.php?username=${enc(acc.user)}&password=${enc(acc.pass)}"
+            val text = http.newCall(request(url, userAgent)).execute().use { r ->
+                if (!r.isSuccessful) return "Conta: HTTP ${r.code}"
+                r.body?.string().orEmpty()
+            }
+            val ui = JSONObject(text).optJSONObject("user_info") ?: return "Conta: o painel não informou os dados"
+            val exp = ui.optString("exp_date").toLongOrNull()
+                ?.let { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR")).format(java.util.Date(it * 1000)) }
+                ?: "sem data"
+            "Conta: ${ui.optString("status", "?")} · vence $exp · conexões ${ui.optString("active_cons", "?")}/${ui.optString("max_connections", "?")}"
+        } catch (e: Exception) {
+            "Conta: falhou (${describe(e)})"
         }
     }
 

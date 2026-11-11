@@ -230,7 +230,18 @@ class PlayerActivity : FragmentActivity() {
                         "rede: ${(cause.cause?.message ?: cause.message)?.take(90) ?: cause.javaClass.simpleName}"
                     else -> "${error.errorCodeName}: ${cause?.message?.take(80) ?: ""}"
                 }
-                recover(detail)
+                // Falha do decodificador (comum com "tunneling" em certas TVs): uma tentativa
+                // automática no modo de compatibilidade, antes de desistir.
+                if (directUrl.isNotBlank() && !triedCompat && isRendererError(error.errorCode)) {
+                    triedCompat = true
+                    pc.disableTunneling()
+                    showBadge("Ajustando compatibilidade…", announce = false)
+                    startMs = pc.player.currentPosition.coerceAtLeast(startMs)
+                    pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
+                    return
+                }
+                val (kind, code) = PlayerController.classify(error)
+                recover(detail, kind, code)
             }
 
             override fun onPlaybackStateChanged(state: Int) {
@@ -282,12 +293,32 @@ class PlayerActivity : FragmentActivity() {
         })
     }
 
-    /** Backoff: 2s, 4s, 8s; depois tenta o backup; depois desiste. */
-    private fun recover(reason: String) {
-        if (!settings.autoRetry) { toast("Falha: $reason"); return }
+    private var triedCompat = false
+
+    private fun isRendererError(code: Int) = code == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+        code == PlaybackException.ERROR_CODE_DECODING_FAILED ||
+        code == PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES ||
+        code == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+        code == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
+
+    /**
+     * Falha definitiva (arquivo inexistente, formato não suportado, acesso negado) aparece na hora.
+     * Falha passageira (rede, servidor ocupado) tem backoff curto: 1s, 2s (filme) / 1s, 2s, 4s (canal);
+     * depois tenta o backup; depois desiste.
+     */
+    private fun recover(
+        reason: String,
+        kind: PlaybackErrors.Kind = PlaybackErrors.Kind.NETWORK,
+        httpCode: Int? = null,
+    ) {
+        val friendly = PlaybackErrors.message(kind, httpCode)
+        if (!settings.autoRetry) { toast("$friendly ($reason)"); return }
+        // Com endereço direto, só vale repetir o que é passageiro. No motor P2P tudo continua sendo repetido.
+        if (directUrl.isNotBlank() && !PlaybackErrors.isTransient(kind)) { finalFailure(friendly, reason); return }
         retries++
-        if (retries <= 3) {
-            val delay = 2000L * (1 shl (retries - 1))
+        val maxRetries = if (isLive) 3 else 2
+        if (retries <= maxRetries) {
+            val delay = 1000L * (1 shl (retries - 1))
             showBadge("Conectando…", announce = false)
             ui.postDelayed({
                 startMs = pc.player.currentPosition.coerceAtLeast(startMs)
@@ -303,10 +334,14 @@ class PlayerActivity : FragmentActivity() {
             showBadge("Trocando para servidor de backup…", announce = true)
             engine.stop(); startEngine(addressBackup)
         } else {
-            // erro final: mostra por mais tempo e também fixa no badge para leitura
-            Toast.makeText(this, "Falha ao reproduzir: $reason", Toast.LENGTH_LONG).show()
-            showBadge("Falha: $reason", announce = true, ms = 10_000)
+            finalFailure(friendly, reason)
         }
+    }
+
+    // Erro final: mostra por mais tempo e também fixa no badge para leitura.
+    private fun finalFailure(friendly: String, reason: String) {
+        Toast.makeText(this, "$friendly\n($reason)", Toast.LENGTH_LONG).show()
+        showBadge("$friendly\n($reason)", announce = true, ms = 10_000)
     }
 
     // ---------- Badge de qualidade / status (3s) ----------
@@ -771,8 +806,14 @@ class PlayerActivity : FragmentActivity() {
         if (resumeKind == "series" && dur > 0 && pos > dur - 15_000) resume.markWatched(resumeKey)
     }
 
+    override fun onStart() {
+        super.onStart()
+        com.seupainel.player.net.Net.playbackActive = true   // trabalhos de fundo esperam
+    }
+
     override fun onStop() {
         super.onStop()
+        com.seupainel.player.net.Net.playbackActive = false
         persistResume()
         if (!inPip) pc.player.pause()
     }
@@ -780,6 +821,7 @@ class PlayerActivity : FragmentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ui.removeCallbacksAndMessages(null)
+        com.seupainel.player.net.Net.playbackActive = false
         persistResume()
         pc.release()
         if (directUrl.isBlank()) engine.stop()

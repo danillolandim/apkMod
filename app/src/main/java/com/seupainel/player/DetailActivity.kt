@@ -26,6 +26,10 @@ class DetailActivity : FragmentActivity() {
         val isLive = intent.getBooleanExtra(EXTRA_IS_LIVE, false)
         val isSeries = intent.getBooleanExtra(EXTRA_IS_SERIES, false)
 
+        // Abre a conexão com o servidor enquanto o usuário lê a sinopse: o Assistir começa mais rápido.
+        if (!isLive && url.startsWith("http", ignoreCase = true))
+            com.seupainel.player.net.Net.prewarm(url, com.seupainel.player.playlist.PlaylistStore(this).userAgent)
+
         val poster = findViewById<ImageView>(R.id.d_poster)
         val titleView = findViewById<TextView>(R.id.d_title)
         val meta = findViewById<TextView>(R.id.d_meta)

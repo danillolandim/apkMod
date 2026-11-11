@@ -81,6 +81,11 @@ class PlayerController(
             .build()
     }
 
+    /** Modo de compatibilidade: sem "tunneling" (alguns decodificadores de TV falham com ele). */
+    fun disableTunneling() {
+        trackSelector.parameters = trackSelector.buildUponParameters().setTunnelingEnabled(false).build()
+    }
+
     fun setForceMaxQuality(force: Boolean) {
         trackSelector.parameters = trackSelector.buildUponParameters()
             .setForceHighestSupportedBitrate(force)
@@ -90,18 +95,21 @@ class PlayerController(
     // Factory HTTP sobre OkHttp com DNS-over-HTTPS (resolve hosts que o DNS da
     // TV bloqueia) + injeção de User-Agent/Referer por canal.
     private val http = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
-        com.seupainel.player.net.Net.client
+        com.seupainel.player.net.Net.playerClient
     )
 
-    // Reentra em silêncio nas primeiras falhas (DNS esquentando / aperto de mão
-    // do provedor) antes de mostrar erro — some com o "erro feio" da 1ª execução.
+    // Repete em silêncio só o que é passageiro (DNS esquentando, aperto de mão do provedor,
+    // servidor ocupado). Arquivo inexistente, formato não suportado e acesso negado falham na hora:
+    // antes eram repetidos 6 vezes (~16 s) e o filme parecia "carregar para sempre".
     private val handshakeRetryPolicy =
         object : androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy() {
-            override fun getMinimumLoadableRetryCount(dataType: Int): Int = 6
+            override fun getMinimumLoadableRetryCount(dataType: Int): Int = if (mode == Mode.LIVE) 5 else 3
             override fun getRetryDelayMsFor(
                 info: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.LoadErrorInfo
-            ): Long = if (info.errorCount <= 6) minOf(800L * info.errorCount, 4000L)
-                      else C.TIME_UNSET
+            ): Long {
+                val (kind, _) = classify(info.exception)
+                return PlaybackErrors.retryDelayMs(kind, info.errorCount, mode == Mode.LIVE) ?: C.TIME_UNSET
+            }
         }
 
     /** Define cabeçalhos HTTP para os próximos streams (antes de play()). */
@@ -127,7 +135,7 @@ class PlayerController(
             // VOD: buffer folgado (até 90s) — zero rebuffer sem pesar a memória
             // da TV com streams 4K de bitrate alto.
             Mode.VOD -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(25_000, 90_000, 2_000, 4_000)
+                .setBufferDurationsMs(25_000, 90_000, 1_500, 3_000)   // começa com 1,5 s de vídeo
         }
             .setPrioritizeTimeOverSizeThresholds(true) // começa a tocar antes
             .build()
@@ -359,6 +367,30 @@ class PlayerController(
     } catch (_: Exception) { code }
 
     companion object {
+        /** Lê a cadeia de causas de um erro e diz de que tipo ele é (e o código HTTP, se houver). */
+        fun classify(error: Throwable?): Pair<PlaybackErrors.Kind, Int?> {
+            var code: Int? = null
+            var parser = false
+            var notFound = false
+            var net = false
+            var t = error
+            var depth = 0
+            while (t != null && depth++ < 8) {
+                when (t) {
+                    is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException -> code = t.responseCode
+                    is androidx.media3.common.ParserException -> parser = true
+                    is java.io.FileNotFoundException -> notFound = true
+                    is java.net.UnknownHostException, is java.net.SocketTimeoutException,
+                    is java.net.ConnectException, is java.net.SocketException,
+                    is javax.net.ssl.SSLException, is java.io.EOFException -> net = true
+                }
+                t = t.cause
+            }
+            if (code == null && !parser && !notFound && !net &&
+                error is androidx.media3.datasource.HttpDataSource.HttpDataSourceException) net = true
+            return PlaybackErrors.kindOf(code, parser, notFound, net) to code
+        }
+
         /** Modos de aspecto (RESIZE_MODE do PlayerView, rótulo). Índice usado nas Configurações. */
         val ASPECTS = listOf(
             androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT to "Ajustar",
