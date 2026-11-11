@@ -71,4 +71,6 @@ dependencies {
     implementation("androidx.leanback:leanback:1.0.0")
     // Carregamento de imagens (pôsteres de filmes/séries)
     implementation("io.coil-kt:coil:2.7.0")
+
+    testImplementation("junit:junit:4.13.2")
 }
