@@ -66,3 +66,15 @@ por plataforma (pendente: o usuário ainda não colou as categorias de séries).
 - Pendente: login Smarters (servidor/usuário/senha); download do M3U ainda usa HttpURLConnection
   (DNS do sistema) e pode falhar em silêncio; gêneros/Lançamentos por ano em modo API (os dados
   das listas TMDB já trazem `genre_ids` e ano); `get_vod_info` para detalhes.
+
+## Próxima tarefa: visual + nome "Landimflix" (pedido do usuário, 11/11/2026)
+- Referência visual: Figma "Gerenciador de Filmes (Community)", nó 3-376
+  (https://www.figma.com/design/k8bpT4yyYaGwsv5k18jAee/Gerenciador-de-Filmes--Community-?node-id=3-376).
+- Renomear o app para **Landimflix** com a logo que o usuário vai enviar (ainda não recebida).
+- NÃO mudar o `applicationId` (`com.seupainel.player`): trocar quebraria a atualização por cima
+  do app instalado e perderia favoritos/"Continuar". Muda só o nome exibido (`app_name`, rótulo do
+  launcher, banner da Android TV) e o ícone.
+- Fazer em sessão nova: ler o Figma via MCP (`create_session` antes de tudo), conferir tokens
+  (cores, tipografia, raios) e aplicar nos layouts XML sem quebrar foco por controle remoto/D-pad.
+- Antes de começar, pedir a logo (SVG ou PNG com fundo transparente, de preferência 1024px) e
+  confirmar o escopo (só Home + listas, ou o app todo).
