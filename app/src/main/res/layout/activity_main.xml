@@ -38,27 +38,14 @@
             android:scaleType="fitCenter"
             android:src="@drawable/logo_symbol" />
 
-        <TextView
+        <ImageView
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="26dp"
             android:layout_marginStart="14dp"
-            android:fontFamily="sans-serif-condensed"
+            android:adjustViewBounds="true"
             android:importantForAccessibility="no"
-            android:letterSpacing="0.06"
-            android:text="LANDIM"
-            android:textColor="@color/lf_text"
-            android:textSize="30sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-condensed"
-            android:importantForAccessibility="no"
-            android:letterSpacing="0.06"
-            android:text="FLIX"
-            android:textColor="@color/lf_accent"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+            android:scaleType="fitCenter"
+            android:src="@drawable/logo_wordmark" />
 
         <View
             android:layout_width="0dp"
@@ -75,10 +62,10 @@
                 android:id="@+id/clock_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-light"
+                android:fontFamily="@font/rajdhani_medium"
                 android:text="00:00"
                 android:textColor="@color/lf_text"
-                android:textSize="40sp" />
+                android:textSize="44sp" />
 
             <TextView
                 android:id="@+id/clock_date"
@@ -103,20 +90,21 @@
 
     <!-- Conteúdo: título e os três destinos -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical|start"
         android:layout_marginStart="56dp"
+        android:layout_marginEnd="56dp"
         android:layout_marginTop="40dp"
         android:orientation="vertical">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/rammetto_one"
             android:text="Explorar"
             android:textColor="@color/lf_text"
-            android:textSize="46sp" />
+            android:textSize="38sp" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -127,15 +115,16 @@
             android:textSize="20sp" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="32dp"
             android:orientation="horizontal">
 
             <LinearLayout
                 android:id="@+id/card_live"
-                android:layout_width="300dp"
-                android:layout_height="180dp"
+                android:layout_width="0dp"
+                android:layout_height="150dp"
+                android:layout_weight="1"
                 android:layout_marginStart="0dp"
                 android:background="@drawable/tile_bg"
                 android:focusable="true"
@@ -161,10 +150,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:duplicateParentState="true"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/rajdhani_semibold"
                     android:text="TV ao vivo"
                     android:textColor="@color/card_text"
-                    android:textSize="26sp" />
+                    android:textSize="30sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -177,8 +166,9 @@
             </LinearLayout>
             <LinearLayout
                 android:id="@+id/card_filmes"
-                android:layout_width="300dp"
-                android:layout_height="180dp"
+                android:layout_width="0dp"
+                android:layout_height="150dp"
+                android:layout_weight="1"
                 android:layout_marginStart="24dp"
                 android:background="@drawable/tile_bg"
                 android:focusable="true"
@@ -204,10 +194,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:duplicateParentState="true"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/rajdhani_semibold"
                     android:text="Filmes"
                     android:textColor="@color/card_text"
-                    android:textSize="26sp" />
+                    android:textSize="30sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -220,8 +210,9 @@
             </LinearLayout>
             <LinearLayout
                 android:id="@+id/card_series"
-                android:layout_width="300dp"
-                android:layout_height="180dp"
+                android:layout_width="0dp"
+                android:layout_height="150dp"
+                android:layout_weight="1"
                 android:layout_marginStart="24dp"
                 android:background="@drawable/tile_bg"
                 android:focusable="true"
@@ -247,10 +238,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:duplicateParentState="true"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/rajdhani_semibold"
                     android:text="Séries"
                     android:textColor="@color/card_text"
-                    android:textSize="26sp" />
+                    android:textSize="30sp" />
 
                 <TextView
                     android:layout_width="wrap_content"

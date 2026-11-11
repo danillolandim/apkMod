@@ -1,47 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Cartão no estilo "Movie Card" do Figma: cartaz inteiro, degradê embaixo, selo de nota e textos sobre o cartaz. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="5dp">
+    android:layout_height="172dp"
+    android:background="@drawable/poster_card_bg"
+    android:clipToOutline="true">
 
-    <FrameLayout
+    <ImageView
+        android:id="@+id/poster"
         android:layout_width="match_parent"
-        android:layout_height="185dp">
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="Cartaz" />
 
-        <ImageView
-            android:id="@+id/poster"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:background="#0E141B"
-            android:contentDescription="Cartaz" />
-
-        <TextView
-            android:id="@+id/poster_rating"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top|end"
-            android:layout_margin="6dp"
-            android:paddingLeft="7dp"
-            android:paddingRight="7dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:background="@drawable/rating_bg"
-            android:textColor="#FFD200"
-            android:textStyle="bold"
-            android:textSize="12sp"
-            android:visibility="gone" />
-    </FrameLayout>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/poster_gradient" />
 
     <TextView
-        android:id="@+id/poster_title"
+        android:id="@+id/poster_rating"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="6dp"
+        android:background="@drawable/rating_bg"
+        android:fontFamily="@font/rajdhani_bold"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:textColor="@color/lf_text"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:lines="2"
-        android:ellipsize="end"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:gravity="center" />
-</LinearLayout>
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:paddingStart="9dp"
+        android:paddingEnd="9dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/poster_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/rajdhani_bold"
+            android:maxLines="2"
+            android:textColor="@color/lf_text"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/poster_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/lf_text_2"
+            android:textSize="10sp"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>

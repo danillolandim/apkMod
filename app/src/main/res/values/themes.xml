@@ -2,6 +2,7 @@
     <style name="Theme.Player" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
+        <item name="android:fontFamily">@font/nunito_sans</item>
         <item name="android:windowBackground">@color/lf_bg</item>
         <item name="colorAccent">@color/lf_accent</item>
         <item name="colorControlNormal">@color/lf_text_3</item>
@@ -42,7 +43,7 @@
         <item name="android:paddingRight">16dp</item>
         <item name="android:paddingTop">14dp</item>
         <item name="android:paddingBottom">14dp</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">@font/rajdhani_semibold</item>
         <item name="android:textColor">@color/card_text</item>
         <item name="android:textSize">15sp</item>
         <item name="android:lineSpacingExtra">2dp</item>
@@ -56,7 +57,7 @@
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
         <item name="android:defaultFocusHighlightEnabled">false</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">@font/rajdhani_semibold</item>
         <item name="android:textColor">@color/card_text</item>
         <item name="android:textSize">16sp</item>
         <item name="android:paddingLeft">24dp</item>
@@ -111,6 +112,20 @@
     <style name="TvButton.Primary" parent="TvButton">
         <item name="android:background">@drawable/btn_primary_bg</item>
         <item name="android:textColor">#FFFFFF</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">@font/rajdhani_semibold</item>
+    </style>
+
+    <!-- Aba da barra superior (TV ao vivo / Filmes / Séries / Favoritos / Buscar) -->
+    <style name="NavTab" parent="TvButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/nav_tab_bg</item>
+        <item name="android:textColor">@color/nav_tab_text</item>
+        <item name="android:fontFamily">@font/rajdhani_semibold</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
     </style>
 </resources>

@@ -27,7 +27,7 @@
             android:id="@+id/ch_item_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/lf_text"
             android:textSize="16sp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -36,7 +36,7 @@
             android:id="@+id/ch_item_epg"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#8A97A6"
+            android:textColor="@color/lf_text_3"
             android:textSize="13sp"
             android:maxLines="1"
             android:ellipsize="end"

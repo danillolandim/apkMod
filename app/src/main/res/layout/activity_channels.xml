@@ -2,102 +2,154 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0E14">
+    android:background="@drawable/wallpaper_landimflix">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="28dp">
+        android:padding="24dp">
 
-        <!-- Barra de navegação (seções) -->
+        <!-- Barra superior: marca, seções (abas) e situação -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <Button android:id="@+id/nav_canais" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="TV ao vivo" android:textSize="16sp" />
-            <Button android:id="@+id/nav_filmes" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="10dp" android:text="Filmes" android:textSize="16sp" />
-            <Button android:id="@+id/nav_series" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="10dp" android:text="Séries" android:textSize="16sp" />
-            <Button android:id="@+id/nav_fav" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="10dp" android:text="★ Favoritos" android:textSize="16sp" />
-            <Button android:id="@+id/nav_search" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="10dp" android:text="🔍 Buscar" android:textSize="16sp" />
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="36dp"
+                android:adjustViewBounds="true"
+                android:contentDescription="Landimflix"
+                android:scaleType="fitCenter"
+                android:src="@drawable/logo_symbol" />
 
-            <TextView android:id="@+id/status" android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="16dp" android:gravity="end"
-                android:textColor="#9AA4AE" android:textSize="13sp" />
+            <Button android:id="@+id/nav_canais" style="@style/NavTab" android:layout_marginStart="22dp" android:text="TV ao vivo" />
+            <Button android:id="@+id/nav_filmes" style="@style/NavTab" android:layout_marginStart="6dp" android:text="Filmes" />
+            <Button android:id="@+id/nav_series" style="@style/NavTab" android:layout_marginStart="6dp" android:text="Séries" />
+            <Button android:id="@+id/nav_fav" style="@style/NavTab" android:layout_marginStart="6dp" android:text="Favoritos" />
+            <Button android:id="@+id/nav_search" style="@style/NavTab" android:layout_marginStart="6dp" android:text="Buscar" />
+
+            <TextView
+                android:id="@+id/status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:gravity="end"
+                android:maxLines="1"
+                android:textColor="@color/lf_text_3"
+                android:textSize="12sp" />
         </LinearLayout>
+
+        <!-- Título da seção (como o "Explorar" do Figma) -->
+        <TextView
+            android:id="@+id/section_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/rammetto_one"
+            android:text="Explorar"
+            android:textColor="@color/lf_text"
+            android:textSize="22sp" />
 
         <EditText
             android:id="@+id/search"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:hint="Buscar nesta seção…"
+            android:hint="Pesquisar nesta seção…"
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:singleLine="true"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#667080"
+            android:textColor="@color/lf_text"
+            android:textColorHint="@color/lf_text_3"
             android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
             android:layout_marginTop="14dp"
+            android:layout_weight="1"
             android:orientation="horizontal">
 
+            <!-- Categorias -->
             <ListView
                 android:id="@+id/groups"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="0.7"
-                android:background="#121A26"
-                android:nextFocusRight="@+id/channels" />
+                android:layout_weight="0.85"
+                android:background="@drawable/panel_bg"
+                android:choiceMode="singleChoice"
+                android:clipToPadding="false"
+                android:divider="@null"
+                android:dividerHeight="0dp"
+                android:drawSelectorOnTop="true"
+                android:listSelector="@drawable/list_selector"
+                android:nextFocusRight="@+id/channels"
+                android:padding="8dp" />
 
             <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="3.4"
-                android:layout_marginStart="14dp">
+                android:layout_marginStart="16dp"
+                android:layout_weight="3.4">
 
                 <ListView
                     android:id="@+id/channels"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="#121A26"
-                    android:nextFocusLeft="@+id/groups" />
+                    android:background="@drawable/panel_bg"
+                    android:clipToPadding="false"
+                    android:divider="@null"
+                    android:dividerHeight="0dp"
+                    android:drawSelectorOnTop="true"
+                    android:listSelector="@drawable/list_selector"
+                    android:nextFocusLeft="@+id/groups"
+                    android:padding="8dp" />
 
                 <GridView
                     android:id="@+id/channels_grid"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="#121A26"
-                    android:numColumns="6"
-                    android:horizontalSpacing="10dp"
-                    android:verticalSpacing="10dp"
-                    android:padding="10dp"
                     android:clipToPadding="false"
-                    android:focusable="true"
-                    android:listSelector="@drawable/grid_selector"
                     android:drawSelectorOnTop="true"
+                    android:focusable="true"
+                    android:horizontalSpacing="12dp"
+                    android:listSelector="@drawable/grid_selector"
                     android:nextFocusLeft="@+id/groups"
+                    android:numColumns="6"
+                    android:padding="4dp"
+                    android:verticalSpacing="12dp"
                     android:visibility="gone" />
 
-                <TextView
+                <!-- Estado vazio: ícone + frase -->
+                <LinearLayout
                     android:id="@+id/empty"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:text="Nada aqui"
-                    android:textColor="#667080"
-                    android:visibility="gone" />
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_movie"
+                        android:tint="@color/lf_text_3" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="Nada por aqui. Que tal tentar outra categoria?"
+                        android:textColor="@color/lf_text_3"
+                        android:textSize="14sp" />
+                </LinearLayout>
             </FrameLayout>
         </LinearLayout>
     </LinearLayout>
@@ -107,23 +159,10 @@
         android:id="@+id/loading"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#05080D"
+        android:background="@drawable/wallpaper_landimflix"
+        android:clickable="true"
         android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:clickable="true">
-
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:alpha="0.5"
-            android:src="@drawable/wallpaper"
-            android:contentDescription="@null" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/scrim" />
+        android:focusableInTouchMode="true">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -131,29 +170,28 @@
             android:gravity="center"
             android:orientation="vertical">
 
-            <TextView
+            <ImageView
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-light"
-                android:text="@string/app_name"
-                android:textColor="@color/card_text"
-                android:textSize="40sp" />
+                android:layout_height="150dp"
+                android:adjustViewBounds="true"
+                android:contentDescription="Landimflix"
+                android:scaleType="fitCenter"
+                android:src="@drawable/logo_full" />
 
             <ProgressBar
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginTop="28dp"
-                android:indeterminateTint="#64D2FF" />
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginTop="24dp"
+                android:indeterminateTint="@color/lf_accent" />
 
             <TextView
                 android:id="@+id/loading_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:fontFamily="sans-serif"
+                android:layout_marginTop="18dp"
                 android:text="Aguarde, carregando o conteúdo…"
-                android:textColor="#C7D0DA"
-                android:textSize="18sp" />
+                android:textColor="@color/lf_text_2"
+                android:textSize="16sp" />
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>

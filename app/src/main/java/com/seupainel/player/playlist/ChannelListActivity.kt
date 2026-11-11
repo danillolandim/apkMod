@@ -142,6 +142,7 @@ class ChannelListActivity : FragmentActivity() {
         // não só ao clicar. O clique apenas pula o foco para o conteúdo.
         groupsView.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                groupsView.setItemChecked(pos, true)   // marca a categoria atual (item "ativado")
                 val g = groups.getOrNull(pos)
                 if (g != null && g != (currentSub ?: ALL_SEC)) selectSub(g)
             }
@@ -419,7 +420,7 @@ class ChannelListActivity : FragmentActivity() {
     }
 
     /** Rótulo na tela: o painel prefixa as categorias ("Filmes | Netflix"); a chave interna continua inteira. */
-    private fun groupsAdapter() = ArrayAdapter(this, android.R.layout.simple_list_item_1,
+    private fun groupsAdapter() = ArrayAdapter(this, R.layout.item_group, R.id.group_text,
         groups.map { if (apiOrderOf(currentSection).isNotEmpty()) it.substringAfter(" | ", it) else it })
 
     /**
@@ -499,6 +500,12 @@ class ChannelListActivity : FragmentActivity() {
 
     private fun selectSection(sec: Sec) {
         currentSection = sec
+        findViewById<TextView>(R.id.section_title).text = when (sec) {
+            Sec.CANAIS -> "TV ao vivo"; Sec.FILMES -> "Filmes"; Sec.SERIES -> "Séries"; Sec.FAV -> "Favoritos"
+        }
+        mapOf(R.id.nav_canais to Sec.CANAIS, R.id.nav_filmes to Sec.FILMES,
+              R.id.nav_series to Sec.SERIES, R.id.nav_fav to Sec.FAV)
+            .forEach { (id, s) -> findViewById<View>(id).isSelected = (s == sec) }
         search.setText("")
         search.visibility = View.GONE
         val subs = (sectionGroups[sec] ?: emptyList()).sortedBy { it.lowercase() }
@@ -943,6 +950,7 @@ class ChannelListActivity : FragmentActivity() {
             val s = items[position]
             h.key = s.title
             h.title.text = s.title
+            h.meta.visibility = View.GONE
             if (s.apiId > 0) {   // série da API: cartaz e nota do próprio painel
                 if (s.rating > 0) { h.badge.text = "★ ${"%.1f".format(s.rating)}"; h.badge.visibility = View.VISIBLE }
                 else h.badge.visibility = View.GONE
@@ -1046,6 +1054,7 @@ class ChannelListActivity : FragmentActivity() {
         val title: TextView = root.findViewById(R.id.poster_title)
         val poster: android.widget.ImageView = root.findViewById(R.id.poster)
         val badge: TextView = root.findViewById(R.id.poster_rating)
+        val meta: TextView = root.findViewById(R.id.poster_meta)
         var key: String = ""   // identidade para casar o callback assíncrono
     }
 
@@ -1061,6 +1070,9 @@ class ChannelListActivity : FragmentActivity() {
             val ch = items[position]
             h.key = ch.url
             h.title.text = ch.name
+            val metaText = if (ch.kind != null) ch.group.substringAfter(" | ", ch.group) else ""
+            h.meta.text = metaText
+            h.meta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
             if (ch.kind != null) { bindApi(h, ch); return v }
             val series = currentIsSeries()
 

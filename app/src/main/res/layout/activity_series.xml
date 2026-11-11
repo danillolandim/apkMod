@@ -39,7 +39,7 @@
             android:id="@+id/s_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/rajdhani_semibold"
             android:textColor="#FFFFFF"
             android:textSize="30sp"
             android:maxLines="2"

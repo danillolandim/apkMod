@@ -27,7 +27,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-light"
+            android:fontFamily="@font/rajdhani_medium"
             android:text="@string/app_name"
             android:textColor="@color/card_text"
             android:textSize="44sp" />
@@ -52,7 +52,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:fontFamily="sans-serif-light"
+            android:fontFamily="@font/rajdhani_medium"
             android:text="lista, filmes e séries"
             android:textColor="#7E8893"
             android:textSize="14sp" />

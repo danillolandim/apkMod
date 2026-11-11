@@ -36,12 +36,13 @@ https://www.figma.com/design/k8bpT4yyYaGwsv5k18jAee/Gerenciador-de-Filmes--Commu
 - Cartaz: degradê escuro de baixo para cima sob título e "Gênero • Ano".
 - Detalhe: capa com brilho (glow) e o próprio cartaz desfocado e escurecido como fundo da tela.
 - Contrastes calculados por script (WCAG): texto discreto 4,68:1 no fundo e 4,52:1 no `lf_surface`
-  (passa por pouco: não usar abaixo de 18sp), acento 4,84:1, branco sobre `lf_primary` 6,35:1.
+  (passa por pouco: só para texto de apoio, nunca para ações), acento 4,84:1, branco sobre `lf_primary` 6,35:1.
 
-## Tipografia (a confirmar)
-- Títulos: sans geométrica/arredondada em negrito (parecida com Lexend, Rubik ou Sora). Corpo:
-  humanista (parecida com Nunito Sans). **Confirmar nos estilos de texto do Figma.**
-- A TV é offline-first: embutir as fontes em `res/font`, sem baixar em tempo de execução.
+## Tipografia (confirmada no guia de estilo do Figma)
+- **Display** (títulos grandes, ex.: "Explorar"): Rammetto One. **Títulos** (cartões, rótulos, abas):
+  Rajdhani (Medium/SemiBold/Bold). **Corpo**: Nunito Sans (Regular/Bold). Todas Google Fonts (OFL),
+  embutidas em `res/font` (a TV é offline-first). Licenças em `docs/LICENCAS-FONTES.md`.
+- Rajdhani é mais estreita que a fonte do sistema: pede ~1–2sp a mais no mesmo papel.
 
 ## Medidas do desenho (desktop 1366×768, referência de proporção)
 - Navbar 80 · margem lateral 88 · campo e botão 48 de altura · avatar 48.
@@ -50,11 +51,16 @@ https://www.figma.com/design/k8bpT4yyYaGwsv5k18jAee/Gerenciador-de-Filmes--Commu
 - Ícones: família Phosphor (FilmSlate, Popcorn, Star, MagnifyingGlass, SignOut).
 
 ## Tradução para Android TV (interface a 3 m, controle remoto)
-- Área segura 48dp. Corpo ≥ 18sp, subtítulos ≥ 22sp, títulos 28–34sp.
-- Sem hover: **foco é tudo**. Foco = escala ~1,06 + borda 3dp `lf_accent` + glow; ordem de D-pad
-  previsível; nada de alvo menor que 48dp. Respeitar `prefers-reduced-motion` (animação desligada).
-- Densidade da grade: manter a de hoje (6 por linha, ajustada para rolagem) em vez dos 4 do Figma.
-- Estados em toda tela: padrão, carregando (esqueleto), vazio (ícone + frase + ação), erro, foco.
+- **Tamanho lógico da tela: ~960×540dp (estimado)**, deduzido do layout antigo (grade de 6 colunas
+  com ~116dp e cartões de 240dp); a TV 4K parece usar densidade 640dpi. **Confirmar por print da TV.**
+  Por isso: larguras por peso (nunca 300dp fixo para 3 itens), textos de corpo 12–16sp, títulos
+  de seção 20–38sp, alvo de foco ≥ 40dp, margem de segurança ~28–56dp.
+- Sem hover: **foco é tudo**. Foco = roxo da marca (botões/abas/cartões) ou anel `lf_accent` 2–3dp
+  (grade/listas); ordem de D-pad previsível. Animação só de escala ≤ 4% em ~140 ms e desligada quando o
+  Android está sem animações.
+- Grade: 6 por linha (rolagem ajustada), cartão ~109dp × 172dp com cartaz inteiro, degradê embaixo,
+  selo de nota no canto e título + categoria sobre o cartaz.
+- Estados em toda tela: padrão, carregando, vazio (ícone + frase), erro, foco.
 
 ## Mapa Figma → app
 | Figma | App |
@@ -70,5 +76,5 @@ https://www.figma.com/design/k8bpT4yyYaGwsv5k18jAee/Gerenciador-de-Filmes--Commu
   Configurações, Splash.
 
 ## Pendências
-1. Logo do usuário. 2. Fontes e raios exatos (Figma). 3. Conferir a licença do arquivo Community
+1. (feito) Logo. 2. Raios exatos (Figma). 3. Conferir a licença do arquivo Community
 (muitos pedem crédito ao autor). 4. Validar foco e leitura na TV real: não há emulador neste Mac.
