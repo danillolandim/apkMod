@@ -55,6 +55,11 @@ class PlaylistStore(context: Context) {
         get() = prefs.getInt("channel_count", 0)
         set(v) = prefs.edit().putInt("channel_count", v).apply()
 
+    /** Formato da URL dos canais ao vivo ("{id}" no lugar do número), copiado da lista M3U e guardado. */
+    var liveUrlTemplate: String?
+        get() = prefs.getString("live_url_template", null)
+        set(v) = prefs.edit().putString("live_url_template", v).apply()
+
     /** Última URL efetivamente carregada (atalho para a tela inicial). */
     var lastUrl: String?
         get() = prefs.getString("last_url", null)

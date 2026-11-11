@@ -132,6 +132,7 @@ class SettingsActivity : FragmentActivity() {
             val newConfig = config.text.toString().trim().ifBlank { null }
             if (newUrl != store.playlistUrl || newConfig != store.configUrl) {
                 com.seupainel.player.playlist.PlaylistHolder.clear()   // lista mudou
+                com.seupainel.player.playlist.XtreamCatalog.clearCaches(applicationContext, store)   // conta mudou: catálogo antigo não vale
             }
             store.playlistUrl = newUrl
             store.configUrl = newConfig
@@ -175,6 +176,7 @@ class SettingsActivity : FragmentActivity() {
 
         findViewById<Button>(R.id.set_clear_cache).setOnClickListener {
             store.clearCache(); com.seupainel.player.playlist.PlaylistHolder.clear()
+            com.seupainel.player.playlist.XtreamCatalog.clearCaches(applicationContext, store)
             info.text = statusText()
             Toast.makeText(this, "Cache limpo", Toast.LENGTH_SHORT).show()
         }
@@ -204,6 +206,7 @@ class SettingsActivity : FragmentActivity() {
         val newConfig = findViewById<EditText>(R.id.set_config).text.toString().trim().ifBlank { null }
         if (newUrl != store.playlistUrl || newConfig != store.configUrl) {
             com.seupainel.player.playlist.PlaylistHolder.clear()
+            com.seupainel.player.playlist.XtreamCatalog.clearCaches(applicationContext, store)
         }
         store.playlistUrl = newUrl
         store.configUrl = newConfig

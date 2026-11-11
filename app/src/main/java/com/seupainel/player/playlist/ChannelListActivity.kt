@@ -195,6 +195,27 @@ class ChannelListActivity : FragmentActivity() {
         startLoadingAnim()
         status.text = "Carregando…"
 
+        // Caminho rápido: catálogos da API já em disco -> abre direto, sem interpretar a lista M3U.
+        val apiFirst = fromSettings && !force && XtreamCatalog.canSkipPlaylist(this, store)
+        if (apiFirst) {
+            thread(name = "playlist-api-first") {
+                val raw = PlaylistHolder.channels.orEmpty()
+                val merged = mergeApi(raw)
+                val complete = apiOrder.isNotEmpty() && apiOrderSeries.isNotEmpty() && apiOrderLive.isNotEmpty()
+                runOnUiThread {
+                    if (complete) {
+                        findViewById<View>(R.id.loading).visibility = View.GONE
+                        show(merged, raw)
+                    } else legacyStart(fromSettings, force)   // algo faltou: segue pelo caminho completo
+                }
+            }
+        } else legacyStart(fromSettings, force)
+    }
+
+    /** Caminho completo: usa/baixa a lista M3U e (se ligada) troca as seções pelas da API. */
+    private fun legacyStart(fromSettings: Boolean, force: Boolean) {
+        // Em modo API a lista M3U não é necessária: não baixa nem reinterpreta 12 MB a cada atualização.
+        val apiMode = com.seupainel.player.AppSettings(this).useXtream && XtreamCatalog.cachesReady(this)
         val preloaded = PlaylistHolder.channels
         if (fromSettings && preloaded != null && !force) {
             // Já veio pronto do Splash -> abre instantâneo, sem tela de carregando.
@@ -206,7 +227,7 @@ class ChannelListActivity : FragmentActivity() {
                 val merged = mergeApi(preloaded)      // lê o cache da API (ou baixa na 1ª vez)
                 runOnUiThread { show(merged, preloaded) }
             }
-            if (!store.cacheFresh()) resolveAndLoad(silent = true)
+            if (!store.cacheFresh() && !apiMode) resolveAndLoad(silent = true)
         } else if (fromSettings) {
             // 1) Tem cache? Mostra IMEDIATAMENTE (parse em 2º plano).
             val hasCache = store.readCache() != null
@@ -218,7 +239,7 @@ class ChannelListActivity : FragmentActivity() {
                         val merged = mergeApi(res.channels)
                         runOnUiThread { show(merged, res.channels); status.text = "${merged.size} itens (cache)" }
                         // 2) Se o cache está velho, atualiza em silêncio por trás.
-                        if (!store.cacheFresh()) resolveAndLoad(silent = true)
+                        if (!store.cacheFresh() && !apiMode) resolveAndLoad(silent = true)
                     } else {
                         runOnUiThread { resolveAndLoad() }
                     }
@@ -448,7 +469,7 @@ class ChannelListActivity : FragmentActivity() {
     /** [raw] = lista M3U crua, guardada no PlaylistHolder (sem os filmes da API). */
     private fun show(channels: List<M3uParser.Channel>, raw: List<M3uParser.Channel> = channels) {
         all = channels
-        PlaylistHolder.channels = raw               // mantém a memória compartilhada em dia
+        if (raw.isNotEmpty()) PlaylistHolder.channels = raw   // mantém a memória compartilhada em dia (nunca troca por vazio)
         // Particiona por seção em 2º plano -> filtros/categorias ficam instantâneos.
         thread(name = "partition") {
             val m = HashMap<Sec, MutableList<M3uParser.Channel>>()

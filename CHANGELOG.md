@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Abertura bem mais rápida: com os catálogos da API já em cache, o app não interpreta mais a lista M3U inteira (12 MB, ~47 mil itens) e abre Filmes, Séries e TV direto do cache. A abertura mostra a marca e entra na Home em instantes. Na primeira abertura depois desta atualização o app ainda lê a lista uma vez (para guardar o formato das URLs dos canais); da segunda em diante abre rápido. Trocar de conta ou limpar o cache nas Configurações apaga também o catálogo antigo.
 - Reprodução mais rápida e sem "carregar para sempre": quando um vídeo não existe mais no servidor, está num formato que a TV não abre ou o acesso foi recusado, a falha aparece em poucos segundos com o motivo em português (antes o app repetia até mais de 1 minuto). Só o que é passageiro (rede, servidor ocupado) é repetido, com espera curta. Se o decodificador da TV falhar, o app tenta sozinho um modo de compatibilidade.
 - A conexão com o servidor do filme é aberta enquanto você lê a sinopse, então o Assistir começa mais rápido. Trabalhos de fundo (catálogo, notas do TMDB) esperam enquanto um vídeo toca.
 - Configurações > Testar API agora mostra a situação da conta: ativa, validade e conexões em uso (conta com limite de conexões é uma causa comum de vídeo que não abre).

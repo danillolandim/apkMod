@@ -68,7 +68,7 @@ object XtreamCatalog {
             val ua = store.userAgent
 
             if (!listFile.exists() || listFile.length() < 3) {
-                val r = runCatching { fetchAndStore(kind, acc, ua, listFile, catFile, raw) }
+                val r = runCatching { fetchAndStore(kind, acc, ua, listFile, catFile, raw, store) }
                 r.exceptionOrNull()?.let {
                     parts[kind.label] = "${kind.label} ✗ ${XtreamApi.describe(it)} (usando M3U)"
                     return null
@@ -82,7 +82,7 @@ object XtreamCatalog {
                 Thread({
                     try {
                         com.seupainel.player.net.Net.awaitIdle()   // não disputa a rede com um vídeo
-                        runCatching { fetchAndStore(kind, acc, ua, listFile, catFile, raw) }
+                        runCatching { fetchAndStore(kind, acc, ua, listFile, catFile, raw, store) }
                     }
                     finally { refreshing.getValue(kind).set(false) }
                 }, "xtream-refresh-${kind.tag}").start()
@@ -91,7 +91,7 @@ object XtreamCatalog {
             memos[kind]?.let {
                 if (it.stamp == stamp) { parts[kind.label] = "${kind.label} ✓ ${it.section.channels.size}"; return it.section }
             }
-            val built = runCatching { build(kind, acc, listFile, catFile, raw) }.getOrNull()
+            val built = runCatching { build(kind, acc, listFile, catFile, raw, store) }.getOrNull()
             if (built == null) {
                 parts[kind.label] = "${kind.label} ✗ cache ilegível (usando M3U)"
                 return null
@@ -104,14 +104,14 @@ object XtreamCatalog {
     /** Baixa para arquivos temporários e só troca o cache se o catálogo novo for válido. */
     private fun fetchAndStore(
         kind: Kind, acc: XtreamApi.Account, ua: String?, listFile: File, catFile: File,
-        raw: List<M3uParser.Channel>,
+        raw: List<M3uParser.Channel>, store: PlaylistStore,
     ): Section? {
         val tmpList = File(listFile.path + ".tmp")
         val tmpCat = File(catFile.path + ".tmp")
         try {
             XtreamApi.downloadTo(XtreamApi.apiUrl(acc, kind.catAction), ua, tmpCat)
             XtreamApi.downloadTo(XtreamApi.apiUrl(acc, kind.listAction), ua, tmpList)
-            val built = build(kind, acc, tmpList, tmpCat, raw)
+            val built = build(kind, acc, tmpList, tmpCat, raw, store)
             if (built == null || built.channels.isEmpty()) return null
             tmpCat.renameTo(catFile)
             if (!tmpList.renameTo(listFile)) return null
@@ -129,6 +129,7 @@ object XtreamCatalog {
 
     private fun build(
         kind: Kind, acc: XtreamApi.Account, listFile: File, catFile: File, raw: List<M3uParser.Channel>,
+        store: PlaylistStore,
     ): Section? {
         val cats = if (catFile.exists()) XtreamApi.parseCategories(catFile) else emptyList()
         val nameById = cats.associate { it.id to it.name }
@@ -158,7 +159,12 @@ object XtreamCatalog {
                 ))
             }
             Kind.LIVE -> {
-                val template = liveTemplate(acc, raw)
+                // Formato da URL: copiado de um canal da lista M3U quando ela está carregada; senão o último
+                // guardado (assim dá para dispensar o M3U na abertura sem mudar as URLs dos Favoritos).
+                val found = findLiveTemplate(acc, raw)
+                if (found != null) store.liveUrlTemplate = found
+                val saved = store.liveUrlTemplate?.takeIf { it.contains("/${acc.user}/${acc.pass}/") && it.contains("{id}") }
+                val template = found ?: saved ?: liveTemplate(acc, emptyList())
                 for (l in XtreamApi.parseLive(listFile)) {
                     if (l.isAdult || l.categoryId in hidden) continue
                     val group = nameById[l.categoryId] ?: others
@@ -184,7 +190,11 @@ object XtreamCatalog {
      * "/live/", com ".ts", ".m3u8" ou sem extensão). Assim a URL fica idêntica à de antes e os
      * Favoritos (guardados pela URL) continuam valendo.
      */
-    internal fun liveTemplate(acc: XtreamApi.Account, raw: List<M3uParser.Channel>): String {
+    internal fun liveTemplate(acc: XtreamApi.Account, raw: List<M3uParser.Channel>): String =
+        findLiveTemplate(acc, raw) ?: "${acc.base}/live/${acc.user}/${acc.pass}/{id}.ts"
+
+    /** O mesmo formato, mas null quando a lista não traz nenhum canal ao vivo de amostra. */
+    internal fun findLiveTemplate(acc: XtreamApi.Account, raw: List<M3uParser.Channel>): String? {
         val marker = "/${acc.user}/${acc.pass}/"
         for (ch in raw) {
             if (!ch.isLive) continue
@@ -194,6 +204,33 @@ object XtreamCatalog {
             val ext = tail.substringAfter('.', "").substringBefore('?')
             return ch.url.substring(0, i) + marker + "{id}" + if (ext.isNotEmpty()) ".$ext" else ""
         }
-        return "${acc.base}/live/${acc.user}/${acc.pass}/{id}.ts"
+        return null
+    }
+
+    /** Apaga os catálogos em cache (troca de conta ou "limpar cache"): a próxima abertura baixa de novo. */
+    fun clearCaches(ctx: Context, store: PlaylistStore) {
+        memos.clear()
+        Kind.values().forEach {
+            File(ctx.filesDir, it.file + ".json").delete()
+            File(ctx.filesDir, it.file + "_cats.json").delete()
+        }
+        store.liveUrlTemplate = null
+    }
+
+    /** Os três catálogos estão em disco? */
+    fun cachesReady(ctx: Context): Boolean = Kind.values().all { hasCache(ctx, it) }
+
+    /**
+     * Dá para abrir tudo só com o cache da API, sem interpretar a lista M3U (12 MB)? Precisa da API ligada,
+     * dos três catálogos em disco, do formato das URLs ao vivo guardado e de uma conta derivável da URL.
+     */
+    fun canSkipPlaylist(ctx: Context, store: PlaylistStore): Boolean =
+        com.seupainel.player.AppSettings(ctx).useXtream && cachesReady(ctx) && store.liveUrlTemplate != null &&
+            (XtreamApi.accountFrom(store.lastUrl) ?: XtreamApi.accountFrom(store.playlistUrl)) != null
+
+    /** Carrega (do cache) os três catálogos em paralelo para a memória. Bloqueia. */
+    fun warm(ctx: Context, store: PlaylistStore, raw: List<M3uParser.Channel>) {
+        Kind.values().map { k -> Thread({ runCatching { load(k, ctx, store, raw) } }, "xtream-warm-${k.tag}").also { it.start() } }
+            .forEach { it.join() }
     }
 }

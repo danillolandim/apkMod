@@ -8,5 +8,8 @@ package com.seupainel.player.playlist
 object PlaylistHolder {
     @Volatile var channels: List<M3uParser.Channel>? = null
 
+    /** A pré-carga da abertura terminou (lista M3U e/ou catálogos da API já em memória). */
+    @Volatile var preloadDone = false
+
     fun clear() { channels = null }
 }

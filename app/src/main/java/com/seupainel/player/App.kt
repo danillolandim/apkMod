@@ -45,14 +45,23 @@ class App : Application(), ImageLoaderFactory {
         // qualquer seção seja instantâneo (não depende do Splash ter rodado).
         thread(name = "app-preload") {
             runCatching {
-                if (PlaylistHolder.channels == null) {
-                    val cache = PlaylistStore(this).readCache()
-                    if (cache != null) {
-                        val res = M3uParser.parse(cache)
-                        if (res is M3uParser.Result.Playlist) PlaylistHolder.channels = res.channels
+                val store = PlaylistStore(this)
+                if (com.seupainel.player.playlist.XtreamCatalog.canSkipPlaylist(this, store)) {
+                    // Catálogos da API já em disco: não interpreta o M3U (12 MB, ~47 mil itens), só aquece a memória.
+                    com.seupainel.player.playlist.XtreamCatalog.warm(this, store, emptyList())
+                } else {
+                    if (PlaylistHolder.channels == null) {
+                        val cache = store.readCache()
+                        if (cache != null) {
+                            val res = M3uParser.parse(cache)
+                            if (res is M3uParser.Result.Playlist) PlaylistHolder.channels = res.channels
+                        }
                     }
+                    if (AppSettings(this).useXtream)
+                        com.seupainel.player.playlist.XtreamCatalog.warm(this, store, PlaylistHolder.channels.orEmpty())
                 }
             }
+            PlaylistHolder.preloadDone = true
         }
     }
 

@@ -25,16 +25,16 @@ class SplashActivity : FragmentActivity() {
         if (AppSettings(this).autoUpdate) Updater.check(this, silent = true)
 
         val startAt = System.currentTimeMillis()
-        val expectCache = PlaylistStore(this).hasCache()
+        val expectCache = PlaylistStore(this).hasCache() || com.seupainel.player.playlist.XtreamCatalog.cachesReady(this)
         thread(name = "splash-wait") {
             // O App já inicia o parse ao subir o processo; aqui só esperamos ele
             // terminar (com teto), para que as seções abram instantâneas depois.
-            while (expectCache && PlaylistHolder.channels == null &&
+            while (expectCache && !PlaylistHolder.preloadDone &&
                 System.currentTimeMillis() - startAt < 6000
             ) runCatching { Thread.sleep(60) }
             // mantém a animação visível por um tempo mínimo agradável (curto)
             val elapsed = System.currentTimeMillis() - startAt
-            if (elapsed < 450) runCatching { Thread.sleep(450 - elapsed) }
+            if (elapsed < 300) runCatching { Thread.sleep(300 - elapsed) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 startActivity(Intent(this, MainActivity::class.java))
