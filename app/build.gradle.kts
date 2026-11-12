@@ -19,6 +19,14 @@ android {
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
+    // Valores de fábrica injetados na compilação (segredos do GitHub Actions). Nada disto fica no código-fonte.
+    // Vazios em builds locais ou forks: o app então pede o servidor na tela de entrada.
+    fun envString(name: String) = (System.getenv(name) ?: "").trim().replace("\\", "").replace("\"", "")
+    defaultConfig {
+        buildConfigField("String", "DEFAULT_SERVER", "\"${envString("DEFAULT_SERVER")}\"")
+        buildConfigField("String", "DEFAULT_TMDB_KEY", "\"${envString("DEFAULT_TMDB_KEY")}\"")
+    }
+
     buildFeatures { buildConfig = true }
 
     signingConfigs {
@@ -73,4 +81,6 @@ dependencies {
     implementation("io.coil-kt:coil:2.7.0")
 
     testImplementation("junit:junit:4.13.2")
+    // org.json real nos testes de JVM (o do Android é só um esqueleto)
+    testImplementation("org.json:json:20231013")
 }

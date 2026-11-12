@@ -37,7 +37,10 @@ class SplashActivity : FragmentActivity() {
             if (elapsed < 300) runCatching { Thread.sleep(300 - elapsed) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
-                startActivity(Intent(this, MainActivity::class.java))
+                // Sem conta configurada (primeiro uso): vai direto para a tela de entrada.
+                val store = PlaylistStore(this)
+                val configured = !store.playlistUrl.isNullOrBlank() || !store.configUrl.isNullOrBlank()
+                startActivity(Intent(this, if (configured) MainActivity::class.java else LoginActivity::class.java))
                 finish()
             }
         }

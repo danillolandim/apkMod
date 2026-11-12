@@ -76,9 +76,15 @@ class AppSettings(context: Context) {
         set(v) = p.edit().putString("wallpaper_url", v.trim()).apply()
 
     /** Chave da API do TMDB (themoviedb.org) para capa/nota/sinopse. */
-    var tmdbApiKey: String
+    /** Chave que o próprio usuário digitou (é a que as Configurações mostram e gravam). */
+    var userTmdbApiKey: String
         get() = p.getString("tmdb_key", "") ?: ""
         set(v) = p.edit().putString("tmdb_key", v.trim()).apply()
+
+    /** Chave em uso: a do usuário; se vazia, a de fábrica (se o APK foi compilado com uma). */
+    var tmdbApiKey: String
+        get() = userTmdbApiKey.ifBlank { BuildConfig.DEFAULT_TMDB_KEY }
+        set(v) { userTmdbApiKey = v }
 
     companion object {
         /** Opções de "qualidade da conexão" exibidas (rótulo -> Mbps). */

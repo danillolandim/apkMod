@@ -211,6 +211,66 @@ object XtreamApi {
         }
     }
 
+    sealed class LoginResult {
+        data class Ok(val status: String, val expires: String?, val active: Int?, val max: Int?) : LoginResult()
+        data class Fail(val message: String) : LoginResult()
+    }
+
+    /** Interpreta a resposta de `player_api.php` sem ação (dados da conta). Não faz rede. */
+    fun parseLogin(text: String, nowMs: Long = System.currentTimeMillis()): LoginResult {
+        val root = try { JSONObject(text) } catch (_: Exception) {
+            return LoginResult.Fail("Esse endereço não parece ser um servidor Xtream (IPTV). Confira o DNS.")
+        }
+        val ui = root.optJSONObject("user_info")
+            ?: return LoginResult.Fail("O servidor não informou os dados da conta. Confira o DNS, o usuário e a senha.")
+        val auth = ui.opt("auth")?.toString()
+        if (auth == "0" || auth == "false") return LoginResult.Fail("Usuário ou senha incorretos.")
+        val status = ui.optString("status", "")
+        if (status.isNotBlank() && !status.equals("Active", ignoreCase = true)) {
+            return LoginResult.Fail(when (status.lowercase()) {
+                "expired" -> "Conta vencida."
+                "banned" -> "Conta bloqueada pelo provedor."
+                "disabled" -> "Conta desativada pelo provedor."
+                else -> "Conta com situação \"$status\"."
+            })
+        }
+        val fmt = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("pt", "BR"))
+        val expSec = ui.optString("exp_date").toLongOrNull()?.takeIf { it > 0 }
+        if (expSec != null && expSec * 1000 < nowMs) {
+            return LoginResult.Fail("Conta vencida em ${fmt.format(java.util.Date(expSec * 1000))}.")
+        }
+        return LoginResult.Ok(
+            status = status.ifBlank { "Active" },
+            expires = expSec?.let { fmt.format(java.util.Date(it * 1000)) },
+            active = ui.optString("active_cons").toIntOrNull(),
+            max = ui.optString("max_connections").toIntOrNull(),
+        )
+    }
+
+    // Cliente da entrada: responde rápido (a pessoa está olhando a tela esperando).
+    private val loginHttp: OkHttpClient by lazy {
+        http.newBuilder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build()
+    }
+
+    /** Testa servidor + usuário + senha. Bloqueia (rede): chamar fora da UI. */
+    fun login(base: String, user: String, pass: String, userAgent: String?): LoginResult {
+        return try {
+            val url = "$base/player_api.php?username=${enc(user)}&password=${enc(pass)}"
+            val text = loginHttp.newCall(request(url, userAgent)).execute().use { r ->
+                if (!r.isSuccessful) return LoginResult.Fail("O servidor respondeu com erro (HTTP ${r.code}).")
+                r.body?.string().orEmpty()
+            }
+            parseLogin(text)
+        } catch (e: Exception) {
+            LoginResult.Fail(when (e) {
+                is java.net.UnknownHostException -> "Não encontrei esse servidor. Confira o endereço (DNS) e a internet."
+                is java.net.SocketTimeoutException, is java.net.ConnectException -> "O servidor não respondeu a tempo. Tente de novo."
+                is javax.net.ssl.SSLException -> "Falha na conexão segura (HTTPS). Tente com http://."
+                else -> "Não consegui conectar (${describe(e)})."
+            })
+        }
+    }
+
     /** Situação da conta no painel: ativa?, validade e conexões em uso (limite de conexões trava vídeos). */
     private fun accountLine(acc: Account, userAgent: String?): String {
         return try {

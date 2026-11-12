@@ -94,3 +94,12 @@ por plataforma (pendente: o usuário ainda não colou as categorias de séries).
   3. **Configurações em painéis** (Aparência, Reprodução, Fontes…) com a explicação da linha em foco à esquerda.
   4. **Biblioteca com filtros** (Não assistidos / Em andamento / Assistidos) para Favoritos e Continuar.
   5. Aparência opcional: cor de destaque, tamanho dos cartazes, cantos.
+
+## Distribuição e primeiro uso (11/11/2026)
+- A tela de entrada (`LoginActivity`) pede só usuário e senha; o servidor (DNS) e a chave do TMDB vêm de fábrica.
+- Esses dois valores **não ficam no código**: entram na compilação como segredos do GitHub Actions
+  (`DEFAULT_SERVER`, `DEFAULT_TMDB_KEY`) e viram `BuildConfig`. Sem os segredos (fork/build local) o app mostra o
+  campo de servidor e usa só a chave que a pessoa digitar. O APK publicado os contém (é inevitável em app distribuído).
+- Registrar: `gh secret set DEFAULT_SERVER -R danillolandim/apkMod` e `gh secret set DEFAULT_TMDB_KEY -R danillolandim/apkMod`.
+- Pendente: assinatura. O `debug.keystore` é público no repositório; para distribuir a outros, considerar uma chave
+  de release guardada como segredo (trocar a assinatura força reinstalar uma vez).

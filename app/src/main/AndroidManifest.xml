@@ -42,6 +42,14 @@
             android:screenOrientation="landscape"
             android:theme="@style/Theme.Player" />
 
+        <!-- Primeiro uso: usuário e senha (o servidor já vem de fábrica) -->
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.Player"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".TestActivity"
             android:exported="false"

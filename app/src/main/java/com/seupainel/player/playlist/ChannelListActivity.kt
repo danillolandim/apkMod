@@ -196,7 +196,7 @@ class ChannelListActivity : FragmentActivity() {
         status.text = "Carregando…"
 
         // Caminho rápido: catálogos da API já em disco -> abre direto, sem interpretar a lista M3U.
-        val apiFirst = fromSettings && !force && XtreamCatalog.canSkipPlaylist(this, store)
+        val apiFirst = fromSettings && !force && (XtreamCatalog.canSkipPlaylist(this, store) || firstUseApiOnly())
         if (apiFirst) {
             thread(name = "playlist-api-first") {
                 val raw = PlaylistHolder.channels.orEmpty()
@@ -211,6 +211,10 @@ class ChannelListActivity : FragmentActivity() {
             }
         } else legacyStart(fromSettings, force)
     }
+
+    /** Conta nova (nunca baixou o M3U) com a API ligada: não precisa baixar os 12 MB da lista. */
+    private fun firstUseApiOnly(): Boolean = com.seupainel.player.AppSettings(this).useXtream && !store.hasCache() &&
+        (XtreamApi.accountFrom(store.lastUrl) ?: XtreamApi.accountFrom(store.playlistUrl)) != null
 
     /** Caminho completo: usa/baixa a lista M3U e (se ligada) troca as seções pelas da API. */
     private fun legacyStart(fromSettings: Boolean, force: Boolean) {

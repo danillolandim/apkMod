@@ -69,8 +69,8 @@ class MainActivity : FragmentActivity() {
     private fun openSection(section: String) {
         val store = PlaylistStore(this)
         if (store.playlistUrl.isNullOrBlank() && store.configUrl.isNullOrBlank()) {
-            Toast.makeText(this, "Configure sua lista primeiro (engrenagem).", Toast.LENGTH_LONG).show()
-            startActivity(Intent(this, SettingsActivity::class.java))
+            Toast.makeText(this, "Entre com seu usuário e senha primeiro.", Toast.LENGTH_LONG).show()
+            startActivity(Intent(this, LoginActivity::class.java))
             return
         }
         startActivity(
