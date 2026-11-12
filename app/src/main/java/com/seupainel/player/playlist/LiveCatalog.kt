@@ -136,31 +136,98 @@ object LiveCatalog {
         return build(live, apiOrder).also { memo = Memo(live, apiOrder, it) }
     }
 
+    /** Resultado de abrir a TV ao vivo direto: a sessão pronta, ou o motivo (curto, em português, sem endereço nem conta). */
+    sealed class Opening {
+        class Ready(val section: Section, val groups: List<LiveGroup>, val startIndex: Int) : Opening() {
+            val first: LiveChannel get() = section.channels[startIndex]
+
+            /** Entrega a seção ao player. Fica para o último instante (na thread da tela): nada limpa a sessão no meio. */
+            fun publish() = LiveSession.set(section.channels, startIndex, groups)
+        }
+        class Failed(reason: String) : Opening() {
+            val reason: String = scrub(reason)
+        }
+    }
+
     /**
-     * Monta a [LiveSession] com a seção inteira a partir do que já está em cache (API da conta ou lista M3U na
-     * memória) e posiciona no último canal assistido, ou no primeiro. Bloqueia (disco, e rede na primeira vez):
-     * chamar fora da UI. Devolve false se não houver como montar, e então quem chamou segue pela tela de canais.
+     * Escolhe a fonte e monta a seção, sem tocar em Android. [api] é o catálogo ao vivo da conta (null se desligado
+     * ou se falhou, com o motivo em [apiNote]); [raw] é a lista M3U em memória (null enquanto não carregou).
+     * [preloadDone]: o app já terminou de carregar o que tinha em disco; se não, a falha provavelmente é só pressa.
      */
-    fun openSession(ctx: Context): Boolean {
-        val store = PlaylistStore(ctx)
-        val settings = com.seupainel.player.AppSettings(ctx)
-        val raw = PlaylistHolder.channels
-        val api = if (settings.useXtream) runCatching { XtreamCatalog.load(XtreamCatalog.Kind.LIVE, ctx, store, raw.orEmpty()) }.getOrNull() else null
+    internal fun assemble(
+        useXtream: Boolean,
+        api: XtreamCatalog.Section?,
+        apiNote: String?,
+        raw: List<M3uParser.Channel>?,
+        preloadDone: Boolean,
+        favorites: Set<String>,
+        lastKey: String,
+    ): Opening {
         val live: List<M3uParser.Channel>
         val order: List<String>
         if (api != null) {
             live = api.channels
             order = api.categoryOrder
-        } else {
-            live = raw?.filter(::isLive) ?: return false
+        } else if (raw != null) {
+            live = raw.filter(::isLive)
             order = emptyList()
+        } else {
+            val why = if (!useXtream) "API desligada nas Configurações e a lista M3U não está carregada"
+                else "catálogo da API indisponível${apiNote?.let { " ($it)" }.orEmpty()} e a lista M3U não está carregada"
+            return Opening.Failed(why + if (preloadDone) "" else "; o app ainda está carregando, tente de novo em instantes")
         }
-        if (live.isEmpty()) return false
+        if (live.isEmpty()) return Opening.Failed(if (api != null) "a API não trouxe canais ao vivo" else "a lista M3U não tem canais ao vivo")
 
         val section = sectionFor(live, order)
-        val groups = groupsOf(section, store.favorites())
-        val last = indexOfKey(section.channels, settings.lastLiveChannel)
-        LiveSession.set(section.channels, last.coerceAtLeast(0), groups)
+        val groups = groupsOf(section, favorites)
+        return Opening.Ready(section, groups, indexOfKey(section.channels, lastKey).coerceAtLeast(0))
+    }
+
+    /** Tira da mensagem qualquer coisa com cara de endereço: o motivo vai para a tela e nunca pode vazar a conta. */
+    internal fun scrub(text: String): String = text.replace(Regex("""(?i)\b[a-z][a-z0-9+.\-]*://\S*"""), "[endereço]")
+
+    /** Espera [done] ficar true por até [maxMs], conferindo a cada [stepMs]. Devolve o valor final. */
+    internal fun waitUntil(
+        maxMs: Long, stepMs: Long, done: () -> Boolean,
+        now: () -> Long = System::currentTimeMillis, sleep: (Long) -> Unit = { Thread.sleep(it) },
+    ): Boolean {
+        val deadline = now() + maxMs
+        while (!done()) {
+            if (now() >= deadline) return false
+            sleep(stepMs)
+        }
         return true
+    }
+
+    private const val PRELOAD_WAIT_MS = 30_000L
+
+    /**
+     * Monta a seção inteira a partir do que já está em cache (API da conta ou lista M3U na memória), posicionada no
+     * último canal assistido, ou no primeiro; quem abre o player chama [Opening.Ready.publish]. Bloqueia (espera o carregamento da abertura,
+     * disco e, na primeira vez, rede): chamar fora da UI. Nunca lança: a falha volta como [Opening.Failed].
+     */
+    fun openSession(ctx: Context): Opening = try {
+        // Clicar na Home antes de o app terminar de carregar a lista: sem ela a conta pode nem ser derivável.
+        try {
+            waitUntil(PRELOAD_WAIT_MS, 100, done = { PlaylistHolder.preloadDone })
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+        val store = PlaylistStore(ctx)
+        val settings = com.seupainel.player.AppSettings(ctx)
+        val raw = PlaylistHolder.channels
+        var note: String? = null
+        var api: XtreamCatalog.Section? = null
+        if (settings.useXtream) {
+            try {
+                api = XtreamCatalog.load(XtreamCatalog.Kind.LIVE, ctx, store, raw.orEmpty())
+                if (api == null) note = XtreamCatalog.statusOf(XtreamCatalog.Kind.LIVE)
+            } catch (e: Exception) {
+                note = "erro: ${XtreamApi.describe(e)}"
+            }
+        }
+        assemble(settings.useXtream, api, note, raw, PlaylistHolder.preloadDone, store.favorites(), settings.lastLiveChannel)
+    } catch (e: Throwable) {
+        Opening.Failed("erro ao montar a lista de canais (${XtreamApi.describe(e)})")
     }
 }

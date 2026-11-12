@@ -105,6 +105,12 @@ sempre com a seção inteira, aberta direto pela Home e com preview do canal em 
   que está tocando. Fecha sozinho após 30 s sem tecla; aberto pela Home, o prazo só começa na primeira tecla. A faixa
   do canal fica escondida com o painel aberto.
 
+- Correção pós-teste (v108): a Home caía na tela de canais em vez de abrir o player. Causa provável, não provada por
+  leitura: clique antes de o app terminar a carga da abertura (`PlaylistHolder.preloadDone`), quando a lista M3U ainda
+  não está em memória e a conta pode não ser derivável. Agora `openSession` espera a carga (até 30 s, com o
+  "Carregando canais…") e devolve `Opening.Ready` ou `Opening.Failed(motivo)`; o motivo (curto, sem endereço nem conta)
+  aparece numa caixa antes de abrir a lista completa. `assemble` (a decisão de fonte) é pura e tem testes.
+
 ### Etapa 4 — programação sob demanda pela conta
 Formato confirmado na documentação (Context7, "Xtream Codes API"): `GET player_api.php?...&action=get_short_epg&stream_id=ID&limit=N`
 (padrão 4) devolve `{"epg_listings":[{"title","description","start_timestamp","stop_timestamp","now_playing",...}]}`; nos painéis

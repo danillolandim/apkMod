@@ -225,10 +225,15 @@ class PlayerActivity : FragmentActivity() {
             startEngine(address)
         }
         // Entrada pela Home: já sintonizado no último canal e com a lista de canais aberta ao lado.
-        if (isLive && zapper != null && intent.getBooleanExtra(EXTRA_LIVE_HOME, false)) {
-            idleWaitsKey = true
-            // Depois do primeiro layout: sem altura a lista não consegue centralizar o canal que está tocando.
-            window.decorView.post { if (!isFinishing && !isDestroyed) openList() }
+        if (isLive && intent.getBooleanExtra(EXTRA_LIVE_HOME, false)) {
+            if (zapper == null) {
+                // A sessão não bate com o canal do Intent: toca só este canal, mas diz por que não há lista.
+                toast("Lista de canais indisponível: a sessão de canais não está carregada")
+            } else {
+                idleWaitsKey = true
+                // Depois do primeiro layout: sem altura a lista não consegue centralizar o canal que está tocando.
+                window.decorView.post { if (!isFinishing && !isDestroyed) openList() }
+            }
         }
     }
 

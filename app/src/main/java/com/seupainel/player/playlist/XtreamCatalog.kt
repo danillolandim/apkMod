@@ -39,6 +39,9 @@ object XtreamCatalog {
         get() = parts.entries.sortedBy { it.key }.joinToString(" · ") { it.value }
         set(v) { parts.clear(); if (v.isNotBlank()) parts["*"] = v }
 
+    /** Por que a seção [kind] não carregou da API na última tentativa (texto sem usuário, senha nem endereço), ou null. */
+    fun statusOf(kind: Kind): String? = parts[kind.label] ?: parts["*"]
+
     /** Conta da API: URL da lista, ou as credenciais embutidas nos links dos itens. */
     fun accountFor(store: PlaylistStore, raw: List<M3uParser.Channel>): XtreamApi.Account? =
         XtreamApi.accountFrom(store.lastUrl)

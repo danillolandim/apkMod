@@ -14,7 +14,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import com.seupainel.player.playlist.ChannelListActivity
 import com.seupainel.player.playlist.LiveCatalog
-import com.seupainel.player.playlist.LiveSession
 import com.seupainel.player.playlist.PlaylistHolder
 import com.seupainel.player.playlist.PlaylistStore
 import com.seupainel.player.playlist.XtreamCatalog
@@ -71,8 +70,8 @@ class MainActivity : FragmentActivity() {
 
     /**
      * TV ao vivo: sintoniza o último canal direto no player, com a lista de canais aberta. Montar a seção pode
-     * pedir disco (e rede, na primeira vez), então roda em segundo plano com o aviso no próprio botão; se não houver
-     * como montar, abre a tela de canais, que sabe carregar e mostrar o motivo.
+     * esperar a abertura do app e pedir disco (e rede, na primeira vez), então roda em segundo plano com o aviso no
+     * próprio botão. Se não houver como montar, diz o motivo e abre a tela de canais, que sabe carregar a lista.
      */
     private fun openLive() {
         if (!isConfigured()) { askLogin(); return }
@@ -82,19 +81,33 @@ class MainActivity : FragmentActivity() {
         val before = sub.text
         sub.text = "Carregando canais…"
         thread(name = "home-live") {
-            val ready = runCatching { LiveCatalog.openSession(applicationContext) }.getOrDefault(false)
+            val opening = LiveCatalog.openSession(applicationContext)
             runOnUiThread {
                 openingLive = false
                 sub.text = before
                 // Usuário saiu da Home enquanto montava: abrir uma tela agora o puxaria de volta sem ele pedir.
                 if (isFinishing || isDestroyed || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@runOnUiThread
-                val first = if (ready) LiveSession.channels.getOrNull(LiveSession.startIndex) else null
-                if (first == null) {
-                    Toast.makeText(this, "Não consegui montar a lista de canais. Abrindo a lista completa.", Toast.LENGTH_LONG).show()
-                    openSection("canais")
-                } else startActivity(PlayerActivity.liveHomeIntent(this, first))
+                when (opening) {
+                    is LiveCatalog.Opening.Ready -> {
+                        opening.publish()
+                        startActivity(PlayerActivity.liveHomeIntent(this, opening.first))
+                    }
+                    is LiveCatalog.Opening.Failed -> explainThenOpenList(opening.reason)
+                }
             }
         }
+    }
+
+    /** O motivo fica numa caixa (aviso rápido some antes de dar para ler na TV); OK segue para a lista completa. */
+    private fun explainThenOpenList(reason: String) {
+        var opened = false
+        fun go() { if (!opened) { opened = true; openSection("canais") } }
+        androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_Player_Dialog)
+            .setTitle("TV ao vivo")
+            .setMessage("Não consegui abrir direto no canal: $reason.\n\nVou abrir a lista completa de canais.")
+            .setPositiveButton("OK") { _, _ -> go() }
+            .setOnCancelListener { go() }
+            .show()
     }
 
     private fun isConfigured(): Boolean {
