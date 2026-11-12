@@ -4,7 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="172dp"
     android:background="@drawable/poster_card_bg"
-    android:clipToOutline="true">
+    android:clipToOutline="true"
+    android:defaultFocusHighlightEnabled="false">
 
     <ImageView
         android:id="@+id/poster"

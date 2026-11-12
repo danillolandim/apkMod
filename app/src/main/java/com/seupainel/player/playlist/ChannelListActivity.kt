@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -33,7 +32,6 @@ class ChannelListActivity : FragmentActivity() {
     private lateinit var channelsView: ListView
     private lateinit var gridView: android.widget.GridView
     private lateinit var status: TextView
-    private lateinit var search: EditText
     private lateinit var store: PlaylistStore
 
     private enum class Sec { CANAIS, FILMES, SERIES, FAV }
@@ -134,7 +132,6 @@ class ChannelListActivity : FragmentActivity() {
         channelsView = findViewById(R.id.channels)
         gridView = findViewById(R.id.channels_grid)
         status = findViewById(R.id.status)
-        search = findViewById(R.id.search)
         store = PlaylistStore(this)
 
         // Atualiza a lista da direita assim que o foco muda de categoria (instantâneo),
@@ -172,7 +169,6 @@ class ChannelListActivity : FragmentActivity() {
             }
             override fun onScrollStateChanged(v: android.widget.AbsListView?, state: Int) {}
         })
-        search.setOnEditorActionListener { _, _, _ -> applyFilter(); groupsView.requestFocus(); true }
 
         // Barra de navegação por seções.
         findViewById<View>(R.id.nav_canais).setOnClickListener { selectSection(Sec.CANAIS) }
@@ -533,8 +529,6 @@ class ChannelListActivity : FragmentActivity() {
         mapOf(R.id.nav_canais to Sec.CANAIS, R.id.nav_filmes to Sec.FILMES,
               R.id.nav_series to Sec.SERIES, R.id.nav_fav to Sec.FAV)
             .forEach { (id, s) -> findViewById<View>(id).isSelected = (s == sec) }
-        search.setText("")
-        search.visibility = View.GONE
         val subs = (sectionGroups[sec] ?: emptyList()).sortedBy { it.lowercase() }
 
         canaisDerived = false
@@ -776,17 +770,14 @@ class ChannelListActivity : FragmentActivity() {
         status.text = if (done < total) "Organizando catálogo… $done/$total" else ""
     }
 
+    /** A busca é global (Filmes, Séries e Canais de uma vez), numa tela própria. */
     private fun openSearch() {
-        search.visibility = View.VISIBLE
-        search.requestFocus()
-        val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-        imm.showSoftInput(search, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        startActivity(Intent(this, com.seupainel.player.SearchActivity::class.java))
     }
 
     @Volatile private var filterGen = 0
 
     private fun applyFilter() {
-        val q = search.text.toString().trim().lowercase()
         val favs = store.favorites()
         val sec = currentSection
         val sub = currentSub
@@ -824,7 +815,7 @@ class ChannelListActivity : FragmentActivity() {
             val fast = fastGenre ?: fastLanc
             if (fast != null) {
                 if (gen != filterGen) return@thread     // filtro antigo: não mexe no estado
-                var r = if (q.isEmpty()) fast else fast.filter { it.name.lowercase().contains(q) }
+                var r = fast
                 if (sec == Sec.FILMES) r = collapseDubLeg(r)   // junta dublado+legendado
                 val out = r
                 if (gen == filterGen) runOnUiThread { if (gen == filterGen) publish(out, favs, sec) }
@@ -851,7 +842,7 @@ class ChannelListActivity : FragmentActivity() {
                     sub.length == 1 -> firstKey(ch.name) == sub          // índice A-Z
                     else -> ch.group == sub                              // subcategoria real
                 }
-                inSub && (q.isEmpty() || ch.name.lowercase().contains(q))
+                inSub
             }
             // Filmes da API: o que entrou há menos tempo vem primeiro, em qualquer categoria.
             val byApi = (sec == Sec.FILMES || sec == Sec.SERIES) && apiOrderOf(sec).isNotEmpty()

@@ -12,6 +12,13 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- Para a busca saber se o aparelho tem reconhecimento de voz (botão "Falar") -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <application
         android:largeHeap="true"
         android:name=".App"
@@ -61,6 +68,14 @@
             android:exported="false"
             android:screenOrientation="landscape"
             android:windowSoftInputMode="stateHidden"
+            android:theme="@style/Theme.Player" />
+
+        <!-- Busca global: teclado na própria tela, nada de teclado do sistema -->
+        <activity
+            android:name=".SearchActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="stateAlwaysHidden"
             android:theme="@style/Theme.Player" />
 
         <activity

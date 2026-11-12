@@ -1,5 +1,6 @@
 package com.seupainel.player
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -112,6 +113,20 @@ class DetailActivity : FragmentActivity() {
     }
 
     companion object {
+        /** [urlDub] e [urlLeg] só quando o filme tem as duas versões na lista (juntas contam como um item). */
+        fun intent(
+            context: Context, url: String, title: String, logo: String?, isSeries: Boolean,
+            urlDub: String? = null, urlLeg: String? = null,
+        ) = Intent(context, DetailActivity::class.java).apply {
+            putExtra(EXTRA_URL, url)
+            putExtra(EXTRA_TITLE, title)
+            putExtra(EXTRA_LOGO, logo ?: "")
+            putExtra(EXTRA_IS_LIVE, false)
+            putExtra(EXTRA_IS_SERIES, isSeries)
+            putExtra(EXTRA_URL_DUB, urlDub)
+            putExtra(EXTRA_URL_LEG, urlLeg)
+        }
+
         const val EXTRA_URL = "url"
         const val EXTRA_TITLE = "title"
         const val EXTRA_LOGO = "logo"

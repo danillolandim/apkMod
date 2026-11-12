@@ -58,6 +58,9 @@ class MainActivity : FragmentActivity() {
 
         applyWallpaper()
 
+        findViewById<ImageButton>(R.id.btn_search).setOnClickListener {
+            if (!isConfigured()) askLogin() else startActivity(Intent(this, SearchActivity::class.java))
+        }
         findViewById<ImageButton>(R.id.btn_gear).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }

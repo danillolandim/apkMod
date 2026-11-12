@@ -64,4 +64,19 @@ Seguir `DESIGN.md` (tokens `lf_*`, Rajdhani/Nunito Sans, anel de foco sem escala
 Não há emulador: o comportamento na TV é validado pelo usuário.
 
 ## Status
-- [ ] Etapa A — busca global · [ ] Etapa B — detalhes e marcação de assistidos
+- [x] Etapa A — busca global (código e testes JVM prontos; falta validar na TV) · [ ] Etapa B — detalhes e marcação de assistidos
+
+## Decisões fora da spec (Etapa A)
+- **Séries da API não juntam dublado/legendado.** Cada `series_id` abre uma tela de episódios própria e a tela não sabe
+  fundir duas séries; então "Dark" e "Dark (LEG)" aparecem como dois itens, como nas listas. Filmes e episódios da lista
+  M3U juntam, como nas listas.
+- **Cartaz na busca:** itens da API usam o cartaz e a nota do painel; itens só da lista M3U usam o cartaz do TMDB já em
+  cache (`PosterCache`) ou a capa da lista. A busca não consulta o TMDB por título (seriam dezenas de pedidos por tecla).
+- **Programa atual do canal:** só o que já está em cache (XMLTV ou `get_short_epg` já pedido); a busca não pede
+  programação à rede. Sem cache, o cartão mostra a categoria.
+- **Contagem:** o título da fileira mostra o total ("Filmes · 124") e, se passar de 40, "(primeiros 40)".
+- **Botão "Buscar" das telas de lista** e as teclas SEARCH/amarelo abrem a busca global; o campo de busca por categoria
+  foi removido (layout e código). A lógica de listas de `ChannelListActivity` não foi alterada além disso.
+- **Canal aberto pela busca** toca com a sessão ao vivo completa (zapping e painel de canais iguais aos da Home), mas sem
+  abrir a lista de canais por cima.
+- **Buscas recentes** ficam num arquivo de preferências próprio (`search`); favoritos, "Continuar" e vistos não mudam.

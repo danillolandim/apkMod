@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Busca global: teclado à esquerda (grade focável), resultados à direita em fileiras por tipo. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wallpaper_landimflix">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        android:paddingStart="32dp"
+        android:paddingTop="22dp"
+        android:paddingEnd="32dp"
+        android:paddingBottom="18dp">
+
+        <!-- Esquerda: título, texto digitado e teclado -->
+        <LinearLayout
+            android:layout_width="288dp"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="30dp"
+                    android:adjustViewBounds="true"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/logo_symbol" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:fontFamily="@font/rammetto_one"
+                    android:text="Buscar"
+                    android:textColor="@color/lf_text"
+                    android:textSize="20sp" />
+            </LinearLayout>
+
+            <!-- O texto digitado: não é um campo de edição, então o teclado do sistema nunca abre -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/panel_bg"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp">
+
+                <TextView
+                    android:id="@+id/s_query"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:ellipsize="start"
+                    android:fontFamily="@font/rajdhani_semibold"
+                    android:gravity="center_vertical"
+                    android:hint="Digite o nome…"
+                    android:singleLine="true"
+                    android:textColor="@color/lf_text"
+                    android:textColorHint="@color/lf_text_3"
+                    android:textSize="24sp" />
+            </FrameLayout>
+
+            <GridLayout
+                android:id="@+id/s_keys"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:clipChildren="false"
+                android:columnCount="6" />
+        </LinearLayout>
+
+        <!-- Direita: situação e resultados -->
+        <LinearLayout
+            android:id="@+id/s_right"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="22dp"
+            android:layout_weight="1"
+            android:clipChildren="false"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/s_status"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:ellipsize="end"
+                android:gravity="center_vertical|end"
+                android:maxLines="1"
+                android:textColor="@color/lf_text_3"
+                android:textSize="12sp" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1">
+
+                <!-- Resultados: até três fileiras (Filmes, Séries, Canais) -->
+                <ScrollView
+                    android:id="@+id/s_scroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:fadeScrollbars="false"
+                    android:scrollbars="none"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:id="@+id/sec_movies"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/title_movies"
+                                style="@style/SearchSectionTitle" />
+
+                            <androidx.leanback.widget.HorizontalGridView
+                                android:id="@+id/row_movies"
+                                android:layout_width="match_parent"
+                                android:layout_height="176dp"
+                                android:clipChildren="false"
+                                android:clipToPadding="false"
+                                android:paddingStart="2dp"
+                                android:paddingEnd="24dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/sec_series"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/title_series"
+                                style="@style/SearchSectionTitle" />
+
+                            <androidx.leanback.widget.HorizontalGridView
+                                android:id="@+id/row_series"
+                                android:layout_width="match_parent"
+                                android:layout_height="176dp"
+                                android:clipChildren="false"
+                                android:clipToPadding="false"
+                                android:paddingStart="2dp"
+                                android:paddingEnd="24dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/sec_live"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/title_live"
+                                style="@style/SearchSectionTitle" />
+
+                            <androidx.leanback.widget.HorizontalGridView
+                                android:id="@+id/row_live"
+                                android:layout_width="match_parent"
+                                android:layout_height="100dp"
+                                android:clipChildren="false"
+                                android:clipToPadding="false"
+                                android:paddingStart="2dp"
+                                android:paddingEnd="24dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </ScrollView>
+
+                <!-- Antes de digitar: dica e buscas recentes -->
+                <LinearLayout
+                    android:id="@+id/s_idle"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/rajdhani_bold"
+                        android:text="O que vamos assistir?"
+                        android:textColor="@color/lf_text"
+                        android:textSize="26sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Procura em todos os filmes, séries e canais ao mesmo tempo. Digite parte do nome, em qualquer ordem: acentos e maiúsculas não importam."
+                        android:textColor="@color/lf_text_2"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/s_recent_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:fontFamily="@font/rajdhani_semibold"
+                        android:text="Buscas recentes"
+                        android:textColor="@color/lf_accent"
+                        android:textSize="18sp"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/s_recents"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:clipChildren="false"
+                        android:orientation="vertical" />
+
+                    <TextView
+                        android:id="@+id/s_recent_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Segure OK numa busca para apagá-la."
+                        android:textColor="@color/lf_text_3"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <!-- Sem resultado, catálogo carregando ou erro -->
+                <LinearLayout
+                    android:id="@+id/s_message"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/s_msg_icon"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_search"
+                        android:tint="@color/lf_text_3" />
+
+                    <TextView
+                        android:id="@+id/s_msg_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/rajdhani_bold"
+                        android:gravity="center"
+                        android:maxLines="2"
+                        android:textColor="@color/lf_text"
+                        android:textSize="22sp" />
+
+                    <TextView
+                        android:id="@+id/s_msg_sub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center"
+                        android:maxWidth="380dp"
+                        android:textColor="@color/lf_text_2"
+                        android:textSize="14sp" />
+
+                    <!-- Único botão cheio da tela, só no erro -->
+                    <TextView
+                        android:id="@+id/s_retry"
+                        style="@style/SearchRetry"
+                        android:layout_marginTop="16dp"
+                        android:text="Tentar de novo"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
