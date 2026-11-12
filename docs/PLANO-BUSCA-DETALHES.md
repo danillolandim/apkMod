@@ -64,7 +64,7 @@ Seguir `DESIGN.md` (tokens `lf_*`, Rajdhani/Nunito Sans, anel de foco sem escala
 Não há emulador: o comportamento na TV é validado pelo usuário.
 
 ## Status
-- [x] Etapa A — busca global (código e testes JVM prontos; falta validar na TV) · [ ] Etapa B — detalhes e marcação de assistidos
+- [x] Etapa A — busca global · [x] Etapa B — detalhes e marcação de assistidos (código e testes JVM prontos; as duas etapas faltam validar na TV)
 
 ## Decisões fora da spec (Etapa A)
 - **Séries da API não juntam dublado/legendado.** Cada `series_id` abre uma tela de episódios própria e a tela não sabe
@@ -80,3 +80,30 @@ Não há emulador: o comportamento na TV é validado pelo usuário.
 - **Canal aberto pela busca** toca com a sessão ao vivo completa (zapping e painel de canais iguais aos da Home), mas sem
   abrir a lista de canais por cima.
 - **Buscas recentes** ficam num arquivo de preferências próprio (`search`); favoritos, "Continuar" e vistos não mudam.
+
+## Decisões fora da spec (Etapa B)
+- **Dados do TMDB intactos** (pedido do usuário: a carga de capa, sinopse, ano e nota já funciona bem): continua a mesma
+  busca por título (`Tmdb.fetch`). Por isso a linha de dados mostra **ano e nota** (nota do painel até o TMDB responder);
+  **gênero e duração ficaram de fora**, pois exigiriam outro pedido ao TMDB por título. A arte de fundo horizontal sai
+  do campo `backdrop_path` da mesma resposta (sem pedido extra); sem ela, o fundo é o próprio cartaz muito desfocado
+  (`SoftBackdrop`, desfoque de caixa sobre uma miniatura de 64×96, sem dependência nova).
+- **Filme concluído passa a ser marcado como visto** (`PlayerActivity.persistResume`, uma condição a mais): até aqui só
+  episódio de série era marcado, então "Assistido" no filme e o selo da grade não teriam como existir. Filmes já
+  assistidos antes desta versão não aparecem como vistos até serem vistos de novo, ou marcados à mão.
+- **Em andamento vence "visto":** episódio com ponto salvo conta como em andamento mesmo já tendo sido marcado antes
+  (quem revê); só volta a contar como visto ao terminar de novo. Assim o botão "Continuar" e a contagem não se contradizem.
+- **Próximo episódio** = o em andamento (o mexido por último); senão o seguinte ao último visto (não o primeiro não
+  visto: quem pulou o E1 e viu o E2 vai para o E3); sem nada visto, o primeiro; tudo visto: "Rever T1 · E1".
+- **Selo de série na grade** vem de um resumo guardado em arquivo novo (`series_summary`) que a tela da série atualiza a
+  cada abertura/volta do player (a lista não tem os episódios na mão: na API eles só chegam ao abrir a série). Série que
+  nunca foi aberta não mostra selo. Filme usa `ResumeStore` direto.
+- **Série da API busca os episódios dentro da `SeriesActivity`** (antes a lista buscava e só então abria): o estado de
+  carregando e o erro com "Tentar de novo" ficam na própria tela. `SeriesLauncher` (código sem uso) virou o ponto único
+  de abertura, usado pelas listas e pela busca.
+- **Dados do episódio** (título, sinopse, duração, miniatura) vêm de `get_series_info`, que antes eram descartados; a
+  sinopse é cortada em 280 caracteres no Intent (limite de tamanho). Série da lista M3U não tem nada disso e a linha do
+  episódio funciona sem.
+- **Marcação em lote** (temporada) é uma única escrita (`ResumeStore.setWatched`); marcar como visto também apaga o ponto
+  salvo e a entrada em "Continuar". Chaves e formatos já salvos (posição, recentes, vistos, favoritos) não mudaram.
+- **Layout da série em duas colunas** (dados e botão à esquerda, temporadas e episódios à direita) em vez de uma coluna:
+  na tela lógica de ~960×540dp uma coluna deixaria só 3 episódios visíveis.

@@ -1190,8 +1190,8 @@ class PlayerActivity : FragmentActivity() {
         val dur = pc.player.duration
         if (resumeKind.isBlank()) { resume.save(resumeKey, pos, dur); return }
         resume.remember(resumeKey, title, logoUrl, resumeKind, pos, dur)
-        // Episódio de série concluído -> marca como assistido (✓ na tela da série).
-        if (resumeKind == "series" && dur > 0 && pos > dur - 15_000) resume.markWatched(resumeKey)
+        // Episódio ou filme concluído -> marca como assistido (✓ na tela da série, selo no filme e na grade).
+        if ((resumeKind == "series" || resumeKind == "movie") && dur > 0 && pos > dur - 15_000) resume.markWatched(resumeKey)
     }
 
     override fun onStart() {

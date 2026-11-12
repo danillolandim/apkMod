@@ -36,6 +36,40 @@
         android:textSize="12sp"
         android:visibility="gone" />
 
+    <!-- Assistido: ícone + texto + cor (nunca só cor) -->
+    <LinearLayout
+        android:id="@+id/poster_watched"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:background="@drawable/watched_badge_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="2dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_check"
+            android:tint="@color/lf_accent" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="3dp"
+            android:contentDescription="Assistido"
+            android:fontFamily="@font/rajdhani_bold"
+            android:text="Visto"
+            android:textColor="@color/lf_text"
+            android:textSize="11sp" />
+    </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -65,4 +99,16 @@
             android:textSize="10sp"
             android:visibility="gone" />
     </LinearLayout>
+
+    <!-- Pela metade: barra fina no pé do cartão -->
+    <ProgressBar
+        android:id="@+id/poster_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_gravity="bottom"
+        android:importantForAccessibility="no"
+        android:max="100"
+        android:progressDrawable="@drawable/watch_progress"
+        android:visibility="gone" />
 </FrameLayout>

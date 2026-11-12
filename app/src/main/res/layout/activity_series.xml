@@ -1,101 +1,299 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Série no tema Landimflix: à esquerda os dados e o botão principal; à direita temporadas e episódios. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0E14"
-    android:orientation="horizontal"
-    android:padding="48dp">
+    android:background="@color/lf_bg">
+
+    <ImageView
+        android:id="@+id/s_backdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/detail_scrim" />
 
     <LinearLayout
-        android:layout_width="320dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        android:paddingStart="36dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="36dp"
+        android:paddingBottom="20dp">
 
-        <ImageView
-            android:id="@+id/s_poster"
-            android:layout_width="match_parent"
-            android:layout_height="440dp"
-            android:background="#111823"
-            android:scaleType="centerCrop"
-            android:contentDescription="Cartaz" />
-
-        <TextView
-            android:id="@+id/s_meta"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:textColor="#FFC24B"
-            android:textSize="16sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:layout_marginStart="36dp"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/s_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/rajdhani_semibold"
-            android:textColor="#FFFFFF"
-            android:textSize="30sp"
-            android:maxLines="2"
-            android:ellipsize="end" />
-
-        <TextView
-            android:id="@+id/s_overview"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:textColor="#C9D2DC"
-            android:textSize="15sp"
-            android:maxLines="4"
-            android:ellipsize="end"
-            android:lineSpacingExtra="3dp" />
-
-        <!-- Dublado / Legendado (aparece só quando há as duas versões) -->
+        <!-- Esquerda: capa, título, dados, sinopse, progresso e botão principal -->
         <LinearLayout
-            android:id="@+id/s_dubrow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
-            <TextView android:id="@+id/s_dub" style="@style/SeasonChip" android:text="Dublado" />
-            <TextView android:id="@+id/s_leg" style="@style/SeasonChip" android:layout_marginStart="12dp" android:text="Legendado" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="Temporadas"
-            android:textColor="#64D2FF"
-            android:textSize="15sp" />
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:scrollbars="none">
+            android:layout_width="300dp"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
 
             <LinearLayout
-                android:id="@+id/s_seasons"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
+                android:clipChildren="false"
+                android:orientation="horizontal">
 
-        <ListView
-            android:id="@+id/s_episodes"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
+                <FrameLayout
+                    android:layout_width="104dp"
+                    android:layout_height="156dp"
+                    android:clipChildren="false">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_margin="-24dp"
+                        android:background="@drawable/poster_glow" />
+
+                    <ImageView
+                        android:id="@+id/s_poster"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/poster_card_bg"
+                        android:clipToOutline="true"
+                        android:contentDescription="Cartaz"
+                        android:scaleType="centerCrop" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/s_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/rajdhani_bold"
+                        android:maxLines="3"
+                        android:textColor="@color/lf_text"
+                        android:textSize="26sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/s_year"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="10dp"
+                            android:fontFamily="@font/rajdhani_semibold"
+                            android:textColor="@color/lf_text_2"
+                            android:textSize="16sp"
+                            android:visibility="gone" />
+
+                        <LinearLayout
+                            android:id="@+id/s_rating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/rating_bg"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="8dp"
+                            android:paddingTop="2dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="2dp"
+                            android:visibility="gone">
+
+                            <ImageView
+                                android:layout_width="13dp"
+                                android:layout_height="13dp"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_star"
+                                android:tint="@color/lf_accent" />
+
+                            <TextView
+                                android:id="@+id/s_rating_text"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                android:fontFamily="@font/rajdhani_bold"
+                                android:textColor="@color/lf_text"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/s_overview"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="12dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:lineSpacingExtra="2dp"
+                android:maxLines="8"
+                android:textColor="@color/lf_text_2"
+                android:textSize="13sp" />
+
+            <!-- Resumo lúdico do progresso -->
+            <TextView
+                android:id="@+id/s_summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/rajdhani_semibold"
+                android:textColor="@color/lf_text"
+                android:textSize="16sp"
+                android:visibility="gone" />
+
+            <ProgressBar
+                android:id="@+id/s_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="5dp"
+                android:layout_marginTop="5dp"
+                android:importantForAccessibility="no"
+                android:max="100"
+                android:progressDrawable="@drawable/watch_progress"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/s_play"
+                style="@style/PrimaryButton"
+                android:layout_width="match_parent"
+                android:layout_marginTop="12dp"
+                android:drawableStart="@drawable/ic_play"
+                android:text="Assistir"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/s_play_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center"
+                android:textColor="@color/lf_text_2"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <!-- Dublado / Legendado (só quando há as duas versões) -->
+            <LinearLayout
+                android:id="@+id/s_dubrow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:clipChildren="false"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView android:id="@+id/s_dub" style="@style/PillChip" android:text="Dublado" />
+                <TextView android:id="@+id/s_leg" style="@style/PillChip" android:layout_marginStart="8dp" android:text="Legendado" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Direita: temporadas e episódios -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="26dp"
             android:layout_weight="1"
-            android:layout_marginTop="14dp"
-            android:background="#121A26" />
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+            <HorizontalScrollView
+                android:id="@+id/s_seasons_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/s_seasons"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="8dp"
+                android:layout_weight="1">
+
+                <ListView
+                    android:id="@+id/s_episodes"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/panel_bg"
+                    android:clipToPadding="false"
+                    android:divider="@android:color/transparent"
+                    android:dividerHeight="4dp"
+                    android:drawSelectorOnTop="true"
+                    android:listSelector="@drawable/list_selector"
+                    android:padding="6dp"
+                    android:scrollbars="none" />
+
+                <!-- Carregando episódios / erro / sem episódios -->
+                <LinearLayout
+                    android:id="@+id/s_state"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/panel_bg"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/s_state_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/rajdhani_bold"
+                        android:gravity="center"
+                        android:textColor="@color/lf_text"
+                        android:textSize="22sp" />
+
+                    <TextView
+                        android:id="@+id/s_state_sub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="24dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginEnd="24dp"
+                        android:gravity="center"
+                        android:textColor="@color/lf_text_2"
+                        android:textSize="14sp" />
+
+                    <!-- Sem episódios para mostrar, este é o botão principal da tela -->
+                    <TextView
+                        android:id="@+id/s_retry"
+                        style="@style/PrimaryButton"
+                        android:layout_marginTop="16dp"
+                        android:text="Tentar de novo"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/s_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Segure OK (ou MENU) para marcar como visto ou não visto. Na temporada, marca todos."
+                android:textColor="@color/lf_text_3"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>

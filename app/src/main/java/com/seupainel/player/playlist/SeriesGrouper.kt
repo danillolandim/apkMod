@@ -14,11 +14,20 @@ object SeriesGrouper {
     private val reTE = Regex("""(?i)\bT(\d{1,2})\s*E(\d{1,3})\b""")
     private val reX = Regex("""(?i)\b(\d{1,2})x(\d{1,3})\b""")
 
+    /** O que o painel manda de cada episódio em `get_series_info`; séries da lista M3U não têm. */
+    data class EpisodeInfo(
+        val title: String = "",
+        val plot: String = "",
+        val durationSec: Int = 0,
+        val image: String = "",
+    )
+
     data class Ep(
         val season: Int,
         val episode: Int,
         val channel: M3uParser.Channel,
         val leg: Boolean = false,          // legendado? (senão, dublado)
+        val info: EpisodeInfo? = null,
     )
 
     data class Series(

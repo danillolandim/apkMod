@@ -53,6 +53,7 @@ class SearchActivity : FragmentActivity() {
         val image: String?,
         val rating: Double,
         val description: String,
+        val mark: () -> WatchLogic.Mark,
         val open: () -> Unit,
     )
 
@@ -66,6 +67,7 @@ class SearchActivity : FragmentActivity() {
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "search").apply { isDaemon = true } }
     private val generation = AtomicInteger()
     private val history by lazy { SearchHistory(this) }
+    private val marks by lazy { WatchMarks(this).also { it.refresh() } }
 
     private var query = ""
     @Volatile private var snapshot: Snapshot? = null
@@ -145,6 +147,9 @@ class SearchActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         if (query.isBlank()) renderRecents()
+        // Voltou do player ou do detalhe: os selos de assistido dos cartões podem ter mudado.
+        marks.refresh()
+        listOf(movies, series).forEach { it.adapter.notifyDataSetChanged() }
     }
 
     override fun onDestroy() {
@@ -341,7 +346,8 @@ class SearchActivity : FragmentActivity() {
         val fromApi = ch.kind != null
         val image = (if (fromApi) ch.logo else PosterCache.get(g.title) ?: ch.logo)?.takeIf { it.isNotBlank() }
         val meta = metaOf(g.title, if (fromApi) ch.group else "")
-        return Card(g.title, meta, image, ch.rating, describe("Filme", g.title, meta, ch.rating)) { openMovie(g, q) }
+        val urls = listOfNotNull(ch.url, g.dub?.url, g.leg?.url).distinct()
+        return Card(g.title, meta, image, ch.rating, describe("Filme", g.title, meta, ch.rating), { marks.forMovie(urls) }) { openMovie(g, q) }
     }
 
     private fun seriesCard(h: SeriesHit, q: String): Card {
@@ -349,14 +355,20 @@ class SearchActivity : FragmentActivity() {
         val fromApi = s.apiId > 0
         val image = (if (fromApi) s.logo else PosterCache.get(s.title) ?: s.logo)?.takeIf { it.isNotBlank() }
         val meta = metaOf(s.title, if (fromApi) h.group else "")
-        return Card(s.title, meta, image, s.rating, describe("Série", s.title, meta, s.rating)) { openSeries(h, q) }
+        return Card(
+            s.title, meta, image, s.rating, describe("Série", s.title, meta, s.rating),
+            { marks.forSeries(s.apiId, s.title) },
+        ) { openSeries(h, q) }
     }
 
     private fun liveCard(snap: Snapshot, index: Int, q: String): Card {
         val c = snap.live.channels[index]
         // Só o que já está em cache: a busca nunca pede programação à rede.
         val now = Guide.nowText(c.tvgId, c.apiId).ifBlank { c.group }
-        return Card(c.name, now, c.logo.ifBlank { null }, 0.0, describe("Canal", c.name, now, 0.0)) { openLive(snap, index, q) }
+        return Card(
+            c.name, now, c.logo.ifBlank { null }, 0.0, describe("Canal", c.name, now, 0.0),
+            { WatchLogic.Mark(false, 0) },
+        ) { openLive(snap, index, q) }
     }
 
     private fun metaOf(title: String, group: String): String =
@@ -497,22 +509,14 @@ class SearchActivity : FragmentActivity() {
                 this, url = g.rep.url, title = g.title, logo = g.rep.logo, isSeries = false,
                 urlDub = if (g.dub != null && g.leg != null) g.dub.url else null,
                 urlLeg = if (g.dub != null && g.leg != null) g.leg.url else null,
+                rating = g.rep.rating,
             ),
         )
     }
 
     private fun openSeries(h: SeriesHit, q: String) {
         history.add(q)
-        val s = h.series
-        if (s.apiId > 0) {
-            SeriesLauncher.open(this, PlaylistStore(this), s.title, s.logo, s.apiId)
-        } else {
-            startActivity(Intent(this, SeriesActivity::class.java).apply {
-                putExtra(SeriesActivity.EXTRA_TITLE, s.title)
-                putExtra(SeriesActivity.EXTRA_LOGO, s.logo ?: "")
-                putExtra(SeriesActivity.EXTRA_EPISODES, SeriesActivity.episodesToJson(s.episodes))
-            })
-        }
+        SeriesLauncher.open(this, h.series)
     }
 
     /** Toca o canal com a seção inteira na sessão, para o zapping e o painel do player funcionarem como sempre. */
@@ -569,7 +573,9 @@ class SearchActivity : FragmentActivity() {
             h.title.text = c.title
             h.meta.text = c.meta
             h.meta.visibility = if (c.meta.isBlank()) View.GONE else View.VISIBLE
-            h.itemView.contentDescription = c.description
+            val mark = c.mark()
+            h.itemView.contentDescription = listOfNotNull(c.description, WatchMarks.spoken(mark)).joinToString(", ")
+            if (!live) WatchMarks.apply(h.itemView, mark)
             h.badge?.let {
                 if (c.rating > 0) { it.text = "★ ${"%.1f".format(c.rating)}"; it.visibility = View.VISIBLE }
                 else it.visibility = View.GONE

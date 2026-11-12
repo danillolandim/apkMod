@@ -168,6 +168,16 @@ object XtreamApi {
                 if (!r.isSuccessful) throw java.io.IOException("HTTP ${r.code}")
                 r.body?.string().orEmpty()
             }
+        return parseSeriesEpisodes(text, acc, seriesTitle, logo)
+    }
+
+    /**
+     * Aceita "episodes" como objeto por temporada ({"1":[...]}) ou lista de listas. Título, sinopse, duração e
+     * miniatura do episódio só entram quando o painel os manda ([SeriesGrouper.Ep.info] é null sem nada disso).
+     */
+    internal fun parseSeriesEpisodes(
+        text: String, acc: Account, seriesTitle: String, logo: String?,
+    ): List<SeriesGrouper.Ep> {
         val eps = JSONObject(text).opt("episodes")
         val out = ArrayList<SeriesGrouper.Ep>()
         fun addSeason(arr: JSONArray?, seasonHint: Int) {
@@ -183,7 +193,7 @@ object XtreamApi {
                     url = "${acc.base}/series/${acc.user}/${acc.pass}/$id.$ext",
                     group = "", logo = logo, duration = 0,
                 )
-                out.add(SeriesGrouper.Ep(season, num, ch, false))
+                out.add(SeriesGrouper.Ep(season, num, ch, false, episodeInfo(o, seriesTitle)))
             }
         }
         when (eps) {
@@ -191,6 +201,35 @@ object XtreamApi {
             is JSONArray -> for (i in 0 until eps.length()) addSeason(eps.optJSONArray(i), i + 1)
         }
         return out.sortedWith(compareBy({ it.season }, { it.episode }))
+    }
+
+    private val EPISODE_MARK = Regex("""(?i)\bS\d{1,2}\s*E\d{1,3}\b\s*[-–:.]?\s*(.*)$""")
+
+    private fun episodeInfo(o: JSONObject, seriesTitle: String): SeriesGrouper.EpisodeInfo? {
+        val info = o.optJSONObject("info")
+        val title = cleanEpisodeTitle(o.optString("title"), seriesTitle)
+        val plot = info?.optString("plot").orEmpty().trim()
+        val image = info?.optString("movie_image").orEmpty().trim().takeIf { it.startsWith("http", ignoreCase = true) }.orEmpty()
+        val secs = info?.optInt("duration_secs", 0)?.takeIf { it > 0 } ?: clockSeconds(info?.optString("duration").orEmpty())
+        if (title.isEmpty() && plot.isEmpty() && image.isEmpty() && secs == 0) return null
+        return SeriesGrouper.EpisodeInfo(title, plot, secs, image)
+    }
+
+    /** Muitos painéis mandam "Série - S01E01 - Nome do episódio": fica só o nome. */
+    private fun cleanEpisodeTitle(raw: String, seriesTitle: String): String {
+        val t = raw.trim()
+        val afterMark = EPISODE_MARK.find(t)?.groupValues?.get(1)?.trim() ?: t
+        return if (afterMark.equals(seriesTitle.trim(), ignoreCase = true)) "" else afterMark
+    }
+
+    /** "00:42:30" ou "42:30" em segundos; 0 se não for esse formato. */
+    private fun clockSeconds(text: String): Int {
+        val parts = text.trim().split(':').map { it.toIntOrNull() ?: return 0 }
+        return when (parts.size) {
+            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+            2 -> parts[0] * 60 + parts[1]
+            else -> 0
+        }
     }
 
     // Cliente da programação: é pedida durante a reprodução e ao mover o foco, então desiste cedo.

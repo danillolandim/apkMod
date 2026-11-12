@@ -101,6 +101,31 @@ class ResumeStore(context: Context) {
     fun toggleWatched(key: String): Boolean =
         if (isWatched(key)) { unmarkWatched(key); false } else { markWatched(key); true }
 
+    /** Os itens em andamento por chave (uma leitura só, para quem desenha muitos cartões de uma vez). */
+    fun inProgress(): Map<String, Item> = recents().associateBy { it.key }
+
+    /** Tudo o que está marcado como assistido (cópia). */
+    fun watchedSet(): Set<String> = HashSet(prefs.getStringSet(WATCHED_KEY, emptySet()) ?: emptySet())
+
+    /**
+     * Marca ou desmarca vários de uma vez (temporada inteira). Marcar também tira o ponto salvo e a entrada em
+     * "Continuar": quem está visto não volta a oferecer retomada.
+     */
+    fun setWatched(keys: Collection<String>, watched: Boolean) {
+        val ks = keys.filter { it.isNotBlank() }
+        if (ks.isEmpty()) return
+        val set = HashSet(watchedSet())
+        val edit = prefs.edit()
+        if (watched) {
+            set.addAll(ks)
+            ks.forEach { edit.remove(it) }
+        } else {
+            set.removeAll(ks.toSet())
+        }
+        edit.putStringSet(WATCHED_KEY, set).apply()
+        if (watched) saveRecents(recents().filterNot { it.key in ks })
+    }
+
     private fun saveRecents(list: List<Item>) {
         val arr = JSONArray()
         for (it in list) {

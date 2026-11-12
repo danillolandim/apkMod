@@ -20,6 +20,8 @@ object Tmdb {
         val rating: Double,
         val overview: String?,
         val year: String?,
+        /** Arte horizontal vinda da mesma resposta da busca (sem pedido extra); null quando o TMDB não tem. */
+        val backdropUrl: String? = null,
     )
 
     sealed class Res {
@@ -93,6 +95,7 @@ object Tmdb {
     }
 
     private const val IMG = "https://image.tmdb.org/t/p/w500"
+    private const val BACKDROP = "https://image.tmdb.org/t/p/w1280"
 
     // Regexes compilados UMA vez (antes eram recriados a cada chamada).
     private val reSxE = Regex("""(?i)\bS\d{1,2}\s*E\d{1,3}\b""")
@@ -157,6 +160,8 @@ object Tmdb {
             if (id > 0) overview = detailsOverview(apiKey, if (isTv) "tv" else "movie", id)
         }
         val poster = first.optString("poster_path", "").takeIf { it.isNotBlank() }?.let { IMG + it }
+        // O JSON null chega como o texto "null": só vale caminho de verdade (começa com "/").
+        val backdrop = first.optString("backdrop_path", "").takeIf { it.startsWith("/") }?.let { BACKDROP + it }
         val name = first.optString(if (isTv) "name" else "title", query)
         val date = first.optString(if (isTv) "first_air_date" else "release_date", "")
         return Res.Ok(
@@ -166,6 +171,7 @@ object Tmdb {
                 rating = first.optDouble("vote_average", 0.0),
                 overview = overview.takeIf { it.isNotBlank() },
                 year = date.take(4).takeIf { it.isNotBlank() },
+                backdropUrl = backdrop,
             )
         )
     }

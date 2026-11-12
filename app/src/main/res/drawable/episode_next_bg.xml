@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Episódio "A seguir": fundo um pouco mais claro e filete roxo à esquerda. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/lf_surface_hi" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item android:width="4dp" android:gravity="start">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/lf_accent" />
+        </shape>
+    </item>
+</layer-list>

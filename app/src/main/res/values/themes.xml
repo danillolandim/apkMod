@@ -89,8 +89,8 @@
         <item name="android:textSize">18sp</item>
     </style>
 
-    <!-- Botão de ação principal em forma de texto (o roxo cheio, um por tela) -->
-    <style name="SearchRetry">
+    <!-- Botão de ação principal em forma de texto: o roxo cheio, um por tela -->
+    <style name="PrimaryButton">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:background">@drawable/btn_primary_bg</item>
@@ -101,10 +101,51 @@
         <item name="android:fontFamily">@font/rajdhani_semibold</item>
         <item name="android:textColor">#FFFFFF</item>
         <item name="android:textSize">18sp</item>
-        <item name="android:paddingLeft">28dp</item>
-        <item name="android:paddingRight">28dp</item>
+        <item name="android:drawablePadding">8dp</item>
+        <item name="android:paddingLeft">24dp</item>
+        <item name="android:paddingRight">24dp</item>
         <item name="android:paddingTop">10dp</item>
         <item name="android:paddingBottom">10dp</item>
+    </style>
+
+    <style name="SearchRetry" parent="PrimaryButton" />
+
+    <!-- Botão secundário: só o anel de foco, sem preenchimento colorido -->
+    <style name="GhostButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/card_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+        <item name="android:gravity">center</item>
+        <item name="android:fontFamily">@font/rajdhani_semibold</item>
+        <item name="android:textColor">@color/card_text</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:drawablePadding">8dp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingTop">9dp</item>
+        <item name="android:paddingBottom">9dp</item>
+    </style>
+
+    <!-- Pílula (temporada, dublado/legendado): ativa = fundo claro e texto no acento -->
+    <style name="PillChip">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/nav_tab_bg</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+        <item name="android:gravity">center</item>
+        <item name="android:fontFamily">@font/rajdhani_semibold</item>
+        <item name="android:textColor">@color/nav_tab_text</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:drawablePadding">6dp</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
     </style>
 
     <!-- Lista suspensa (spinner) com fundo escuro arredondado -->

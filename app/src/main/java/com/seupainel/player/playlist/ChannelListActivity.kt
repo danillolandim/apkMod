@@ -41,6 +41,7 @@ class ChannelListActivity : FragmentActivity() {
     private var sectionGroups: Map<Sec, List<String>> = emptyMap()
     private var currentSection: Sec = Sec.CANAIS
     private val resumeStore by lazy { com.seupainel.player.ResumeStore(this) }
+    private val marks by lazy { com.seupainel.player.WatchMarks(this).also { it.refresh() } }
     @Volatile private var lastRepartition = 0L
     private var lastPrefetchEnd = -1
     private var startSection: Sec = Sec.CANAIS               // seção escolhida na home
@@ -921,40 +922,7 @@ class ChannelListActivity : FragmentActivity() {
         }
     }
 
-    /** Série da API: busca os episódios agora (o catálogo só traz as séries) e abre a tela da série. */
-    private fun openApiSeries(s: SeriesGrouper.Series) {
-        status.text = "Carregando episódios…"
-        thread(name = "series-info") {
-            val result = runCatching {
-                val acc = XtreamCatalog.accountFor(store, PlaylistHolder.channels.orEmpty()) ?: error("sem conta")
-                XtreamApi.seriesEpisodes(acc, store.userAgent, s.apiId, s.title, s.logo)
-            }
-            runOnUiThread {
-                status.text = "${shownSeries.size} séries"
-                val eps = result.getOrNull()
-                if (eps.isNullOrEmpty()) {
-                    val why = result.exceptionOrNull()?.let { XtreamApi.describe(it) } ?: "sem episódios"
-                    android.widget.Toast.makeText(this, "Não consegui carregar os episódios ($why)",
-                        android.widget.Toast.LENGTH_LONG).show()
-                } else startActivity(Intent(this, com.seupainel.player.SeriesActivity::class.java).apply {
-                    putExtra(com.seupainel.player.SeriesActivity.EXTRA_TITLE, s.title)
-                    putExtra(com.seupainel.player.SeriesActivity.EXTRA_LOGO, s.logo ?: "")
-                    putExtra(com.seupainel.player.SeriesActivity.EXTRA_EPISODES,
-                        com.seupainel.player.SeriesActivity.episodesToJson(eps))
-                })
-            }
-        }
-    }
-
-    private fun openSeries(s: SeriesGrouper.Series) {
-        if (s.apiId > 0) { openApiSeries(s); return }
-        startActivity(Intent(this, com.seupainel.player.SeriesActivity::class.java).apply {
-            putExtra(com.seupainel.player.SeriesActivity.EXTRA_TITLE, s.title)
-            putExtra(com.seupainel.player.SeriesActivity.EXTRA_LOGO, s.logo ?: "")
-            putExtra(com.seupainel.player.SeriesActivity.EXTRA_EPISODES,
-                com.seupainel.player.SeriesActivity.episodesToJson(s.episodes))
-        })
-    }
+    private fun openSeries(s: SeriesGrouper.Series) = com.seupainel.player.SeriesLauncher.open(this, s)
 
     private inner class SeriesAdapter : android.widget.BaseAdapter() {
         private var items: List<SeriesGrouper.Series> = emptyList()
@@ -969,6 +937,7 @@ class ChannelListActivity : FragmentActivity() {
             h.key = s.title
             h.title.text = s.title
             h.meta.visibility = View.GONE
+            com.seupainel.player.WatchMarks.apply(v, marks.forSeries(s.apiId, s.title))
             if (s.apiId > 0) {   // série da API: cartaz e nota do próprio painel
                 if (s.rating > 0) { h.badge.text = "★ ${"%.1f".format(s.rating)}"; h.badge.visibility = View.VISIBLE }
                 else h.badge.visibility = View.GONE
@@ -1088,6 +1057,10 @@ class ChannelListActivity : FragmentActivity() {
             val ch = items[position]
             h.key = ch.url
             h.title.text = ch.name
+            val versions = vodVariants[ch.name.lowercase()]
+            com.seupainel.player.WatchMarks.apply(
+                v, marks.forMovie(listOfNotNull(ch.url, versions?.dub?.url, versions?.leg?.url).distinct()),
+            )
             val metaText = if (ch.kind != null) ch.group.substringAfter(" | ", ch.group) else ""
             h.meta.text = metaText
             h.meta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
@@ -1192,8 +1165,13 @@ class ChannelListActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         if (indexStarted) synchronized(indexGate) { indexPaused = false; indexGate.notifyAll() }
-        // Volta do player: atualiza a fileira "Continuar" (entrou/concluiu algo).
-        if (currentSection == Sec.FILMES || currentSection == Sec.SERIES) rebuildFilmesGroups()
+        // Volta do player: atualiza a fileira "Continuar" (entrou/concluiu algo) e os selos de assistido.
+        marks.refresh()
+        if (currentSection == Sec.FILMES || currentSection == Sec.SERIES) {
+            rebuildFilmesGroups()
+            posterAdapter.notifyDataSetChanged()
+            seriesAdapter.notifyDataSetChanged()
+        }
     }
 
     override fun onDestroy() {
@@ -1255,6 +1233,7 @@ class ChannelListActivity : FragmentActivity() {
             putExtra(com.seupainel.player.DetailActivity.EXTRA_IS_SERIES, isSeries)
             putExtra(com.seupainel.player.DetailActivity.EXTRA_URL_DUB, variants?.dub?.url)
             putExtra(com.seupainel.player.DetailActivity.EXTRA_URL_LEG, variants?.leg?.url)
+            putExtra(com.seupainel.player.DetailActivity.EXTRA_RATING, ch.rating)
         })
     }
 
