@@ -49,6 +49,13 @@ object Epg {
         }, "epg-load").start()
     }
 
+    /** Programas do canal no XMLTV carregado, ou null se não há dado (não carregou, ou o canal não está no arquivo). */
+    fun listFor(tvgId: String?): List<Prog>? {
+        if (tvgId.isNullOrBlank() || !loaded) return null
+        val id = tvgId.trim()
+        return byId[id] ?: byId[id.lowercase()]
+    }
+
     /** (agora, a seguir) para um tvg-id, ou (null, null) se não houver dados. */
     fun nowNext(tvgId: String?, now: Long = System.currentTimeMillis()): Pair<Prog?, Prog?> {
         if (tvgId.isNullOrBlank() || !loaded) return null to null

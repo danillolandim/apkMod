@@ -11,6 +11,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import com.seupainel.player.meta.Epg
+import com.seupainel.player.meta.Guide
 import com.seupainel.player.playlist.LiveChannel
 import com.seupainel.player.playlist.LiveGroup
 
@@ -57,6 +58,9 @@ class LiveListPanel(
         channelsView.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 renderGuide(rows.liveIndexAt(position))
+                // Passar por várias linhas não pode pedir a programação de cada uma: só a do canal que parou.
+                channelsView.removeCallbacks(requestGuide)
+                channelsView.postDelayed(requestGuide, GUIDE_REQUEST_DELAY_MS)
                 onFocus()
             }
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
@@ -80,7 +84,20 @@ class LiveListPanel(
     }
 
     fun close() {
+        channelsView.removeCallbacks(requestGuide)
         root.visibility = View.GONE
+    }
+
+    private val requestGuide = Runnable {
+        val ch = focusedChannel()?.let { channels.getOrNull(it) } ?: return@Runnable
+        Guide.request(ch.tvgId, ch.apiId)
+    }
+
+    /** A programação de algum canal chegou: as linhas e a grade do canal em foco se redesenham. */
+    fun refresh() {
+        if (!isOpen) return
+        rows.notifyDataSetChanged()
+        renderGuide(focusedChannel())
     }
 
     /** O canal tocando mudou (CH+/CH−, número, último canal): a marca e a seleção vão junto. */
@@ -147,19 +164,15 @@ class LiveListPanel(
         }
         guide.visibility = View.VISIBLE
         guideName.text = "${liveIndex + 1}  ${ch.name}"
-        val agenda = Epg.agenda(ch.tvgId, UPCOMING)
-        val cur = agenda.current
-        guideNow.text = when {
-            cur != null -> "${Epg.hhmm(cur.start)}–${Epg.hhmm(cur.stop)}  ${cur.title}"
-            agenda.upcoming.isNotEmpty() -> "Sem informação do programa atual"
-            else -> "Sem informação de programação"
-        }
-        val progress = Epg.progress(ch.tvgId)
+        val now = System.currentTimeMillis()
+        val listing = Guide.peek(ch.tvgId, ch.apiId, UPCOMING, now)
+        val progress = listing.agenda.current?.let { Epg.progressOf(it, now) }
+        guideNow.text = Guide.nowLine(listing)
         guideProgress.visibility = if (progress == null) View.GONE else View.VISIBLE
         guideProgress.progress = ((progress ?: 0f) * 1000).toInt()
-        val hasNext = agenda.upcoming.isNotEmpty()
-        guideNext.text = agenda.upcoming.joinToString("\n") { "${Epg.hhmm(it.start)}  ${it.title}" }
-        guideNext.visibility = if (hasNext) View.VISIBLE else View.GONE
+        val upcoming = listing.agenda.upcoming
+        guideNext.text = upcoming.joinToString("\n") { "${Epg.hhmm(it.start)}  ${it.title}" }
+        guideNext.visibility = if (upcoming.isEmpty()) View.GONE else View.VISIBLE
         guideNextLabel.visibility = guideNext.visibility
     }
 
@@ -195,7 +208,7 @@ class LiveListPanel(
             val liveIndex = indices[position]
             val ch = channels[liveIndex]
             val isPlaying = liveIndex == playing
-            val program = Epg.nowText(ch.tvgId)
+            val program = Guide.nowText(ch.tvgId, ch.apiId)   // só o que já está em cache: nada de pedido por linha
 
             h.number.text = (liveIndex + 1).toString()
             h.name.text = ch.name
@@ -217,6 +230,7 @@ class LiveListPanel(
 
     private companion object {
         const val UPCOMING = 3
+        const val GUIDE_REQUEST_DELAY_MS = 350L
         const val ROW_FALLBACK_DP = 56
     }
 }

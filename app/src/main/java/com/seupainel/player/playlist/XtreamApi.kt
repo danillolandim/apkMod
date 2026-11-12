@@ -2,10 +2,12 @@ package com.seupainel.player.playlist
 
 import android.util.JsonReader
 import android.util.JsonToken
+import com.seupainel.player.meta.Epg
 import com.seupainel.player.net.Net
 import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import okhttp3.Request
 import java.net.InetAddress
 import java.net.URL
@@ -189,6 +191,107 @@ object XtreamApi {
             is JSONArray -> for (i in 0 until eps.length()) addSeason(eps.optJSONArray(i), i + 1)
         }
         return out.sortedWith(compareBy({ it.season }, { it.episode }))
+    }
+
+    // Cliente da programação: é pedida durante a reprodução e ao mover o foco, então desiste cedo.
+    private val epgHttp: OkHttpClient by lazy {
+        Net.client.newBuilder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS).build()
+    }
+
+    fun shortEpgUrl(acc: Account, streamId: Long, limit: Int): String =
+        apiUrl(acc, "get_short_epg") + "&stream_id=$streamId&limit=$limit"
+
+    /**
+     * Programação curta de um canal (`get_short_epg`): o programa atual e os seguintes, já em milissegundos.
+     * Bloqueia (rede): chamar fora da UI. Lança em falha de rede ou HTTP; resposta estranha vira lista vazia.
+     */
+    fun shortEpg(acc: Account, userAgent: String?, streamId: Long, limit: Int): List<Epg.Prog> {
+        val text = epgHttp.newCall(request(shortEpgUrl(acc, streamId, limit), userAgent)).execute().use { r ->
+            if (!r.isSuccessful) throw java.io.IOException("HTTP ${r.code}")
+            val source = r.body?.source() ?: return emptyList()
+            source.request(MAX_EPG_BYTES)   // resposta de EPG é pequena; um servidor maluco não enche a memória
+            source.buffer.readUtf8(minOf(source.buffer.size, MAX_EPG_BYTES))
+        }
+        return parseShortEpg(text)
+    }
+
+    /**
+     * Formato (Xtream Codes): `{"epg_listings":[{"title":..., "start_timestamp":..., "stop_timestamp":...}]}`, com o
+     * título em base64 na maioria dos painéis e o horário em segundos Unix. Tolerante: entrada sem título ou horário
+     * válido é descartada e resposta que não é JSON dá lista vazia. O resultado sai ordenado pelo início.
+     */
+    internal fun parseShortEpg(text: String): List<Epg.Prog> {
+        val body = text.trim().trimStart('\uFEFF').trim()
+        if (body.isEmpty()) return emptyList()
+        val root = try { JSONTokener(body).nextValue() } catch (_: Exception) { return emptyList() }
+        val listings = when (root) {
+            is JSONObject -> root.opt("epg_listings")
+            is JSONArray -> root
+            else -> null
+        }
+        val items: List<JSONObject> = when (listings) {
+            is JSONArray -> (0 until listings.length()).mapNotNull { listings.optJSONObject(it) }
+            is JSONObject -> listings.keys().asSequence().mapNotNull { listings.optJSONObject(it) }.toList()
+            else -> emptyList()
+        }
+        val raw = items.mapNotNull { o ->
+            val start = epochMs(o.opt("start_timestamp"))
+            val stop = epochMs(o.opt("stop_timestamp"))
+            val title = (o.opt("title") as? String)?.trim()
+            if (title.isNullOrEmpty() || start <= 0 || stop <= start) null else Triple(start, stop, title)
+        }
+        // Um painel manda todos os títulos em base64 ou nenhum: decide pela resposta toda, para uma palavra solta
+        // com cara de base64 ("Rede") não virar lixo.
+        val decoded = raw.map { decodeBase64Text(it.third)?.trim() }
+        val useDecoded = decoded.isNotEmpty() && decoded.all { !it.isNullOrEmpty() }
+        return raw.mapIndexed { i, t -> Epg.Prog(t.first, t.second, if (useDecoded) decoded[i].orEmpty() else t.third) }
+            .sortedBy { it.start }
+    }
+
+    // O painel manda segundos Unix; valor acima de 10^11 já está em milissegundos (seria o ano 5138 em segundos).
+    private fun epochMs(v: Any?): Long {
+        val n = when (v) {
+            is Number -> v.toLong()
+            is String -> v.trim().let { it.toLongOrNull() ?: it.toDoubleOrNull()?.toLong() }
+            else -> null
+        } ?: return 0L
+        return if (n > MILLIS_THRESHOLD) n else n * 1000
+    }
+
+    /**
+     * Base64 de um texto UTF-8 sem caracteres de controle; null se não for isso. Exige o preenchimento ("=") do
+     * base64 canônico, que o PHP dos painéis sempre escreve: sem isso, "OK" ou "Jornal" decodificariam para lixo.
+     */
+    internal fun decodeBase64Text(raw: String): String? {
+        val s = raw.trim()
+        if (s.isEmpty() || s.length % 4 != 0) return null
+        val data = s.trimEnd('=')
+        if (s.length - data.length > 2) return null
+        val out = java.io.ByteArrayOutputStream(data.length * 3 / 4)
+        var bits = 0
+        var count = 0
+        for (c in data) {
+            val v = when (c) {
+                in 'A'..'Z' -> c - 'A'
+                in 'a'..'z' -> c - 'a' + 26
+                in '0'..'9' -> c - '0' + 52
+                '+', '-' -> 62
+                '/', '_' -> 63
+                else -> return null
+            }
+            bits = (bits shl 6) or v
+            count += 6
+            if (count >= 8) {
+                count -= 8
+                out.write((bits shr count) and 0xFF)
+            }
+        }
+        val decoder = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+        val text = try { decoder.decode(java.nio.ByteBuffer.wrap(out.toByteArray())).toString() }
+            catch (_: java.nio.charset.CharacterCodingException) { return null }
+        return text.takeIf { t -> t.none { it.isISOControl() || it == '\uFFFD' } }
     }
 
     /** Nome curto da falha, sem a mensagem: algumas exceções trazem a URL (com a senha). */
@@ -453,6 +556,9 @@ object XtreamApi {
         JsonToken.BOOLEAN -> nextBoolean().toString()
         else -> { skipValue(); null }
     }
+
+    private const val MAX_EPG_BYTES = 256L * 1024
+    private const val MILLIS_THRESHOLD = 100_000_000_000L
 
     // Mesmo UA da lista M3U: alguns painéis filtram por User-Agent.
     private const val DEFAULT_UA = "Mozilla/5.0 (Linux; Android 12; TV) AppleWebKit/537.36 Chrome/120 Safari/537.36"

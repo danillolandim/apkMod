@@ -105,11 +105,26 @@ sempre com a seção inteira, aberta direto pela Home e com preview do canal em 
   que está tocando. Fecha sozinho após 30 s sem tecla; aberto pela Home, o prazo só começa na primeira tecla. A faixa
   do canal fica escondida com o painel aberto.
 
-### Etapa 4 — EPG sob demanda
-- `XtreamApi.shortEpg(acc, streamId)` via `get_short_epg` (títulos em base64) com cache em memória por canal
-  (TTL 10 min) e parser testado em JVM. Usado pela faixa e pela lista quando a conta é Xtream; o XMLTV continua
-  como alternativa quando há URL de EPG configurada.
-- Confirmar o formato da resposta com `ctx7`/documentação antes de implementar.
+### Etapa 4 — programação sob demanda pela conta
+Formato confirmado na documentação (Context7, "Xtream Codes API"): `GET player_api.php?...&action=get_short_epg&stream_id=ID&limit=N`
+(padrão 4) devolve `{"epg_listings":[{"title","description","start_timestamp","stop_timestamp","now_playing",...}]}`; nos painéis
+reais o título e a descrição costumam vir em base64 (a documentação mostra texto puro: o parser aceita os dois).
+- `XtreamApi.shortEpg(acc, ua, streamId, limit)` + `parseShortEpg` (puro, JVM): tolera campo ausente, título que não é
+  base64, lista vazia, timestamp como texto ou em milissegundos, objeto indexado no lugar de lista, BOM e resposta que não é
+  JSON. Base64 só é aceito com o preenchimento canônico ("=") e sem caracteres de controle, e a decisão vale para a
+  resposta toda (palavra solta como "Rede" ou "OK" não vira lixo). Pede `limit=6` (atual + 3 seguintes com folga).
+- `meta/Guide.kt`: `ProgramCache` (TTL 10 min; falha vale 1 min e não apaga o dado bom; no máximo uma consulta por canal)
+  e o `Guide`, interface única para a faixa e a lista: `peek` (o que se sabe agora, sem rede), `request` (consulta em
+  segundo plano, 2 threads, `Net.client` com timeouts de 8/10 s), `nowText` (linha da lista, só do cache) e `nowLine`.
+  Ordem das fontes: XMLTV (`Epg.listFor`) se a URL está configurada e o arquivo tem programa útil para o canal; senão a
+  API da conta (`XtreamCatalog.accountFor`, mesmo cálculo do catálogo, + `apiId` do canal). Sem conta e sem URL: igual
+  a antes ("Sem informação de programação").
+- Estados: "Carregando programação…" (consulta possível e sem dado fresco), "Sem informação do programa atual" (só há
+  programas futuros) e "Sem informação de programação".
+- Quando consulta: o canal sintonizado (ao sintonizar e ao mostrar a faixa) e o canal em foco na lista depois de 350 ms
+  parado. Linhas da lista só leem o cache. Quando a resposta chega, `Guide.listener` redesenha a faixa ou a lista.
+- Nada em `Net` segura essa requisição durante a reprodução: `Net.playbackActive` só barra quem chama `Net.awaitIdle()`
+  (catálogo e TMDB em segundo plano); o `Guide` não chama.
 
 ## Retorno do usuário (TV real, v107, etapas 1 e 2)
 1. CH+/CH− e ↑/↓ trocam de canal: OK.
@@ -139,7 +154,8 @@ sempre com a seção inteira, aberta direto pela Home e com preview do canal em 
   canal único (extras), sem travar.
 
 ## Status
-- [x] Etapa 1 · [x] Etapa 2 · [x] Etapa 3 · [ ] Etapa 4
+- [x] Etapa 1 · [x] Etapa 2 · [x] Etapa 3 · [x] Etapa 4
 
-Etapas 1 e 2 testadas pelo usuário na TV (v107). Etapa 3 implementada, com testes JVM e build verdes; o comportamento
-na TV ainda não foi validado (sem emulador).
+Etapas 1 e 2 testadas pelo usuário na TV (v107). Etapas 3 e 4 implementadas, com testes JVM e build verdes; o
+comportamento na TV (inclusive se o painel responde ao `get_short_epg` durante a reprodução) ainda não foi validado
+(sem emulador).

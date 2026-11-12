@@ -29,11 +29,15 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.seupainel.player.engine.P2pEngine
 import com.seupainel.player.meta.Epg
+import com.seupainel.player.meta.Guide
 import com.seupainel.player.playlist.LiveCatalog
 import com.seupainel.player.playlist.LiveChannel
 import com.seupainel.player.playlist.LiveGroup
 import com.seupainel.player.playlist.LiveSession
 import com.seupainel.player.playlist.LiveZapper
+import com.seupainel.player.playlist.PlaylistHolder
+import com.seupainel.player.playlist.PlaylistStore
+import com.seupainel.player.playlist.XtreamCatalog
 
 /**
  * Activity de player para Android TV (landscape, D-pad).
@@ -78,6 +82,7 @@ class PlayerActivity : FragmentActivity() {
     private var title: String = ""
     private var logoUrl: String = ""
     private var tvgId: String = ""
+    private var apiId: Long = 0L   // stream_id do painel do canal tocando (0 = desconhecido): a programação sob demanda usa
     private var resumeKind: String = ""   // "movie" | "series" | "" (não guardar na fileira)
     private var queueUrls: List<String> = emptyList()   // próximos episódios (autoplay)
     private var queueTitles: List<String> = emptyList()
@@ -156,7 +161,12 @@ class PlayerActivity : FragmentActivity() {
 
         // Cabeçalhos HTTP: UA do canal (EXTVLCOPT) ou, se ausente, o UA global
         // definido nas Configurações. Muitos provedores exigem um UA específico.
-        globalUserAgent = com.seupainel.player.playlist.PlaylistStore(this).userAgent
+        globalUserAgent = PlaylistStore(this).userAgent
+        if (isLive) {
+            // Programação sob demanda pela conta: sem XMLTV nas Configurações é a única fonte.
+            Guide.configure(XtreamCatalog.accountFor(PlaylistStore(this), PlaylistHolder.channels.orEmpty()), globalUserAgent)
+            Guide.listener = { runOnUiThread { onGuideChanged() } }
+        }
         pc.setHttpHeaders(
             intent.getStringExtra(EXTRA_USER_AGENT)?.ifBlank { null } ?: globalUserAgent,
             intent.getStringExtra(EXTRA_REFERER),
@@ -169,8 +179,7 @@ class PlayerActivity : FragmentActivity() {
         queueTitles = intent.getStringArrayListExtra(EXTRA_QUEUE_TITLES) ?: emptyList()
         queueIdx = 0
         // Garante o EPG carregado (caso o player abra antes da tela de canais).
-        if (isLive) com.seupainel.player.meta.Epg.ensureLoaded(
-            com.seupainel.player.playlist.PlaylistStore(this).epgUrl, globalUserAgent)
+        if (isLive) Epg.ensureLoaded(PlaylistStore(this).epgUrl, globalUserAgent)
         channelBar = findViewById(R.id.channel_bar)
         chName = findViewById(R.id.ch_name)
         chEpg = findViewById(R.id.ch_epg)
@@ -415,10 +424,19 @@ class PlayerActivity : FragmentActivity() {
     // ---------- Faixa do canal (live) ----------
     private val hideChannelBar = Runnable { channelBar.visibility = View.GONE }
     private var shownLogo: String? = null
+    private var barRefresh: (() -> Unit)? = null   // redesenha a faixa com os mesmos dados (a programação chegou)
+
+    /** Uma consulta de programação terminou: a faixa ou a lista, o que estiver à vista, se atualiza. */
+    private fun onGuideChanged() {
+        if (isFinishing || isDestroyed) return
+        if (listOpen) livePanel?.refresh()
+        else if (channelBar.visibility == View.VISIBLE) barRefresh?.invoke()
+    }
 
     /** Faixa do canal que está tocando. [status] (erro, por exemplo) ganha uma linha própria e prende a faixa. */
     private fun showChannelBar(status: String? = null, autoHide: Boolean = true) {
         if (inPip) return
+        if (isLive) Guide.request(tvgId, apiId)
         pinnedStatus = if (autoHide) null else status
         val hint = if (variantUrls.size > 1) "OK: lista de canais  •  MENU: opções e qualidade" else "OK: lista de canais  •  MENU: opções"
         val quality = if (variantUrls.size > 1) variantLabels.getOrElse(variantIdx) { "" } else null
@@ -427,7 +445,7 @@ class PlayerActivity : FragmentActivity() {
             if (status == null) announce(listOfNotNull(number?.let { "Canal $it" }, title.ifBlank { null }).joinToString(", "))
             return
         }
-        val now = renderChannelBar(title, logoUrl, tvgId, number, status, hint, quality)
+        val now = renderChannelBar(title, logoUrl, tvgId, apiId, number, status, hint, quality)
         channelBar.visibility = View.VISIBLE
         ui.removeCallbacks(hideChannelBar)
         if (autoHide) ui.postDelayed(hideChannelBar, 5_000)
@@ -443,7 +461,7 @@ class PlayerActivity : FragmentActivity() {
         pinnedStatus = null
         if (listOpen) return
         val quality = if (ch.variantUrls.size > 1) ch.variantLabels.firstOrNull() else null
-        renderChannelBar(ch.name, ch.logo, ch.tvgId, index + 1, "Sintonizando…", null, quality)
+        renderChannelBar(ch.name, ch.logo, ch.tvgId, ch.apiId, index + 1, "Sintonizando…", null, quality)
         channelBar.visibility = View.VISIBLE
         ui.removeCallbacks(hideChannelBar)
     }
@@ -453,22 +471,22 @@ class PlayerActivity : FragmentActivity() {
      * A [hint] de uso só aparece quando não há guia para ocupar o lugar e não há [status].
      */
     private fun renderChannelBar(
-        name: String, logo: String, tvg: String, number: Int?, status: String?, hint: String?, quality: String?,
+        name: String, logo: String, tvg: String, api: Long, number: Int?, status: String?, hint: String?, quality: String?,
     ): Epg.Prog? {
+        barRefresh = { renderChannelBar(name, logo, tvg, api, number, status, hint, quality) }
         chNumber.text = number?.toString().orEmpty()
         chNumber.visibility = if (number == null) View.GONE else View.VISIBLE
         chName.text = name.ifBlank { "Canal" }
 
-        val (cur, nxt) = Epg.nowNext(tvg)
+        val now = System.currentTimeMillis()
+        val listing = Guide.peek(tvg, api, upcoming = 1, now = now)
+        val cur = listing.agenda.current
+        val nxt = listing.agenda.upcoming.firstOrNull()
         val line = status ?: hint.takeIf { cur == null && nxt == null }
         chStatus.text = line.orEmpty()
         chStatus.visibility = if (line.isNullOrBlank()) View.GONE else View.VISIBLE
-        val progress = Epg.progress(tvg)
-        chEpg.text = when {
-            cur != null -> "${Epg.hhmm(cur.start)}–${Epg.hhmm(cur.stop)}  ${cur.title}"
-            nxt != null -> "Sem informação do programa atual"
-            else -> "Sem informação de programação"
-        }
+        val progress = cur?.let { Epg.progressOf(it, now) }
+        chEpg.text = Guide.nowLine(listing)
         chProgress.visibility = if (progress == null) View.GONE else View.VISIBLE
         chProgress.progress = ((progress ?: 0f) * 1000).toInt()
         chNext.text = nxt?.let { "A seguir ${Epg.hhmm(it.start)}  ${it.title}" }.orEmpty()
@@ -798,6 +816,7 @@ class PlayerActivity : FragmentActivity() {
         liveGroups = LiveSession.groups
         zapper = LiveZapper(liveList.size, index)
         val ch = liveList[index]
+        apiId = ch.apiId
         // Aberto por uma lista sem as outras qualidades: o canal da sessão sabe todas.
         if (variantUrls.size <= 1 && ch.variantUrls.size > 1 && directUrl in ch.variantUrls) {
             variantUrls = ch.variantUrls
@@ -852,12 +871,14 @@ class PlayerActivity : FragmentActivity() {
         title = ch.name
         logoUrl = ch.logo
         tvgId = ch.tvgId
+        apiId = ch.apiId
         variantUrls = ch.variantUrls
         variantLabels = ch.variantLabels
         variantIdx = variantUrls.indexOf(directUrl).coerceAtLeast(0)
         pc.setHttpHeaders(ch.userAgent?.ifBlank { null } ?: globalUserAgent, ch.referer)
         pc.play(directUrl, startPositionMs = startMs)
         settings.lastLiveChannel = LiveCatalog.keyOf(ch)
+        Guide.request(ch.tvgId, ch.apiId)
     }
 
     // ---------- Número do canal (0–9) ----------
@@ -1183,6 +1204,7 @@ class PlayerActivity : FragmentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        Guide.listener = null
         ui.removeCallbacksAndMessages(null)
         com.seupainel.player.net.Net.playbackActive = false
         persistResume()
