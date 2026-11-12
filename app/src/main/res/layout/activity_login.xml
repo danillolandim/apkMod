@@ -177,33 +177,6 @@
                         android:textColor="@color/lf_text"
                         android:textColorHint="@color/lf_text_3" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="Chave do TMDB própria (opcional)"
-                        android:textColor="@color/lf_accent"
-                        android:textSize="13sp" />
-
-                    <EditText
-                        android:id="@+id/login_tmdb"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Deixe vazio para usar a do app"
-                        android:importantForAutofill="no"
-                        android:inputType="textNoSuggestions"
-                        android:singleLine="true"
-                        android:textColor="@color/lf_text"
-                        android:textColorHint="@color/lf_text_3" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="A chave do app já traz sinopse, Aclamadas e Populares. Se preferir a sua: themoviedb.org > Configurações > API."
-                        android:textColor="@color/lf_text_3"
-                        android:textSize="12sp" />
-
                     <Button
                         android:id="@+id/login_m3u"
                         android:layout_width="wrap_content"

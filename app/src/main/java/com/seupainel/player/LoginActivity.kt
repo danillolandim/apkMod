@@ -24,8 +24,8 @@ import kotlin.concurrent.thread
 
 /**
  * Primeiro uso: a pessoa digita só usuário e senha; o servidor (DNS) já vem de fábrica
- * ([BuildConfig.DEFAULT_SERVER], injetado na compilação). Servidor, servidor alternativo e chave do
- * TMDB próprios ficam em "Opções avançadas". Valida a conta no servidor antes de salvar.
+ * ([BuildConfig.DEFAULT_SERVER], injetado na compilação). Servidor e servidor alternativo ficam em "Opções avançadas";
+ * a chave do TMDB fica só nas Configurações. Valida a conta no servidor antes de salvar.
  */
 class LoginActivity : FragmentActivity() {
 
@@ -34,7 +34,6 @@ class LoginActivity : FragmentActivity() {
     private lateinit var pass: EditText
     private lateinit var server: EditText
     private lateinit var alt: EditText
-    private lateinit var tmdb: EditText
     private lateinit var status: TextView
     private lateinit var enter: Button
     private lateinit var advanced: View
@@ -48,7 +47,6 @@ class LoginActivity : FragmentActivity() {
         pass = findViewById(R.id.login_pass)
         server = findViewById(R.id.login_server)
         alt = findViewById(R.id.login_alt)
-        tmdb = findViewById(R.id.login_tmdb)
         status = findViewById(R.id.login_status)
         enter = findViewById(R.id.login_enter)
         advanced = findViewById(R.id.login_advanced)
@@ -59,7 +57,6 @@ class LoginActivity : FragmentActivity() {
         user.setText(current?.user.orEmpty())
         pass.setText(current?.pass.orEmpty())
         server.setText(current?.base ?: BuildConfig.DEFAULT_SERVER)
-        tmdb.setText(AppSettings(this).userTmdbApiKey)
         // Sem servidor de fábrica (build local/fork) o campo é obrigatório: as opções já abrem visíveis.
         setAdvanced(BuildConfig.DEFAULT_SERVER.isBlank())
 
@@ -150,21 +147,38 @@ class LoginActivity : FragmentActivity() {
         store.lastUrl = newUrl
         // Formato padrão das URLs ao vivo: já dá para abrir sem a lista M3U desde a próxima vez.
         if (store.liveUrlTemplate == null) store.liveUrlTemplate = "$base/live/$u/$p/{id}.ts"
-        tmdb.text.toString().trim().takeIf { it.isNotBlank() }?.let { AppSettings(this).userTmdbApiKey = it }
 
         val conns = if (r.active != null && r.max != null) " · conexões ${r.active}/${r.max}" else ""
         val plain = Regex("[A-Za-z0-9._-]+")
         val warn = if (!plain.matches(u) || !plain.matches(p))
             "\nAtenção: caracteres especiais no usuário ou na senha podem dar problema em alguns vídeos." else ""
-        ok("Conectado ✓  Conta ${r.status} · vence ${r.expires ?: "sem data"}$conns" +
-            (if (usedAlt) " · servidor alternativo" else "") + warn)
+        val header = "Conectado ✓  Conta ${r.status} · vence ${r.expires ?: "sem data"}$conns" +
+            (if (usedAlt) " · servidor alternativo" else "") + warn
+        ok("$header\nCarregando seu catálogo…")
         enter.isEnabled = false
-        ui.postDelayed({
-            if (isFinishing) return@postDelayed
-            startActivity(Intent(this, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
-            finish()
-        }, if (warn.isEmpty()) 1_200L else 3_500L)
+        val started = System.currentTimeMillis()
+        // Teto: com a rede muito lenta entra assim mesmo (o catálogo termina de carregar depois).
+        ui.postDelayed({ goHome() }, 45_000L)
+        thread(name = "login-warm") {
+            runCatching { XtreamCatalog.warm(applicationContext, store, emptyList()) }
+            // Dá tempo de ler a mensagem (mais tempo se houver aviso).
+            val minShow = if (warn.isEmpty()) 1_500L else 3_500L
+            val wait = (minShow - (System.currentTimeMillis() - started)).coerceAtLeast(0L)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                ok(header + "\n" + XtreamCatalog.lastStatus.ifBlank { "Catálogo pronto." })
+                ui.postDelayed({ goHome() }, wait + 600L)
+            }
+        }
+    }
+
+    private var left = false
+    private fun goHome() {
+        if (left || isFinishing) return
+        left = true
+        startActivity(Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        finish()
     }
 
     override fun onDestroy() {
