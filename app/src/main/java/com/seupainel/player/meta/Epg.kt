@@ -50,17 +50,33 @@ object Epg {
     }
 
     /** (agora, a seguir) para um tvg-id, ou (null, null) se não houver dados. */
-    fun nowNext(tvgId: String?): Pair<Prog?, Prog?> {
+    fun nowNext(tvgId: String?, now: Long = System.currentTimeMillis()): Pair<Prog?, Prog?> {
         if (tvgId.isNullOrBlank() || !loaded) return null to null
         val id = tvgId.trim()
         val list = byId[id] ?: byId[id.lowercase()] ?: return null to null
-        val now = System.currentTimeMillis()
+        return nowNextIn(list, now)
+    }
+
+    /** [list] precisa estar ordenada por início. */
+    internal fun nowNextIn(list: List<Prog>, now: Long): Pair<Prog?, Prog?> {
         for (i in list.indices) {
             val p = list[i]
             if (now in p.start until p.stop) return p to list.getOrNull(i + 1)
             if (p.start > now) return null to p   // intervalo sem programa atual
         }
         return null to null
+    }
+
+    /** Fração (0..1) do programa atual já transcorrida, ou null se o canal não tem programa agora. */
+    fun progress(tvgId: String?, now: Long = System.currentTimeMillis()): Float? {
+        val cur = nowNext(tvgId, now).first ?: return null
+        return progressOf(cur, now)
+    }
+
+    internal fun progressOf(p: Prog, now: Long): Float {
+        val length = p.stop - p.start
+        if (length <= 0) return 0f
+        return ((now - p.start).toFloat() / length).coerceIn(0f, 1f)
     }
 
     /** Texto para a barra do canal: "20:00 Jornal • A seguir 20:30 Novela". */
@@ -85,7 +101,7 @@ object Epg {
     // ---------------- interno ----------------
 
     private val hhmmFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private fun hhmm(ms: Long): String = synchronized(hhmmFmt) { hhmmFmt.format(ms) }
+    fun hhmm(ms: Long): String = synchronized(hhmmFmt) { hhmmFmt.format(ms) }
 
     private fun fetchAndParse(url: String, userAgent: String?): Map<String, List<Prog>> {
         val req = Request.Builder().url(url)

@@ -47,25 +47,43 @@
         android:textSize="16sp"
         android:visibility="gone" />
 
-    <!-- Barra de info do canal (nome, logo, EPG) — experiência de TV -->
+    <!-- Faixa do canal (ao vivo): número, logo, nome, programa atual com progresso e "a seguir".
+         Não é focável: o controle zapeia, e quem lê o canal é o anúncio do TalkBack (announce). -->
     <LinearLayout
         android:id="@+id/channel_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
+        android:layout_marginLeft="40dp"
+        android:layout_marginRight="40dp"
+        android:layout_marginBottom="32dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="#CC05080D"
-        android:paddingLeft="36dp"
-        android:paddingRight="36dp"
-        android:paddingTop="18dp"
-        android:paddingBottom="18dp"
+        android:background="@drawable/channel_bar_bg"
+        android:paddingLeft="24dp"
+        android:paddingRight="24dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
         android:visibility="gone">
+
+        <TextView
+            android:id="@+id/ch_number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="64dp"
+            android:gravity="center"
+            android:fontFamily="@font/rajdhani_bold"
+            android:textColor="@color/lf_accent"
+            android:textSize="34sp"
+            android:maxLines="1"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/ch_logo"
             android:layout_width="96dp"
             android:layout_height="60dp"
+            android:layout_marginStart="12dp"
             android:scaleType="fitCenter"
             android:contentDescription="Logo do canal" />
 
@@ -81,23 +99,56 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/rajdhani_semibold"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/lf_text"
                 android:textSize="24sp"
                 android:maxLines="1"
                 android:ellipsize="end" />
+
+            <!-- Estado do canal em texto (não só cor): "Sintonizando…", erro, dica de uso -->
+            <TextView
+                android:id="@+id/ch_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/lf_text_2"
+                android:textSize="14sp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/ch_epg"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:textColor="#9FB0C0"
+                android:textColor="@color/lf_text"
                 android:textSize="16sp"
-                android:maxLines="2"
+                android:maxLines="1"
                 android:ellipsize="end" />
+
+            <ProgressBar
+                android:id="@+id/ch_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="6dp"
+                android:max="1000"
+                android:progressDrawable="@drawable/channel_progress"
+                android:importantForAccessibility="no"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/ch_next"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/lf_text_2"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Botão de qualidade (só no ao vivo com várias qualidades) -->
+        <!-- Qualidade atual (só no ao vivo com várias qualidades). Indicador: a troca é pelo OK (dock). -->
         <TextView
             android:id="@+id/quality_btn"
             android:layout_width="wrap_content"
@@ -108,7 +159,7 @@
             android:paddingTop="10dp"
             android:paddingBottom="10dp"
             android:background="@drawable/card_bg"
-            android:focusable="true"
+            android:focusable="false"
             android:clickable="true"
             android:defaultFocusHighlightEnabled="false"
             android:fontFamily="@font/rajdhani_semibold"

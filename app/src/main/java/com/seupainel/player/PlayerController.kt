@@ -112,13 +112,15 @@ class PlayerController(
             }
         }
 
-    /** Define cabeçalhos HTTP para os próximos streams (antes de play()). */
+    /**
+     * Define cabeçalhos HTTP para os próximos streams (antes de play()). Sempre redefine os dois: ao trocar de
+     * canal no mesmo player, o Referer/UA do canal anterior não pode ficar preso no próximo.
+     */
     fun setHttpHeaders(userAgent: String?, referer: String?) {
-        if (!userAgent.isNullOrBlank()) http.setUserAgent(userAgent)
-        val headers = buildMap {
+        http.setUserAgent(userAgent?.takeIf { it.isNotBlank() })
+        http.setDefaultRequestProperties(buildMap {
             if (!referer.isNullOrBlank()) put("Referer", referer)
-        }
-        if (headers.isNotEmpty()) http.setDefaultRequestProperties(headers)
+        })
     }
 
     val player: ExoPlayer = run {

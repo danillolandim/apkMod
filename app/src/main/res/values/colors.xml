@@ -11,4 +11,6 @@
     <color name="lf_text">#E4E5EC</color>
     <color name="lf_text_2">#B5B6C9</color>
     <color name="lf_text_3">#7A7B9F</color>
+    <!-- lf_surface com 90% de opacidade: faixas e painéis sobre o vídeo -->
+    <color name="lf_surface_scrim">#E6131320</color>
 </resources>

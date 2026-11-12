@@ -1301,8 +1301,38 @@ class ChannelListActivity : FragmentActivity() {
         return reps
     }
 
+    /**
+     * Entrega ao player a lista ao vivo que está na tela (já colapsada por qualidade, com filtro e busca
+     * aplicados) para ele poder zapear sem voltar para cá. Os extras do Intent seguem indo: são o plano B.
+     */
+    private fun publishLiveSession(chosen: M3uParser.Channel) {
+        // Em Favoritos a lista mistura filmes e canais: só canais entram no zapping.
+        val live = shown.filter { secOfChannel(it) == Sec.CANAIS }
+        val index = live.indexOfFirst { it === chosen }
+        if (index < 0) { LiveSession.clear(); return }
+        LiveSession.set(live.map { toLiveChannel(it, liveVariants[it.name]) }, index)
+    }
+
+    private fun toLiveChannel(c: M3uParser.Channel, variants: List<M3uParser.Channel>?): LiveChannel {
+        val many = variants?.takeIf { it.size > 1 }
+        val best = many?.first() ?: c
+        return LiveChannel(
+            name = c.name,
+            url = best.url,
+            logo = c.logo.orEmpty(),
+            tvgId = c.tvgId.orEmpty(),
+            apiId = c.apiId,
+            group = c.group,
+            userAgent = best.userAgent,
+            referer = best.referer,
+            variantUrls = many?.map { it.url }.orEmpty(),
+            variantLabels = many?.map { ChannelQuality.labelOf(it.name) }.orEmpty(),
+        )
+    }
+
     /** Toca um canal ao vivo; se tiver várias qualidades, leva todas ao player. */
     private fun playLive(ch: M3uParser.Channel) {
+        publishLiveSession(ch)
         val variants = liveVariants[ch.name]
         if (variants == null || variants.size <= 1) { play(ch); return }
         val best = variants.first()

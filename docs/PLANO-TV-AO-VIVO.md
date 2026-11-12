@@ -99,4 +99,6 @@ VOD (filme/série) **não muda**: tudo acima vale só quando `isLive`.
   canal único (extras), sem travar.
 
 ## Status
-- [ ] Etapa 1 · [ ] Etapa 2 · [ ] Etapa 3 · [ ] Etapa 4
+- [x] Etapa 1 · [ ] Etapa 2 · [ ] Etapa 3 · [ ] Etapa 4
+
+Etapa 1 implementada e com testes JVM e build verdes; o comportamento na TV ainda não foi validado (sem emulador).
