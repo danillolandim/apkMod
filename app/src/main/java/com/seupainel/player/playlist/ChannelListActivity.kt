@@ -92,11 +92,10 @@ class ChannelListActivity : FragmentActivity() {
     // (evita re-uppercase/contains por item em listas de dezenas de milhares).
     private val groupSecCache = java.util.concurrent.ConcurrentHashMap<String, Sec>()
     private fun secOf(group: String): Sec = groupSecCache.getOrPut(group) {
-        val u = group.uppercase()
-        when {
-            u.contains("SERIE") || u.contains("SÉRIE") -> Sec.SERIES
-            u.contains("FILME") || u.contains("MOVIE") || u.contains("VOD") || u.contains("CINEMA") -> Sec.FILMES
-            else -> Sec.CANAIS
+        when (LiveCatalog.groupKind(group)) {
+            LiveCatalog.GroupKind.SERIES -> Sec.SERIES
+            LiveCatalog.GroupKind.MOVIE -> Sec.FILMES
+            LiveCatalog.GroupKind.LIVE -> Sec.CANAIS
         }
     }
     /**
@@ -483,6 +482,8 @@ class ChannelListActivity : FragmentActivity() {
                 hostOf(ch.url)?.let { hostCount[it] = (hostCount[it] ?: 0) + 1 }
             }
             secLists = m
+            // Deixa a seção ao vivo inteira pronta: o primeiro canal aberto não espera a conta da lista toda.
+            m[Sec.CANAIS]?.let { runCatching { LiveCatalog.sectionFor(it, apiOrderLive) } }
             // Pré-resolve o DNS dos hosts mais usados (zapping mais rápido).
             val topHosts = hostCount.entries.sortedByDescending { it.value }.map { it.key }.take(12)
             com.seupainel.player.net.Net.warmDns(topHosts)
@@ -1302,36 +1303,16 @@ class ChannelListActivity : FragmentActivity() {
     }
 
     /**
-     * Entrega ao player a lista ao vivo que está na tela (já colapsada por qualidade, com filtro e busca
-     * aplicados) para ele poder zapear sem voltar para cá. Os extras do Intent seguem indo: são o plano B.
+     * Entrega ao player a seção de TV ao vivo inteira (todas as categorias, canais juntados por qualidade),
+     * qualquer que seja a categoria, a busca ou a aba de onde o canal foi aberto: o zapping e o painel do player
+     * não dependem de por onde o usuário entrou. Os extras do Intent seguem indo: são o plano B.
      */
     private fun publishLiveSession(chosen: M3uParser.Channel) {
-        // Em Favoritos a lista mistura filmes e canais: só canais entram no zapping.
-        val live = shown.filter { secOfChannel(it) == Sec.CANAIS }
-        val index = live.indexOfFirst { it === chosen }
+        val live = secLists?.get(Sec.CANAIS) ?: all.filter { secOfChannel(it) == Sec.CANAIS }
+        val section = LiveCatalog.sectionFor(live, apiOrderLive)
+        val index = LiveCatalog.indexOfUrl(section.channels, chosen.url)
         if (index < 0) { LiveSession.clear(); return }
-        // As categorias da lista sobreposta seguem as do menu desta tela (mesma ordem e mesmos nomes).
-        val menuOrder = if (currentSection == Sec.CANAIS) groups.filter { it != ALL_SEC && it != NOVIDADES } else emptyList()
-        LiveSession.set(live.map { toLiveChannel(it, liveVariants[it.name]) }, index, menuOrder)
-    }
-
-    private fun toLiveChannel(c: M3uParser.Channel, variants: List<M3uParser.Channel>?): LiveChannel {
-        val many = variants?.takeIf { it.size > 1 }
-        val best = many?.first() ?: c
-        // Mesmo critério do filtro da tela (que roda sobre o nome cru, antes de juntar as qualidades).
-        val category = if (canaisDerived) LiveGroups.categoryOf(variants?.firstOrNull()?.name ?: c.name) else c.group
-        return LiveChannel(
-            name = c.name,
-            url = best.url,
-            logo = c.logo.orEmpty(),
-            tvgId = c.tvgId.orEmpty(),
-            apiId = c.apiId,
-            group = category,
-            userAgent = best.userAgent,
-            referer = best.referer,
-            variantUrls = many?.map { it.url }.orEmpty(),
-            variantLabels = many?.map { ChannelQuality.labelOf(it.name) }.orEmpty(),
-        )
+        LiveSession.set(section.channels, index, LiveCatalog.groupsOf(section, store.favorites()))
     }
 
     /** Toca um canal ao vivo; se tiver várias qualidades, leva todas ao player. */

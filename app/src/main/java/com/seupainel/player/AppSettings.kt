@@ -65,6 +65,11 @@ class AppSettings(context: Context) {
         get() = p.getBoolean("use_xtream", true)
         set(v) = p.edit().putBoolean("use_xtream", v).apply()
 
+    /** Último canal ao vivo sintonizado (ver LiveCatalog.keyOf): a Home abre direto nele. */
+    var lastLiveChannel: String
+        get() = p.getString("last_live", "") ?: ""
+        set(v) = p.edit().putString("last_live", v).apply()
+
     /** Papel de parede: chave de tema (ver WALLPAPERS) ou "custom". */
     var wallpaper: String
         get() = p.getString("wallpaper_lf", "landimflix") ?: "landimflix"

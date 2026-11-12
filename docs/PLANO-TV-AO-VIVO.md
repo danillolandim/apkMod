@@ -75,23 +75,50 @@ Ao vivo não lê nem grava posição de retomada e sempre (re)começa na borda a
 - `ListView` com holder reciclado (padrão do projeto), logos via Coil já usado no app.
 - Como ficou: `LiveSession.groups` = "Todos" (a lista da sessão) + uma categoria por `LiveChannel.group` (a tela de
   canais grava aí o nome da categoria do menu), com índices sempre na lista "Todos", então o número do canal é o
-  mesmo em qualquer categoria. A lista fecha sozinha após 15 s sem tecla. CH±/número/último canal seguem zapeando
-  com ela aberta e a seleção acompanha; ↑/↓ só navegam. Se a sessão foi aberta de uma categoria ou busca, "Todos" é
-  essa lista filtrada (não a seção inteira).
+  mesmo em qualquer categoria. CH±/número/último canal seguem zapeando com ela aberta e a seleção acompanha; ↑/↓ só
+  navegam. (Superado pelo teste na TV: a etapa 3 passou a usar sempre a seção inteira e o prazo de inatividade para
+  30 s.)
 
-### Etapa 3 — guia com preview
-- "TV ao vivo" abre direto o player em **modo guia**: lista em tela cheia e o vídeo numa janela (canto superior
-  direito). Canal em foco por 700 ms → a janela sintoniza (mesmo player). OK expande para tela cheia sem
-  reconectar; Voltar na tela cheia volta ao guia.
-- Requer extrair de `ChannelListActivity` a montagem da lista ao vivo (seção, `collapseLive`, grupos) para algo
-  reutilizável (`playlist/LiveCatalog.kt`), sem mudar o comportamento de Filmes/Séries.
-- Abre no último canal assistido (salvar em `AppSettings`).
+### Etapa 3 — seção ao vivo inteira, entrada pela Home e preview (ajustada pelo retorno da TV)
+Escopo original: "modo guia" com a lista em tela cheia e o vídeo numa janela reduzida no canto. Trocado, depois do
+teste na TV (ver "Retorno do usuário"), por: a mesma lista lateral da etapa 2 sobre o vídeo em tela cheia, agora
+sempre com a seção inteira, aberta direto pela Home e com preview do canal em foco. Sem janela de vídeo reduzida.
+- `playlist/LiveCatalog.kt` (novo): monta a seção ao vivo a partir da API da conta (`XtreamCatalog`) ou da lista M3U
+  em memória. Parte pura e testada em JVM: `build` (junta por qualidade com a mesma regra do `collapseLive`; "Todos" =
+  todos os canais, na ordem da lista), `groupsOf` ("Todos", "Favoritos" se houver, e as categorias na ordem do menu),
+  chave estável do canal (`keyOf`) e achar canal por URL. `openSession` é a cola Android usada pela Home.
+  - Categorias: as do painel (sem o prefixo "TV | ", na ordem do painel); sem API, as do group-title se houver mais de
+    uma (ordem alfabética, como o menu); senão as deduzidas do nome (`LiveGroups`). Um canal aparece em toda categoria
+    em que alguma qualidade dele está; a "principal" (a que o painel abre) é a do melhor irmão.
+  - Numeração = posição em "Todos". "Favoritos" vem logo após "Todos": canais ao vivo cuja URL (de qualquer
+    qualidade) está nos favoritos da tela de canais (`PlaylistStore.favorites`, por URL).
+- `ChannelListActivity.playLive`: a sessão passa a ser sempre a seção inteira, de qualquer categoria, busca ou
+  Favoritos; posiciona no canal clicado (achado pela URL). `secOf` usa `LiveCatalog.groupKind` (mesma regra).
+- Home → "TV ao vivo": `LiveCatalog.openSession` em segundo plano (o botão mostra "Carregando canais…"), sintoniza o
+  último canal (`AppSettings.lastLiveChannel`, gravado a cada sintonia; se não existir mais, o primeiro) e abre o
+  `PlayerActivity` com `EXTRA_LIVE_HOME`: a lista abre sozinha depois do primeiro layout. Sem como montar o catálogo
+  (sem API e sem M3U em memória, ou falha), cai na `ChannelListActivity` com um aviso. A tela de canais continua nas
+  abas das outras telas (busca de canais fica lá).
+- Painel: abre na categoria do canal que está tocando, com o canal em foco. Canal em foco por 800 ms → o MESMO player
+  sintoniza (cada movimento do foco reinicia a espera; o foco é lido na hora de disparar e só vale com o foco nos
+  canais, não nas categorias). OK fecha (sintoniza na hora se ainda não sintonizou); Voltar fecha e mantém o canal
+  que está tocando. Fecha sozinho após 30 s sem tecla; aberto pela Home, o prazo só começa na primeira tecla. A faixa
+  do canal fica escondida com o painel aberto.
 
 ### Etapa 4 — EPG sob demanda
 - `XtreamApi.shortEpg(acc, streamId)` via `get_short_epg` (títulos em base64) com cache em memória por canal
   (TTL 10 min) e parser testado em JVM. Usado pela faixa e pela lista quando a conta é Xtream; o XMLTV continua
   como alternativa quando há URL de EPG configurada.
 - Confirmar o formato da resposta com `ctx7`/documentação antes de implementar.
+
+## Retorno do usuário (TV real, v107, etapas 1 e 2)
+1. CH+/CH− e ↑/↓ trocam de canal: OK.
+2. OK abre a lista, mas ela só mostrava o nível em que ele estava (entrando por uma categoria, só aquela): ele quer
+   SEMPRE a seção TV ao vivo inteira, com todas as categorias.
+3. "TV ao vivo" (Home) deve já abrir um canal tocando, com a lista completa na lateral, como no menu do OK.
+4. Faixa e lista mostravam "Sem informação de programação". Causa: `Epg` só carrega se houver `PlaylistStore.epgUrl`
+   digitada em Configurações; com o login por usuário e senha ela fica vazia, e a falha é silenciosa. Resolvido na
+   etapa 4 (programação sob demanda pela conta).
 
 ## Verificação
 - `ANDROID_HOME=~/Library/Android/sdk gradle :app:testDebugUnitTest` e `gradle :app:assembleDebug`.
@@ -112,6 +139,7 @@ Ao vivo não lê nem grava posição de retomada e sempre (re)começa na borda a
   canal único (extras), sem travar.
 
 ## Status
-- [x] Etapa 1 · [x] Etapa 2 · [ ] Etapa 3 · [ ] Etapa 4
+- [x] Etapa 1 · [x] Etapa 2 · [x] Etapa 3 · [ ] Etapa 4
 
-Etapas 1 e 2 implementadas, com testes JVM e build verdes; o comportamento na TV ainda não foi validado (sem emulador).
+Etapas 1 e 2 testadas pelo usuário na TV (v107). Etapa 3 implementada, com testes JVM e build verdes; o comportamento
+na TV ainda não foi validado (sem emulador).

@@ -29,6 +29,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.seupainel.player.engine.P2pEngine
 import com.seupainel.player.meta.Epg
+import com.seupainel.player.playlist.LiveCatalog
 import com.seupainel.player.playlist.LiveChannel
 import com.seupainel.player.playlist.LiveGroup
 import com.seupainel.player.playlist.LiveSession
@@ -102,6 +103,7 @@ class PlayerActivity : FragmentActivity() {
     private var lastZapAt = 0L
     private var globalUserAgent: String? = null   // UA das Configurações: vale para canal sem UA próprio
     private val numberBuf = StringBuilder()
+    private var idleWaitsKey = false   // lista aberta pela Home: o prazo de inatividade só começa na primeira tecla
 
     // Dock de ações (estilo dock do Mac)
     private lateinit var dock: LinearLayout
@@ -146,10 +148,11 @@ class PlayerActivity : FragmentActivity() {
         resumeKey = directUrl.ifBlank { address }
         if (directUrl.isBlank() && address.isBlank()) { toast("Nada para tocar"); finish(); return }
         if (isLive && directUrl.isNotBlank()) startZapSession()
-        if (isLive) livePanel = LiveListPanel(this) { liveIndex ->
+        if (isLive) livePanel = LiveListPanel(this, onPick = { liveIndex ->
+            ui.removeCallbacks(previewTune)
             closeList(restoreBar = false)
             zapTo(liveIndex, immediate = true)
-        }
+        }, onFocus = ::armPreview)
 
         // Cabeçalhos HTTP: UA do canal (EXTVLCOPT) ou, se ausente, o UA global
         // definido nas Configurações. Muitos provedores exigem um UA específico.
@@ -211,6 +214,12 @@ class PlayerActivity : FragmentActivity() {
             else pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
         } else {
             startEngine(address)
+        }
+        // Entrada pela Home: já sintonizado no último canal e com a lista de canais aberta ao lado.
+        if (isLive && zapper != null && intent.getBooleanExtra(EXTRA_LIVE_HOME, false)) {
+            idleWaitsKey = true
+            // Depois do primeiro layout: sem altura a lista não consegue centralizar o canal que está tocando.
+            window.decorView.post { if (!isFinishing && !isDestroyed) openList() }
         }
     }
 
@@ -740,8 +749,9 @@ class PlayerActivity : FragmentActivity() {
         val z = zapper ?: return
         ui.removeCallbacks(hideChannelBar)
         channelBar.visibility = View.GONE
-        panel.open(liveList, liveGroups, z.current)
-        armListIdle()
+        val playing = z.current
+        panel.open(liveList, liveGroups, playing, LiveCatalog.groupIndexOf(liveGroups, liveList[playing]))
+        if (!idleWaitsKey) armListIdle()
     }
 
     /** [restoreBar]: devolve a faixa se ela estava presa por um erro quando a lista abriu. */
@@ -749,13 +759,36 @@ class PlayerActivity : FragmentActivity() {
         if (!listOpen) return
         livePanel?.close()
         ui.removeCallbacks(listIdleClose)
+        ui.removeCallbacks(previewTune)
         val pinned = pinnedStatus
         if (restoreBar && pinned != null) showChannelBar(status = pinned, autoHide = false)
     }
 
     private fun armListIdle() {
+        idleWaitsKey = false
         ui.removeCallbacks(listIdleClose)
         ui.postDelayed(listIdleClose, LIST_IDLE_MS)
+    }
+
+    /**
+     * Com a lista aberta, o canal em foco por [PREVIEW_DELAY_MS] passa a tocar (no mesmo player). Cada movimento do
+     * foco reinicia a espera, então passar por várias linhas não abre conexão em nenhuma delas.
+     */
+    private fun armPreview() {
+        ui.removeCallbacks(previewTune)
+        ui.postDelayed(previewTune, PREVIEW_DELAY_MS)
+    }
+
+    private val previewTune = Runnable {
+        val panel = livePanel ?: return@Runnable
+        val z = zapper ?: return@Runnable
+        // Lê o foco de agora, não o do evento que armou a espera: ele pode ter mudado, ou ido para as categorias.
+        if (!panel.isOpen || !panel.channelsHaveFocus) return@Runnable
+        val index = panel.focusedChannel() ?: return@Runnable
+        if (index == z.tuned) return@Runnable
+        z.jumpTo(index)
+        tune(index)
+        panel.markPlaying(index)
     }
 
     // ---------- Zapping (ao vivo) ----------
@@ -764,6 +797,14 @@ class PlayerActivity : FragmentActivity() {
         liveList = LiveSession.channels
         liveGroups = LiveSession.groups
         zapper = LiveZapper(liveList.size, index)
+        val ch = liveList[index]
+        // Aberto por uma lista sem as outras qualidades: o canal da sessão sabe todas.
+        if (variantUrls.size <= 1 && ch.variantUrls.size > 1 && directUrl in ch.variantUrls) {
+            variantUrls = ch.variantUrls
+            variantLabels = ch.variantLabels
+            variantIdx = variantUrls.indexOf(directUrl).coerceAtLeast(0)
+        }
+        settings.lastLiveChannel = LiveCatalog.keyOf(ch)
     }
 
     /** CH+/CH−: [dir] > 0 vai ao próximo canal (dá a volta no fim da lista), < 0 ao anterior. */
@@ -816,6 +857,7 @@ class PlayerActivity : FragmentActivity() {
         variantIdx = variantUrls.indexOf(directUrl).coerceAtLeast(0)
         pc.setHttpHeaders(ch.userAgent?.ifBlank { null } ?: globalUserAgent, ch.referer)
         pc.play(directUrl, startPositionMs = startMs)
+        settings.lastLiveChannel = LiveCatalog.keyOf(ch)
     }
 
     // ---------- Número do canal (0–9) ----------
@@ -1168,12 +1210,31 @@ class PlayerActivity : FragmentActivity() {
         const val EXTRA_SUB_LABEL = "sub_label"
         const val EXTRA_SUB_LANG = "sub_lang"
         const val EXTRA_START_MS = "start_ms"
+        const val EXTRA_LIVE_HOME = "live_home"   // ao vivo aberto pela Home: lista de canais já aberta
 
         private const val ZAP_TUNE_DELAY_MS = 300L       // espera antes de abrir conexão no canal novo
         private const val ZAP_REPEAT_MIN_MS = 150L       // intervalo mínimo entre trocas com a tecla segurada
         private const val NUMBER_CONFIRM_MS = 1_500L     // sem novo dígito, o número digitado é confirmado
         private const val MAX_NUMBER_DIGITS = 4
-        private const val LIST_IDLE_MS = 15_000L          // a lista de canais fecha sozinha sem tecla
+        private const val LIST_IDLE_MS = 30_000L          // a lista de canais fecha sozinha sem tecla
+        private const val PREVIEW_DELAY_MS = 800L         // foco parado num canal da lista: ele passa a tocar
+
+        /** Player ao vivo no canal [ch] da [LiveSession], com a lista de canais aberta (entrada pela Home). */
+        fun liveHomeIntent(context: android.content.Context, ch: LiveChannel) =
+            android.content.Intent(context, PlayerActivity::class.java).apply {
+                putExtra(EXTRA_DIRECT_URL, ch.url)
+                putExtra(EXTRA_IS_LIVE, true)
+                putExtra(EXTRA_TITLE, ch.name)
+                putExtra(EXTRA_LOGO, ch.logo)
+                putExtra(EXTRA_TVG_ID, ch.tvgId)
+                ch.userAgent?.let { putExtra(EXTRA_USER_AGENT, it) }
+                ch.referer?.let { putExtra(EXTRA_REFERER, it) }
+                if (ch.variantUrls.size > 1) {
+                    putStringArrayListExtra(EXTRA_VARIANT_URLS, ArrayList(ch.variantUrls))
+                    putStringArrayListExtra(EXTRA_VARIANT_LABELS, ArrayList(ch.variantLabels))
+                }
+                putExtra(EXTRA_LIVE_HOME, true)
+            }
 
         fun intent(context: android.content.Context, source: PanelSource) =
             android.content.Intent(context, PlayerActivity::class.java).apply {

@@ -17,11 +17,13 @@ import com.seupainel.player.playlist.LiveGroup
 /**
  * Lista de canais por cima do vídeo (ao vivo): categorias e canais à esquerda, e a programação do canal em foco
  * embaixo à direita. Só desenha e navega; quem sintoniza é o player, avisado por [onPick] com o índice do canal na
- * lista "Todos" (o mesmo número do zapping).
+ * lista "Todos" (o mesmo número do zapping) e por [onFocus] a cada movimento do foco entre os canais (o player
+ * decide se e quando mostrar o canal em foco).
  */
 class LiveListPanel(
     private val activity: FragmentActivity,
     private val onPick: (Int) -> Unit,
+    private val onFocus: () -> Unit,
 ) {
     private val root: View = activity.findViewById(R.id.live_list)
     private val groupsView: ListView = activity.findViewById(R.id.live_groups)
@@ -53,15 +55,17 @@ class LiveListPanel(
         }
         groupsView.setOnItemClickListener { _, _, _, _ -> focusChannels() }
         channelsView.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) =
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 renderGuide(rows.liveIndexAt(position))
+                onFocus()
+            }
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
         }
         channelsView.setOnItemClickListener { _, _, position, _ -> rows.liveIndexAt(position)?.let(onPick) }
     }
 
-    /** Abre em "Todos", com o foco no canal [playingIndex]. */
-    fun open(channels: List<LiveChannel>, groups: List<LiveGroup>, playingIndex: Int) {
+    /** Abre na categoria [startGroup], com o foco no canal [playingIndex] (índice na lista "Todos"). */
+    fun open(channels: List<LiveChannel>, groups: List<LiveGroup>, playingIndex: Int, startGroup: Int) {
         this.channels = channels
         this.groups = groups
         playing = playingIndex
@@ -71,7 +75,7 @@ class LiveListPanel(
             groups.map { "${it.name}  (${it.indices.size})" },
         )
         root.visibility = View.VISIBLE
-        selectGroup(0)
+        selectGroup(startGroup.coerceIn(0, groups.lastIndex.coerceAtLeast(0)))
         focusChannels()
     }
 
@@ -91,6 +95,16 @@ class LiveListPanel(
         rows.playing = liveIndex
         rows.notifyDataSetChanged()
         if (pos >= 0) centerOn(pos)
+    }
+
+    /** Canal em foco na lista (índice em "Todos"), ou null se a categoria está vazia. */
+    fun focusedChannel(): Int? = rows.liveIndexAt(channelsView.selectedItemPosition)
+
+    /** O player passou a tocar [liveIndex] sem o usuário ter pedido pela seleção: só a marca "No ar" muda de linha. */
+    fun markPlaying(liveIndex: Int) {
+        playing = liveIndex
+        rows.playing = liveIndex
+        rows.notifyDataSetChanged()
     }
 
     fun focusGroups() {

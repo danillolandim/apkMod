@@ -15,7 +15,10 @@ data class LiveChannel(
     val referer: String?,
     val variantUrls: List<String>,
     val variantLabels: List<String>,
-)
+) {
+    /** Todas as URLs que tocam este canal (a melhor primeiro). */
+    val allUrls: List<String> get() = variantUrls.ifEmpty { listOf(url) }
+}
 
 /**
  * Categoria da lista de canais sobreposta ao vídeo. [indices] aponta para a lista "Todos" (a da sessão),
@@ -28,45 +31,26 @@ data class LiveGroup(val name: String, val indices: List<Int>) {
 
     companion object {
         const val ALL = "Todos"
-
-        /**
-         * "Todos" primeiro, depois uma categoria por valor de [LiveChannel.group]. [order] é a ordem que a tela
-         * de canais usa no menu; o que não estiver nela vem em seguida, pela primeira aparição. Canal sem grupo
-         * aparece só em "Todos".
-         */
-        fun groupsOf(channels: List<LiveChannel>, order: List<String> = emptyList()): List<LiveGroup> {
-            val byName = LinkedHashMap<String, MutableList<Int>>()
-            channels.forEachIndexed { i, ch ->
-                val name = ch.group.trim()
-                if (name.isNotEmpty() && !name.equals(ALL, ignoreCase = true)) {
-                    byName.getOrPut(name) { ArrayList() }.add(i)
-                }
-            }
-            val preferred = order.map { it.trim() }.filter { it in byName }.distinct()
-            val names = preferred + byName.keys.filter { it !in preferred }
-            return buildList {
-                add(LiveGroup(ALL, channels.indices.toList()))
-                names.forEach { add(LiveGroup(it, byName.getValue(it))) }
-            }
-        }
+        const val FAVORITES = "Favoritos"
     }
 }
 
 /**
- * Lista de canais ao vivo da sessão, só em memória: a tela de canais preenche antes de abrir o player.
+ * Seção de TV ao vivo inteira, só em memória: a tela de canais e a Home preenchem antes de abrir o player.
  * Se o processo for recriado ela volta vazia e o player cai no modo de canal único (extras do Intent).
  */
 object LiveSession {
     var channels: List<LiveChannel> = emptyList()
         private set
-    var groups: List<LiveGroup> = LiveGroup.groupsOf(emptyList())
+    var groups: List<LiveGroup> = listOf(LiveGroup(LiveGroup.ALL, emptyList()))
         private set
     var startIndex: Int = 0
         private set
 
-    fun set(list: List<LiveChannel>, index: Int, categoryOrder: List<String> = emptyList()) {
+    /** [groups] vem do [LiveCatalog]; sem ele a sessão tem só "Todos". */
+    fun set(list: List<LiveChannel>, index: Int, groups: List<LiveGroup> = listOf(LiveGroup(LiveGroup.ALL, list.indices.toList()))) {
         channels = list
-        groups = LiveGroup.groupsOf(list, categoryOrder)
+        this.groups = groups
         startIndex = index
     }
 

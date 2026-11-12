@@ -11,7 +11,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
 import com.seupainel.player.playlist.ChannelListActivity
+import com.seupainel.player.playlist.LiveCatalog
+import com.seupainel.player.playlist.LiveSession
 import com.seupainel.player.playlist.PlaylistHolder
 import com.seupainel.player.playlist.PlaylistStore
 import com.seupainel.player.playlist.XtreamCatalog
@@ -37,6 +40,7 @@ class MainActivity : FragmentActivity() {
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val dateFmt = SimpleDateFormat("EEEE, d 'de' MMMM", Locale("pt", "BR"))
     private val numFmt = NumberFormat.getIntegerInstance(Locale("pt", "BR"))
+    private var openingLive = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,21 +62,54 @@ class MainActivity : FragmentActivity() {
         findViewById<ImageButton>(R.id.btn_gear).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
-        findViewById<View>(R.id.card_live).setOnClickListener { openSection("canais") }
+        findViewById<View>(R.id.card_live).setOnClickListener { openLive() }
         findViewById<View>(R.id.card_filmes).setOnClickListener { openSection("filmes") }
         findViewById<View>(R.id.card_series).setOnClickListener { openSection("series") }
 
         findViewById<View>(R.id.card_filmes).requestFocus()
     }
 
-    /** Abre a lista já na seção escolhida (TV ao vivo / Filmes / Séries). */
-    private fun openSection(section: String) {
-        val store = PlaylistStore(this)
-        if (store.playlistUrl.isNullOrBlank() && store.configUrl.isNullOrBlank()) {
-            Toast.makeText(this, "Entre com seu usuário e senha primeiro.", Toast.LENGTH_LONG).show()
-            startActivity(Intent(this, LoginActivity::class.java))
-            return
+    /**
+     * TV ao vivo: sintoniza o último canal direto no player, com a lista de canais aberta. Montar a seção pode
+     * pedir disco (e rede, na primeira vez), então roda em segundo plano com o aviso no próprio botão; se não houver
+     * como montar, abre a tela de canais, que sabe carregar e mostrar o motivo.
+     */
+    private fun openLive() {
+        if (!isConfigured()) { askLogin(); return }
+        if (openingLive) return
+        openingLive = true
+        val sub = findViewById<TextView>(R.id.card_live_sub)
+        val before = sub.text
+        sub.text = "Carregando canais…"
+        thread(name = "home-live") {
+            val ready = runCatching { LiveCatalog.openSession(applicationContext) }.getOrDefault(false)
+            runOnUiThread {
+                openingLive = false
+                sub.text = before
+                // Usuário saiu da Home enquanto montava: abrir uma tela agora o puxaria de volta sem ele pedir.
+                if (isFinishing || isDestroyed || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@runOnUiThread
+                val first = if (ready) LiveSession.channels.getOrNull(LiveSession.startIndex) else null
+                if (first == null) {
+                    Toast.makeText(this, "Não consegui montar a lista de canais. Abrindo a lista completa.", Toast.LENGTH_LONG).show()
+                    openSection("canais")
+                } else startActivity(PlayerActivity.liveHomeIntent(this, first))
+            }
         }
+    }
+
+    private fun isConfigured(): Boolean {
+        val store = PlaylistStore(this)
+        return !(store.playlistUrl.isNullOrBlank() && store.configUrl.isNullOrBlank())
+    }
+
+    private fun askLogin() {
+        Toast.makeText(this, "Entre com seu usuário e senha primeiro.", Toast.LENGTH_LONG).show()
+        startActivity(Intent(this, LoginActivity::class.java))
+    }
+
+    /** Abre a lista já na seção escolhida (Filmes / Séries, ou TV ao vivo quando o atalho direto não é possível). */
+    private fun openSection(section: String) {
+        if (!isConfigured()) { askLogin(); return }
         startActivity(
             Intent(this, ChannelListActivity::class.java)
                 .putExtra(ChannelListActivity.EXTRA_FROM_SETTINGS, true)
