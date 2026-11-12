@@ -18,6 +18,7 @@ import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentActivity
+import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -29,6 +30,7 @@ import androidx.media3.ui.PlayerView
 import com.seupainel.player.engine.P2pEngine
 import com.seupainel.player.meta.Epg
 import com.seupainel.player.playlist.LiveChannel
+import com.seupainel.player.playlist.LiveGroup
 import com.seupainel.player.playlist.LiveSession
 import com.seupainel.player.playlist.LiveZapper
 
@@ -43,7 +45,8 @@ import com.seupainel.player.playlist.LiveZapper
  *  - Ciclo de aspecto (vermelho): Ajustar / Preencher / Zoom / 16:9 / 4:3.
  *  - Timer de desligar, velocidade (VOD) e tamanho de legenda no menu.
  *  - HUD de diagnóstico (INFO/azul); menu de faixas (MENU/amarelo).
- *  - Ao vivo: zapping pelo controle (CH+/CH−, ↑/↓, número, último canal) com um único ExoPlayer.
+ *  - Ao vivo: zapping pelo controle (CH+/CH−, ↑/↓, número, último canal) com um único ExoPlayer, e lista de
+ *    canais por cima do vídeo (OK). Sempre começa na borda ao vivo: não lê nem grava posição de retomada.
  *  - Acessibilidade: anúncios TalkBack e respeito às legendas do sistema.
  */
 @OptIn(UnstableApi::class)
@@ -93,6 +96,9 @@ class PlayerActivity : FragmentActivity() {
     // Zapping (ao vivo). zapper nulo = canal único (P2P, ou sem LiveSession): comportamento anterior.
     private var zapper: LiveZapper? = null
     private var liveList: List<LiveChannel> = emptyList()
+    private var liveGroups: List<LiveGroup> = emptyList()
+    private var livePanel: LiveListPanel? = null
+    private var pinnedStatus: String? = null   // erro que prende a faixa na tela (Voltar a fecha antes de sair)
     private var lastZapAt = 0L
     private var globalUserAgent: String? = null   // UA das Configurações: vale para canal sem UA próprio
     private val numberBuf = StringBuilder()
@@ -140,6 +146,10 @@ class PlayerActivity : FragmentActivity() {
         resumeKey = directUrl.ifBlank { address }
         if (directUrl.isBlank() && address.isBlank()) { toast("Nada para tocar"); finish(); return }
         if (isLive && directUrl.isNotBlank()) startZapSession()
+        if (isLive) livePanel = LiveListPanel(this) { liveIndex ->
+            closeList(restoreBar = false)
+            zapTo(liveIndex, immediate = true)
+        }
 
         // Cabeçalhos HTTP: UA do canal (EXTVLCOPT) ou, se ausente, o UA global
         // definido nas Configurações. Muitos provedores exigem um UA específico.
@@ -184,8 +194,10 @@ class PlayerActivity : FragmentActivity() {
                 } ?: emptyList()
             }
 
-        startMs = intent.getLongExtra(EXTRA_START_MS, 0L).takeIf { it > 0 }
-            ?: if (settings.resumeEnabled) resume.get(resumeKey) else 0L
+        // Ao vivo sempre começa na borda ao vivo (TIME_UNSET = posição padrão); só filme/série retoma de onde parou.
+        startMs = if (isLive) C.TIME_UNSET
+            else intent.getLongExtra(EXTRA_START_MS, 0L).takeIf { it > 0 }
+                ?: if (settings.resumeEnabled) resume.get(resumeKey) else 0L
 
         // Aspecto padrão escolhido nas Configurações.
         aspectIdx = settings.aspectIndex.coerceIn(aspectModes.indices)
@@ -256,7 +268,7 @@ class PlayerActivity : FragmentActivity() {
                     triedCompat = true
                     pc.disableTunneling()
                     showBadge("Ajustando compatibilidade…", announce = false)
-                    startMs = pc.player.currentPosition.coerceAtLeast(startMs)
+                    startMs = retryPosition()
                     pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
                     return
                 }
@@ -355,9 +367,13 @@ class PlayerActivity : FragmentActivity() {
         }
     }
 
+    /** Filme retoma de onde estava; canal ao vivo volta à borda ao vivo (a posição antiga já saiu da janela). */
+    private fun retryPosition(): Long =
+        if (isLive) C.TIME_UNSET else pc.player.currentPosition.coerceAtLeast(startMs)
+
     // Nome próprio para poder cancelar: ao trocar de canal, a nova tentativa do canal anterior não pode disparar.
     private val retryPlay = Runnable {
-        startMs = pc.player.currentPosition.coerceAtLeast(startMs)
+        startMs = retryPosition()
         if (directUrl.isNotBlank()) {
             pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
         } else {
@@ -394,9 +410,14 @@ class PlayerActivity : FragmentActivity() {
     /** Faixa do canal que está tocando. [status] (erro, por exemplo) ganha uma linha própria e prende a faixa. */
     private fun showChannelBar(status: String? = null, autoHide: Boolean = true) {
         if (inPip) return
-        val hint = if (variantUrls.size > 1) "OK: opções e qualidade" else "OK: opções"
+        pinnedStatus = if (autoHide) null else status
+        val hint = if (variantUrls.size > 1) "OK: lista de canais  •  MENU: opções e qualidade" else "OK: lista de canais  •  MENU: opções"
         val quality = if (variantUrls.size > 1) variantLabels.getOrElse(variantIdx) { "" } else null
         val number = zapper?.let { it.tuned + 1 }
+        if (listOpen) {   // a lista cobre a faixa; closeList() a recoloca se houver erro fixo
+            if (status == null) announce(listOfNotNull(number?.let { "Canal $it" }, title.ifBlank { null }).joinToString(", "))
+            return
+        }
         val now = renderChannelBar(title, logoUrl, tvgId, number, status, hint, quality)
         channelBar.visibility = View.VISIBLE
         ui.removeCallbacks(hideChannelBar)
@@ -410,6 +431,8 @@ class PlayerActivity : FragmentActivity() {
     /** Mostra o canal [index] na faixa já, antes de sintonizar (a sintonia espera o usuário parar de zapear). */
     private fun previewChannelBar(index: Int) {
         val ch = liveList.getOrNull(index) ?: return
+        pinnedStatus = null
+        if (listOpen) return
         val quality = if (ch.variantUrls.size > 1) ch.variantLabels.firstOrNull() else null
         renderChannelBar(ch.name, ch.logo, ch.tvgId, index + 1, "Sintonizando…", null, quality)
         channelBar.visibility = View.VISIBLE
@@ -512,6 +535,7 @@ class PlayerActivity : FragmentActivity() {
         inPip = isInPip
         playerView.useController = !isInPip && !isLive
         if (isInPip) {
+            closeList(restoreBar = false)
             hud.visibility = View.GONE; badge.visibility = View.GONE
             channelBar.visibility = View.GONE
             playerView.hideController()
@@ -556,6 +580,8 @@ class PlayerActivity : FragmentActivity() {
 
     // ---------- Teclas do controle ----------
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // Lista aberta: o que a lista (e o dispatchKeyEvent) não tratou não pode zapear nem abrir o dock.
+        if (isLive && listOpen) return true
         // Com o dock aberto as setas navegam nele; fora isso, o ao vivo tem o mapa de teclas de TV.
         if (isLive && dock.visibility != View.VISIBLE) liveKeyDown(keyCode, event)?.let { return it }
         val p = pc.player
@@ -634,7 +660,12 @@ class PlayerActivity : FragmentActivity() {
                 if (firstPress) event?.startTracking()        // curto = faixa, longo = diagnóstico
             KeyEvent.KEYCODE_BACK -> return when {
                 numberBuf.isNotEmpty() -> { cancelNumber(); true }
-                channelBar.visibility == View.VISIBLE -> { ui.removeCallbacks(hideChannelBar); channelBar.visibility = View.GONE; true }
+                // Faixa que está só no auto-hide não segura o Voltar; a presa por erro fecha antes de sair.
+                pinnedStatus != null && channelBar.visibility == View.VISIBLE -> {
+                    pinnedStatus = null
+                    channelBar.visibility = View.GONE
+                    true
+                }
                 else -> null
             }
             else -> return null
@@ -645,8 +676,11 @@ class PlayerActivity : FragmentActivity() {
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         if (isLive && event != null && event.isTracking && !event.isCanceled && dock.visibility != View.VISIBLE) {
             when (keyCode) {
-                // Etapa 2: o OK curto passa a abrir a lista de canais; o dock fica no OK longo e no MENU.
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { openDock(); return true }
+                // OK curto abre a lista de canais; o dock fica no OK longo e no MENU. Sem lista (canal único), OK abre o dock.
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    if (zapper != null) openList() else openDock()
+                    return true
+                }
                 KeyEvent.KEYCODE_INFO, KeyEvent.KEYCODE_PROG_BLUE -> { showChannelBar(); return true }
             }
         }
@@ -663,10 +697,72 @@ class PlayerActivity : FragmentActivity() {
         return super.onKeyLongPress(keyCode, event)
     }
 
+    // Antes das views: com a lista aberta o ListView consome ↑/↓/OK/PgUp/PgDn, e aqui ficam as teclas de TV.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (isLive && listOpen && event.action == KeyEvent.ACTION_DOWN) {
+            armListIdle()
+            if (listKeyDown(event)) return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    private fun listKeyDown(event: KeyEvent): Boolean {
+        val panel = livePanel ?: return false
+        val key = event.keyCode
+        return when {
+            digitOf(key) != null -> liveKeyDown(key, event) == true
+            else -> when (key) {
+                // A lista segue o canal que o usuário zapeia (a seleção acompanha, em zapTo).
+                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_LAST_CHANNEL ->
+                    liveKeyDown(key, event) == true
+                KeyEvent.KEYCODE_DPAD_LEFT -> { if (panel.channelsHaveFocus) panel.focusGroups(); true }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> { if (panel.groupsHaveFocus) panel.focusChannels(); true }
+                // Com número em digitação o OK confirma o número; senão é do ListView (sintoniza o canal em foco).
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER ->
+                    if (numberBuf.isNotEmpty()) { applyNumber(); true } else false
+                KeyEvent.KEYCODE_BACK -> { closeList(); true }
+                KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_PROG_YELLOW, KeyEvent.KEYCODE_CAPTIONS -> {
+                    closeList(restoreBar = false)
+                    openDock()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    // ---------- Lista de canais (ao vivo) ----------
+    private val listOpen: Boolean get() = livePanel?.isOpen == true
+    private val listIdleClose = Runnable { closeList() }
+
+    private fun openList() {
+        val panel = livePanel ?: return
+        val z = zapper ?: return
+        ui.removeCallbacks(hideChannelBar)
+        channelBar.visibility = View.GONE
+        panel.open(liveList, liveGroups, z.current)
+        armListIdle()
+    }
+
+    /** [restoreBar]: devolve a faixa se ela estava presa por um erro quando a lista abriu. */
+    private fun closeList(restoreBar: Boolean = true) {
+        if (!listOpen) return
+        livePanel?.close()
+        ui.removeCallbacks(listIdleClose)
+        val pinned = pinnedStatus
+        if (restoreBar && pinned != null) showChannelBar(status = pinned, autoHide = false)
+    }
+
+    private fun armListIdle() {
+        ui.removeCallbacks(listIdleClose)
+        ui.postDelayed(listIdleClose, LIST_IDLE_MS)
+    }
+
     // ---------- Zapping (ao vivo) ----------
     private fun startZapSession() {
         val index = LiveSession.indexOf(directUrl) ?: return
         liveList = LiveSession.channels
+        liveGroups = LiveSession.groups
         zapper = LiveZapper(liveList.size, index)
     }
 
@@ -683,13 +779,17 @@ class PlayerActivity : FragmentActivity() {
         zapTo(index)
     }
 
-    /** Atualiza a faixa na hora e sintoniza só depois de [ZAP_TUNE_DELAY_MS] sem outra troca. */
-    private fun zapTo(index: Int) {
+    /**
+     * Atualiza a faixa na hora e sintoniza só depois de [ZAP_TUNE_DELAY_MS] sem outra troca; [immediate] é para
+     * a escolha explícita na lista (OK), que não tem o que esperar.
+     */
+    private fun zapTo(index: Int, immediate: Boolean = false) {
         if (liveList.getOrNull(index) == null) return
         zapper?.jumpTo(index)
         previewChannelBar(index)
+        if (listOpen) livePanel?.follow(index)
         ui.removeCallbacks(tuneRunnable)
-        ui.postDelayed(tuneRunnable, ZAP_TUNE_DELAY_MS)
+        if (immediate) tuneRunnable.run() else ui.postDelayed(tuneRunnable, ZAP_TUNE_DELAY_MS)
     }
 
     private val tuneRunnable = Runnable {
@@ -704,10 +804,10 @@ class PlayerActivity : FragmentActivity() {
         zapper?.commit()
         ui.removeCallbacks(retryPlay)
         retries = 0; triedCompat = false; usingBackup = false
-        startMs = 0
+        pinnedStatus = null
+        startMs = C.TIME_UNSET   // sempre na borda ao vivo
         subs = emptyList()
         directUrl = ch.url
-        resumeKey = ch.url
         title = ch.name
         logoUrl = ch.logo
         tvgId = ch.tvgId
@@ -715,7 +815,7 @@ class PlayerActivity : FragmentActivity() {
         variantLabels = ch.variantLabels
         variantIdx = variantUrls.indexOf(directUrl).coerceAtLeast(0)
         pc.setHttpHeaders(ch.userAgent?.ifBlank { null } ?: globalUserAgent, ch.referer)
-        pc.play(directUrl)
+        pc.play(directUrl, startPositionMs = startMs)
     }
 
     // ---------- Número do canal (0–9) ----------
@@ -823,6 +923,7 @@ class PlayerActivity : FragmentActivity() {
     }
 
     private fun openDock() {
+        closeList(restoreBar = false)
         playerView.hideController()
         ui.removeCallbacks(hideChannelBar); channelBar.visibility = View.GONE
         dockSpeed.visibility = if (isLive) View.GONE else View.VISIBLE
@@ -1008,7 +1109,7 @@ class PlayerActivity : FragmentActivity() {
         directUrl = variantUrls[i]
         retries = 0
         showBadge("Qualidade: ${variantLabels.getOrElse(i) { "" }}", announce = true)
-        pc.play(directUrl, subtitles = subs, startPositionMs = 0)
+        pc.play(directUrl, subtitles = subs, startPositionMs = if (isLive) C.TIME_UNSET else 0)
     }
 
     private fun mark(selected: Boolean) = if (selected) "● " else "○ "
@@ -1016,10 +1117,10 @@ class PlayerActivity : FragmentActivity() {
 
     /** Salva posição e atualiza a fileira "Continuar" (só VOD). */
     private fun persistResume() {
-        if (!settings.resumeEnabled) return
+        if (isLive || !settings.resumeEnabled) return
         val pos = pc.player.currentPosition
         val dur = pc.player.duration
-        if (isLive || resumeKind.isBlank()) { resume.save(resumeKey, pos, dur); return }
+        if (resumeKind.isBlank()) { resume.save(resumeKey, pos, dur); return }
         resume.remember(resumeKey, title, logoUrl, resumeKind, pos, dur)
         // Episódio de série concluído -> marca como assistido (✓ na tela da série).
         if (resumeKind == "series" && dur > 0 && pos > dur - 15_000) resume.markWatched(resumeKey)
@@ -1033,6 +1134,7 @@ class PlayerActivity : FragmentActivity() {
     override fun onStop() {
         super.onStop()
         com.seupainel.player.net.Net.playbackActive = false
+        closeList(restoreBar = false)
         persistResume()
         if (!inPip) pc.player.pause()
     }
@@ -1071,6 +1173,7 @@ class PlayerActivity : FragmentActivity() {
         private const val ZAP_REPEAT_MIN_MS = 150L       // intervalo mínimo entre trocas com a tecla segurada
         private const val NUMBER_CONFIRM_MS = 1_500L     // sem novo dígito, o número digitado é confirmado
         private const val MAX_NUMBER_DIGITS = 4
+        private const val LIST_IDLE_MS = 15_000L          // a lista de canais fecha sozinha sem tecla
 
         fun intent(context: android.content.Context, source: PanelSource) =
             android.content.Intent(context, PlayerActivity::class.java).apply {

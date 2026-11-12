@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Linha da lista de canais sobre o vídeo: número, logo, nome + programa atual e marca "No ar". -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="56dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingLeft="8dp"
+    android:paddingRight="12dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <!-- Barra do canal que está tocando (a marca em texto vem de live_item_now) -->
+    <View
+        android:id="@+id/live_item_bar"
+        android:layout_width="4dp"
+        android:layout_height="32dp"
+        android:background="@color/lf_accent" />
+
+    <TextView
+        android:id="@+id/live_item_num"
+        android:layout_width="44dp"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:fontFamily="@font/rajdhani_bold"
+        android:textColor="@color/lf_text_2"
+        android:textSize="18sp"
+        android:maxLines="1" />
+
+    <ImageView
+        android:id="@+id/live_item_logo"
+        android:layout_width="56dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="10dp"
+        android:scaleType="fitCenter"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/live_item_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/rajdhani_semibold"
+            android:textColor="@color/lf_text"
+            android:textSize="17sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/live_item_epg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/lf_text_2"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/live_item_now"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:fontFamily="@font/rajdhani_bold"
+        android:text="No ar"
+        android:textColor="@color/lf_accent"
+        android:textSize="13sp"
+        android:visibility="gone" />
+</LinearLayout>

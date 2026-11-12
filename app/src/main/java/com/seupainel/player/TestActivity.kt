@@ -104,6 +104,7 @@ class TestActivity : FragmentActivity() {
     }
 
     private fun playDirect(url: String, subUrl: String, live: Boolean) {
+        if (live) com.seupainel.player.playlist.LiveSession.clear()
         startActivity(Intent(this, PlayerActivity::class.java).apply {
             putExtra(PlayerActivity.EXTRA_DIRECT_URL, url)
             putExtra(PlayerActivity.EXTRA_IS_LIVE, live)

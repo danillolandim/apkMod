@@ -19,14 +19,15 @@ contas Xtream costumam ter `max_connections = 1`, então **nunca** criar um segu
 |---|---|
 | CH+ / ↑ / PAGE_UP | Canal seguinte (número +1, dá a volta no fim) |
 | CH− / ↓ / PAGE_DOWN | Canal anterior |
-| OK | Lista de canais por cima do vídeo (etapa 2; na etapa 1 abre o dock de opções) |
+| OK | Lista de canais por cima do vídeo (canal único, sem lista: abre o dock) |
 | ← / → | Nada (consumidas; sem seek no ao vivo) |
 | MENU / amarelo / OK longo | Dock de opções (qualidade, áudio, legenda, aspecto, timer, PiP) |
 | 0–9 | Número do canal; confirma sozinho após 1,5 s ou com OK |
 | LAST_CHANNEL | Volta ao canal anterior |
-| INFO / azul | Faixa do canal (o HUD de diagnóstico vai para o dock ou toque longo em INFO) |
-| Voltar | Fecha lista/dock/faixa; se nada aberto, sai |
+| INFO / azul | Faixa do canal; toque longo liga o HUD de diagnóstico |
+| Voltar | Fecha lista/dock; a faixa só fecha antes de sair se estiver presa por um erro (a faixa em auto-hide não segura o Voltar: um toque sai); se nada aberto, sai |
 VOD (filme/série) **não muda**: tudo acima vale só quando `isLive`.
+Ao vivo não lê nem grava posição de retomada e sempre (re)começa na borda ao vivo (`C.TIME_UNSET`).
 
 ## Regras de desenho
 - Seguir `DESIGN.md`: tokens `lf_*` de `res/values/colors.xml`, foco = anel roxo fino sem escala, fontes Rajdhani
@@ -72,6 +73,11 @@ VOD (filme/série) **não muda**: tudo acima vale só quando `isLive`.
 - OK no canal sintoniza e fecha; ←/→ alternam entre categorias e canais; Voltar fecha. Abre com o foco no canal
   atual. OK (tela cheia) passa a abrir a lista; dock fica em MENU / OK longo.
 - `ListView` com holder reciclado (padrão do projeto), logos via Coil já usado no app.
+- Como ficou: `LiveSession.groups` = "Todos" (a lista da sessão) + uma categoria por `LiveChannel.group` (a tela de
+  canais grava aí o nome da categoria do menu), com índices sempre na lista "Todos", então o número do canal é o
+  mesmo em qualquer categoria. A lista fecha sozinha após 15 s sem tecla. CH±/número/último canal seguem zapeando
+  com ela aberta e a seleção acompanha; ↑/↓ só navegam. Se a sessão foi aberta de uma categoria ou busca, "Todos" é
+  essa lista filtrada (não a seção inteira).
 
 ### Etapa 3 — guia com preview
 - "TV ao vivo" abre direto o player em **modo guia**: lista em tela cheia e o vídeo numa janela (canto superior
@@ -89,16 +95,23 @@ VOD (filme/série) **não muda**: tudo acima vale só quando `isLive`.
 
 ## Verificação
 - `ANDROID_HOME=~/Library/Android/sdk gradle :app:testDebugUnitTest` e `gradle :app:assembleDebug`.
+- Neste Mac o JDK padrão (26) quebra o build do Android antes de compilar (`jlink`/`JdkImageTransform`). Comando que
+  funciona (JDK 21; não mexer em versões do `build.gradle.kts`):
+  `ANDROID_HOME=~/Library/Android/sdk JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home gradle :app:testDebugUnitTest :app:assembleDebug --offline`.
 - Não há emulador neste Mac: comportamento na TV é validado pelo usuário (prints ajudam). Dizer isso no relato.
 
 ## Riscos
 - Tunneling + troca rápida de canal pode falhar em algumas TVs: o fallback `triedCompat` precisa valer por canal.
 - `↑/↓` para zapear conflita com o costume de "↓ abre algo": se o usuário estranhar, trocar por lista no ↑/↓ é
   uma mudança de uma linha no mapa de teclas.
+- `disableTunneling()` é permanente na sessão do player: se o fallback de compatibilidade disparar num canal, os
+  seguintes seguem sem tunneling (seguro, mas pode custar qualidade/sincronia em TVs que aguentariam). O
+  `triedCompat` é por canal, então o fallback pode tentar de novo. Reativar o tunneling a cada troca de canal é
+  possível (`setTunnelingEnabled(true)`), mas repetiria a falha nas TVs que realmente não suportam; fica como está.
 - A lista ao vivo em memória morre com o processo: se o player for recriado sem `LiveSession`, cair no modo de
   canal único (extras), sem travar.
 
 ## Status
-- [x] Etapa 1 · [ ] Etapa 2 · [ ] Etapa 3 · [ ] Etapa 4
+- [x] Etapa 1 · [x] Etapa 2 · [ ] Etapa 3 · [ ] Etapa 4
 
-Etapa 1 implementada e com testes JVM e build verdes; o comportamento na TV ainda não foi validado (sem emulador).
+Etapas 1 e 2 implementadas, com testes JVM e build verdes; o comportamento na TV ainda não foi validado (sem emulador).

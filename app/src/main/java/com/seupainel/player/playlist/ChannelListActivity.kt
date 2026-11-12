@@ -1310,19 +1310,23 @@ class ChannelListActivity : FragmentActivity() {
         val live = shown.filter { secOfChannel(it) == Sec.CANAIS }
         val index = live.indexOfFirst { it === chosen }
         if (index < 0) { LiveSession.clear(); return }
-        LiveSession.set(live.map { toLiveChannel(it, liveVariants[it.name]) }, index)
+        // As categorias da lista sobreposta seguem as do menu desta tela (mesma ordem e mesmos nomes).
+        val menuOrder = if (currentSection == Sec.CANAIS) groups.filter { it != ALL_SEC && it != NOVIDADES } else emptyList()
+        LiveSession.set(live.map { toLiveChannel(it, liveVariants[it.name]) }, index, menuOrder)
     }
 
     private fun toLiveChannel(c: M3uParser.Channel, variants: List<M3uParser.Channel>?): LiveChannel {
         val many = variants?.takeIf { it.size > 1 }
         val best = many?.first() ?: c
+        // Mesmo critério do filtro da tela (que roda sobre o nome cru, antes de juntar as qualidades).
+        val category = if (canaisDerived) LiveGroups.categoryOf(variants?.firstOrNull()?.name ?: c.name) else c.group
         return LiveChannel(
             name = c.name,
             url = best.url,
             logo = c.logo.orEmpty(),
             tvgId = c.tvgId.orEmpty(),
             apiId = c.apiId,
-            group = c.group,
+            group = category,
             userAgent = best.userAgent,
             referer = best.referer,
             variantUrls = many?.map { it.url }.orEmpty(),
@@ -1363,6 +1367,8 @@ class ChannelListActivity : FragmentActivity() {
     }
 
     private fun openPlayer(url: String, live: Boolean, title: String?) {
+        // Ao vivo aberto fora da lista: sem isto o player poderia reaproveitar uma lista velha.
+        if (live) LiveSession.clear()
         startActivity(Intent(this, PlayerActivity::class.java).apply {
             putExtra(PlayerActivity.EXTRA_DIRECT_URL, url)
             putExtra(PlayerActivity.EXTRA_IS_LIVE, live)

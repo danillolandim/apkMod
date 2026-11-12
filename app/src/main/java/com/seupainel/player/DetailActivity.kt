@@ -45,6 +45,8 @@ class DetailActivity : FragmentActivity() {
         if (logo.isNotBlank()) loadImage(poster, logo)
 
         fun go(u: String) {
+            // Ao vivo aberto por aqui não vem de uma lista: não pode reaproveitar a lista de um zapping anterior.
+            if (isLive) com.seupainel.player.playlist.LiveSession.clear()
             startActivity(Intent(this, PlayerActivity::class.java).apply {
                 putExtra(PlayerActivity.EXTRA_DIRECT_URL, u)
                 putExtra(PlayerActivity.EXTRA_IS_LIVE, isLive)

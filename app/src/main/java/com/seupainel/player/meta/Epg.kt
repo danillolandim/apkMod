@@ -73,6 +73,24 @@ object Epg {
         return progressOf(cur, now)
     }
 
+    /** Programa atual (se houver) e os [upcoming] seguintes, para a grade do canal em foco. */
+    data class Agenda(val current: Prog?, val upcoming: List<Prog>)
+
+    fun agenda(tvgId: String?, upcoming: Int, now: Long = System.currentTimeMillis()): Agenda {
+        if (tvgId.isNullOrBlank() || !loaded) return Agenda(null, emptyList())
+        val id = tvgId.trim()
+        val list = byId[id] ?: byId[id.lowercase()] ?: return Agenda(null, emptyList())
+        return agendaIn(list, now, upcoming)
+    }
+
+    /** [list] precisa estar ordenada por início. */
+    internal fun agendaIn(list: List<Prog>, now: Long, upcoming: Int): Agenda {
+        val cur = list.indexOfFirst { now in it.start until it.stop }
+        val firstNext = if (cur >= 0) cur + 1 else list.indexOfFirst { it.start > now }
+        val next = if (firstNext in list.indices) list.subList(firstNext, list.size).take(upcoming.coerceAtLeast(0)) else emptyList()
+        return Agenda(list.getOrNull(cur), next)
+    }
+
     internal fun progressOf(p: Prog, now: Long): Float {
         val length = p.stop - p.start
         if (length <= 0) return 0f

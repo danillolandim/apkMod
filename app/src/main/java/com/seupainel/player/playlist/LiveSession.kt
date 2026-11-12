@@ -18,17 +18,55 @@ data class LiveChannel(
 )
 
 /**
+ * Categoria da lista de canais sobreposta ao vídeo. [indices] aponta para a lista "Todos" (a da sessão),
+ * então o número do canal (índice + 1) é o mesmo em qualquer categoria e o do zapping.
+ */
+data class LiveGroup(val name: String, val indices: List<Int>) {
+
+    /** Posição de um canal dentro desta categoria, ou -1 se ele não pertence a ela. */
+    fun positionOf(liveIndex: Int): Int = indices.indexOf(liveIndex)
+
+    companion object {
+        const val ALL = "Todos"
+
+        /**
+         * "Todos" primeiro, depois uma categoria por valor de [LiveChannel.group]. [order] é a ordem que a tela
+         * de canais usa no menu; o que não estiver nela vem em seguida, pela primeira aparição. Canal sem grupo
+         * aparece só em "Todos".
+         */
+        fun groupsOf(channels: List<LiveChannel>, order: List<String> = emptyList()): List<LiveGroup> {
+            val byName = LinkedHashMap<String, MutableList<Int>>()
+            channels.forEachIndexed { i, ch ->
+                val name = ch.group.trim()
+                if (name.isNotEmpty() && !name.equals(ALL, ignoreCase = true)) {
+                    byName.getOrPut(name) { ArrayList() }.add(i)
+                }
+            }
+            val preferred = order.map { it.trim() }.filter { it in byName }.distinct()
+            val names = preferred + byName.keys.filter { it !in preferred }
+            return buildList {
+                add(LiveGroup(ALL, channels.indices.toList()))
+                names.forEach { add(LiveGroup(it, byName.getValue(it))) }
+            }
+        }
+    }
+}
+
+/**
  * Lista de canais ao vivo da sessão, só em memória: a tela de canais preenche antes de abrir o player.
  * Se o processo for recriado ela volta vazia e o player cai no modo de canal único (extras do Intent).
  */
 object LiveSession {
     var channels: List<LiveChannel> = emptyList()
         private set
+    var groups: List<LiveGroup> = LiveGroup.groupsOf(emptyList())
+        private set
     var startIndex: Int = 0
         private set
 
-    fun set(list: List<LiveChannel>, index: Int) {
+    fun set(list: List<LiveChannel>, index: Int, categoryOrder: List<String> = emptyList()) {
         channels = list
+        groups = LiveGroup.groupsOf(list, categoryOrder)
         startIndex = index
     }
 

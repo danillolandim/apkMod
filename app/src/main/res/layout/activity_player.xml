@@ -169,6 +169,148 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <!-- Lista de canais sobre o vídeo (ao vivo): categorias + canais à esquerda; à direita, embaixo, a
+         programação do canal em foco. O vídeo continua tocando por trás. -->
+    <LinearLayout
+        android:id="@+id/live_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="45"
+            android:orientation="horizontal"
+            android:background="@drawable/live_panel_bg"
+            android:paddingLeft="28dp"
+            android:paddingRight="12dp"
+            android:paddingTop="28dp"
+            android:paddingBottom="28dp">
+
+            <ListView
+                android:id="@+id/live_groups"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="36"
+                android:choiceMode="singleChoice"
+                android:clipToPadding="false"
+                android:divider="@null"
+                android:dividerHeight="0dp"
+                android:drawSelectorOnTop="true"
+                android:listSelector="@drawable/list_selector"
+                android:contentDescription="Categorias de canais"
+                android:padding="4dp" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="12dp"
+                android:layout_weight="64">
+
+                <ListView
+                    android:id="@+id/live_channels"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:divider="@null"
+                    android:dividerHeight="0dp"
+                    android:drawSelectorOnTop="true"
+                    android:listSelector="@drawable/list_selector"
+                    android:contentDescription="Canais"
+                    android:padding="4dp" />
+
+                <!-- Categoria sem canais -->
+                <TextView
+                    android:id="@+id/live_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:padding="24dp"
+                    android:text="Nenhum canal nesta categoria"
+                    android:textColor="@color/lf_text_2"
+                    android:textSize="16sp"
+                    android:visibility="gone" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="55">
+
+            <LinearLayout
+                android:id="@+id/live_guide"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_marginLeft="28dp"
+                android:layout_marginRight="40dp"
+                android:layout_marginBottom="32dp"
+                android:orientation="vertical"
+                android:background="@drawable/channel_bar_bg"
+                android:padding="20dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/live_guide_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/rajdhani_semibold"
+                    android:textColor="@color/lf_text"
+                    android:textSize="22sp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/live_guide_now"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/lf_text"
+                    android:textSize="16sp"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+
+                <ProgressBar
+                    android:id="@+id/live_guide_progress"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="4dp"
+                    android:layout_marginTop="8dp"
+                    android:max="1000"
+                    android:progressDrawable="@drawable/channel_progress"
+                    android:importantForAccessibility="no"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/live_guide_next_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="@font/rajdhani_bold"
+                    android:text="A seguir"
+                    android:textColor="@color/lf_accent"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/live_guide_next"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/lf_text_2"
+                    android:textSize="14sp"
+                    android:maxLines="3"
+                    android:ellipsize="end"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
     <!-- Dock de ações (sobe de baixo, estilo dock do Mac) -->
     <LinearLayout
         android:id="@+id/player_dock"
