@@ -103,3 +103,22 @@ por plataforma (pendente: o usuário ainda não colou as categorias de séries).
 - Registrar: `gh secret set DEFAULT_SERVER -R danillolandim/apkMod` e `gh secret set DEFAULT_TMDB_KEY -R danillolandim/apkMod`.
 - Pendente: assinatura. O `debug.keystore` é público no repositório; para distribuir a outros, considerar uma chave
   de release guardada como segredo (trocar a assinatura força reinstalar uma vez).
+
+## Status e próximos passos — só o APK (v105, 11/11/2026)
+Decisão do usuário: aperfeiçoar somente o APK Android (sem site de apoio, sem outras plataformas).
+
+**Feito (na branch `feat/xtream-api`, publicado até a v105):** catálogo pela API (Filmes, Séries, TV) com cache;
+Aclamadas/Populares por `tmdb_id`; visual Landimflix (marca, fontes, foco em anel roxo, Home simples, lista
+Explorar); reprodução com falha rápida e explicada; abertura sem ler o M3U quando há cache; tela de entrada
+(usuário e senha) que valida a conta e já carrega o catálogo; TMDB só em Configurações.
+
+**Pendente, em ordem sugerida:**
+1. Visual parte 2: Detalhe do filme, tela da Série, Configurações, diálogos e overlays do Player ainda no estilo
+   antigo (azul/branco). Seguir `DESIGN.md` (anel de foco, sem escala, texto sempre legível).
+2. Gêneros e Lançamentos por ano de volta nos modos API (os dados já vêm das listas do TMDB: `genre_ids` e ano).
+3. Limpeza e merge na `main`: remover código morto (`SeriesLauncher` sem uso, ícones não usados), conferir que a
+   `main` publica o app novo (hoje um push na `main` sobrescreveria o "latest" com o app antigo).
+4. Servidor de fábrica na tela de entrada: decisão pendente (A: segredo `DEFAULT_SERVER` no GitHub; B: endereço
+   no código). Sem isso a entrada mostra o campo de servidor.
+5. Assinatura de release (o `debug.keystore` é público); trocar força reinstalar uma vez. Só antes de distribuir.
+6. Validar na TV real e corrigir o que aparecer (prints ajudam: não há emulador neste Mac).
