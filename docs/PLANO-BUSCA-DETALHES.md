@@ -73,7 +73,16 @@ Não há emulador: o comportamento na TV é validado pelo usuário.
    `checkLayoutParams` e faz cast para `GridLayoutManager.LayoutParams` → `ClassCastException` no primeiro layout dos
    resultados. Corrigido ajustando só largura/altura dos params criados pelo inflate. O índice não era o problema.
    Além disso, exceção na thread da busca agora vira mensagem na tela ("A busca falhou" + motivo).
-2. Detalhes de filme/série, selos na grade e TV ao vivo (etapas 3 e 4): ainda sem retorno.
+   Validado pelo usuário na v111: a busca funciona.
+2. Atualização (v111): o app não verificava ao abrir e o botão de atualizar às vezes pedia dois cliques. Causas no
+   código: a verificação automática só rodava no `SplashActivity.onCreate` (na Google TV o processo fica vivo e o app
+   reabre sem passar pela abertura) e, mesmo na abertura fria, a resposta chegava depois de a Splash fechar e era
+   descartada; o download só mostrava um aviso de 3 s e não impedia um segundo download. Agora o `Updater` é ligado no
+   `App` (`attach`), verifica a cada volta do app para a frente (no máximo a cada 10 min), mostra o aviso na tela da
+   frente (não na abertura nem no player), com Instalar / Depois / Pular esta versão (`AppSettings.skippedUpdate`), e o
+   download tem janela de progresso, arquivo temporário e conferência de tamanho. Decisões puras em `UpdateLogic`
+   (testes JVM). O "dois cliques" não foi reproduzido: a explicação é a mais provável pelo código.
+3. Detalhes de filme/série, selos na grade e TV ao vivo (etapas 3 e 4): ainda sem retorno.
 
 ## Decisões fora da spec (Etapa A)
 - **Séries da API não juntam dublado/legendado.** Cada `series_id` abre uma tela de episódios própria e a tela não sabe

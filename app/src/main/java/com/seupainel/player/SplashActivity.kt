@@ -22,7 +22,7 @@ class SplashActivity : FragmentActivity() {
         setContentView(R.layout.activity_splash)
         pulse()
 
-        if (AppSettings(this).autoUpdate) Updater.check(this, silent = true)
+        // A verificação de atualização fica no Updater (a cada volta do app para a frente), não nesta tela.
 
         val startAt = System.currentTimeMillis()
         val expectCache = PlaylistStore(this).hasCache() || com.seupainel.player.playlist.XtreamCatalog.cachesReady(this)

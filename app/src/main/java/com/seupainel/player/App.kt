@@ -38,6 +38,7 @@ class App : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        Updater.attach(this)
         // O motor P2P inicializa sozinho no primeiro start() (P2pEngine.init é
         // preguiçoso) — assim o app abre e toca URL direta mesmo sem config.
 

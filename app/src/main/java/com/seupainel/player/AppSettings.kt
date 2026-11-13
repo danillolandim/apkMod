@@ -60,6 +60,11 @@ class AppSettings(context: Context) {
         get() = p.getBoolean("auto_update", true)
         set(v) = p.edit().putBoolean("auto_update", v).apply()
 
+    /** Versão que o usuário mandou pular: a verificação automática só volta a avisar de uma mais nova. */
+    var skippedUpdate: Int
+        get() = p.getInt("skipped_update", 0)
+        set(v) = p.edit().putInt("skipped_update", v).apply()
+
     /** Filmes pela API Xtream do provedor (ordem, categorias e cartaz do painel). Desligar = lista M3U. */
     var useXtream: Boolean
         get() = p.getBoolean("use_xtream", true)
