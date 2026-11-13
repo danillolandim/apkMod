@@ -1,256 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Configurações: seções à esquerda (~30%), linhas da seção em foco à direita. As linhas são criadas em código. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#101418"
-    android:fillViewport="true">
+    android:background="@drawable/wallpaper_landimflix">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="48dp">
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        android:paddingStart="32dp"
+        android:paddingTop="22dp"
+        android:paddingEnd="32dp"
+        android:paddingBottom="18dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Configurações da lista"
-            android:textColor="#FFFFFF"
-            android:textSize="26sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/set_login"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Conta: usuário e senha" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="URL da lista M3U"
-            android:textColor="#3DA9FC" />
-
-        <EditText
-            android:id="@+id/set_url"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="http://…/lista.m3u"
-            android:inputType="textUri"
-            android:singleLine="true"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#667080" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="URL de configuração (opcional) — arquivo na nuvem cujo conteúdo é a URL da lista. Trocar a lista por aqui não exige mexer na TV."
-            android:textColor="#3DA9FC" />
-
-        <EditText
-            android:id="@+id/set_config"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="https://…/minha-config.txt"
-            android:inputType="textUri"
-            android:singleLine="true"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#667080" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="URL do EPG (XMLTV) — opcional"
-            android:textColor="#3DA9FC" />
-
-        <EditText
-            android:id="@+id/set_epg"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="https://…/epg.xml ou .xml.gz"
-            android:inputType="textUri"
-            android:singleLine="true"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#667080" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Chave do TMDB (capa, nota e sinopse) — opcional"
-            android:textColor="#3DA9FC" />
-
-        <EditText
-            android:id="@+id/set_tmdb"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="API key do themoviedb.org"
-            android:inputType="text"
-            android:singleLine="true"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#667080" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="User-Agent — se o canal não abre (erro de rede), teste um destes"
-            android:textColor="#3DA9FC" />
-
-        <Spinner
-            android:id="@+id/set_ua_preset"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <EditText
-            android:id="@+id/set_ua"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="ou digite um personalizado"
-            android:inputType="text"
-            android:singleLine="true"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#667080" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Atualizar a cada (horas) — 0 = só manual"
-            android:textColor="#3DA9FC" />
-
-        <EditText
-            android:id="@+id/set_refresh"
-            android:layout_width="160dp"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:singleLine="true"
-            android:text="12"
-            android:textColor="#FFFFFF" />
-
-        <CheckBox
-            android:id="@+id/set_auto"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Abrir a lista automaticamente ao iniciar o app"
-            android:textColor="#FFFFFF" />
-
-        <TextView
-            android:id="@+id/set_info"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="#9AA4AE"
-            android:textSize="13sp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="20dp"
-            android:background="#2A323A" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Preferências do player"
-            android:textColor="#FFFFFF"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Áudio preferido (dublado/original)" android:textColor="#3DA9FC" />
-        <Spinner android:id="@+id/set_audio_lang" android:layout_width="match_parent" android:layout_height="wrap_content" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Legenda preferida" android:textColor="#3DA9FC" />
-        <Spinner android:id="@+id/set_sub_lang" android:layout_width="match_parent" android:layout_height="wrap_content" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Tamanho da legenda" android:textColor="#3DA9FC" />
-        <Spinner android:id="@+id/set_sub_size" android:layout_width="match_parent" android:layout_height="wrap_content" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Aspecto padrão" android:textColor="#3DA9FC" />
-        <Spinner android:id="@+id/set_aspect" android:layout_width="match_parent" android:layout_height="wrap_content" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Qualidade da conexão (início mais alto)" android:textColor="#3DA9FC" />
-        <Spinner android:id="@+id/set_conn" android:layout_width="match_parent" android:layout_height="wrap_content" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Pulo das setas (avançar/voltar)" android:textColor="#3DA9FC" />
-        <Spinner android:id="@+id/set_seek_step" android:layout_width="match_parent" android:layout_height="wrap_content" />
-
-        <CheckBox android:id="@+id/set_force_max" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Travar sempre na máxima qualidade" android:textColor="#FFFFFF" />
-        <CheckBox android:id="@+id/set_resume" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Continuar de onde parou" android:textColor="#FFFFFF" />
-        <CheckBox android:id="@+id/set_retry" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Reconectar automaticamente em falha" android:textColor="#FFFFFF" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="20dp"
-            android:background="#2A323A" />
-
-        <TextView
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="16dp" android:text="Aparência e atualização"
-            android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Papel de parede" android:textColor="#3DA9FC" />
-        <Spinner android:id="@+id/set_wallpaper" android:layout_width="match_parent" android:layout_height="wrap_content" />
-
-        <EditText android:id="@+id/set_wallpaper_url" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:hint="Cole uma URL de imagem (ex.: Unsplash) — já vira o fundo"
-            android:inputType="textUri" android:singleLine="true"
-            android:textColor="#FFFFFF" android:textColorHint="#667080" />
-
-        <CheckBox android:id="@+id/set_xtream" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Filmes pela API do provedor (desligue para comparar com a lista M3U)" android:textColor="#FFFFFF" />
-
-        <Button android:id="@+id/set_test_api" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="4dp" android:text="Testar API do provedor" />
-
-        <CheckBox android:id="@+id/set_auto_update" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Buscar atualização ao abrir o app" android:textColor="#FFFFFF" />
-
-        <Button android:id="@+id/set_check_update" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="Buscar atualização agora" />
-
+        <!-- Esquerda: título e lista de seções -->
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:orientation="horizontal">
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="3"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
 
-            <Button
-                android:id="@+id/set_save"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Salvar" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/set_load_now"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Carregar agora" />
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="30dp"
+                    android:adjustViewBounds="true"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/logo_symbol" />
 
-            <Button
-                android:id="@+id/set_clear_cache"
-                android:layout_width="wrap_content"
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/rammetto_one"
+                    android:maxLines="1"
+                    android:text="Configurações"
+                    android:textColor="@color/lf_text"
+                    android:textSize="20sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/set_sections"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Limpar cache" />
+                android:layout_marginTop="18dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="vertical" />
+        </LinearLayout>
+
+        <!-- Direita: título da seção, descrição opcional e as linhas -->
+        <LinearLayout
+            android:id="@+id/set_right"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="22dp"
+            android:layout_weight="7"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/set_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/rajdhani_bold"
+                android:maxLines="1"
+                android:textColor="@color/lf_text"
+                android:textSize="26sp" />
+
+            <TextView
+                android:id="@+id/set_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/lf_text_2"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <ScrollView
+                android:id="@+id/set_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="10dp"
+                android:layout_weight="1"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:fadeScrollbars="false"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/set_lines"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="vertical" />
+            </ScrollView>
         </LinearLayout>
     </LinearLayout>
-</ScrollView>
+</FrameLayout>
