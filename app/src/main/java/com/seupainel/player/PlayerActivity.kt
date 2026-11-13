@@ -76,6 +76,8 @@ class PlayerActivity : FragmentActivity() {
     private var variantUrls: List<String> = emptyList()
     private var variantLabels: List<String> = emptyList()
     private var variantIdx: Int = 0
+    private val failedVariants = HashSet<Int>()   // qualidades deste canal que já não abriram nesta sintonia
+    private var fellBack = false                  // a qualidade em uso foi escolhida pela troca automática
     private lateinit var address: String
     private var addressBackup: String = ""
     private var subs: List<PlayerController.ExternalSubtitle> = emptyList()
@@ -224,6 +226,7 @@ class PlayerActivity : FragmentActivity() {
             // próximo episódio). Caso contrário, item único.
             if (queueUrls.size > 1) { pc.playQueue(queueUrls, startIndex = 0, startPositionMs = startMs); startNextEpPolling() }
             else pc.play(directUrl, subtitles = subs, startPositionMs = startMs)
+            armStartWatch()
         } else {
             startEngine(address)
         }
@@ -305,6 +308,9 @@ class PlayerActivity : FragmentActivity() {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {
                     retries = 0
+                    ui.removeCallbacks(startWatch)
+                    // A qualidade mais baixa abriu: lembra dela para não esperar de novo ao voltar a este canal.
+                    if (isLive && fellBack) qualityMemo.put(memoKey(), variantIdx, android.os.SystemClock.elapsedRealtime())
                     // Com troca pendente a faixa já mostra o canal novo; a sintonia dele a atualiza.
                     if (isLive) { if (zapper?.isTuned != false) showChannelBar() } else {
                         val q = pc.shortQualityLabel()
@@ -391,14 +397,18 @@ class PlayerActivity : FragmentActivity() {
         kind: PlaybackErrors.Kind = PlaybackErrors.Kind.NETWORK,
         httpCode: Int? = null,
     ) {
-        val friendly = PlaybackErrors.message(kind, httpCode)
+        val friendly = PlaybackErrors.message(kind, httpCode, isLive)
         if (!settings.autoRetry) {
             toast("$friendly ($reason)")
             if (isLive) showChannelBar(status = "$friendly ($reason)", autoHide = false)
             return
         }
         // Com endereço direto, só vale repetir o que é passageiro. No motor P2P tudo continua sendo repetido.
-        if (directUrl.isNotBlank() && !PlaybackErrors.isTransient(kind)) { finalFailure(friendly, reason); return }
+        if (directUrl.isNotBlank() && !PlaybackErrors.isTransient(kind)) {
+            // Canal com outra qualidade: tenta a seguinte antes de mostrar a falha.
+            if (!fallbackVariant()) finalFailure(friendly, reason)
+            return
+        }
         retries++
         val maxRetries = if (isLive) 3 else 2
         if (retries <= maxRetries) {
@@ -409,9 +419,43 @@ class PlayerActivity : FragmentActivity() {
             usingBackup = true; retries = 0
             showBadge("Trocando para servidor de backup…", announce = true)
             engine.stop(); startEngine(addressBackup)
-        } else {
+        } else if (!fallbackVariant()) {
             finalFailure(friendly, reason)
         }
+    }
+
+    // ---------- Troca automática de qualidade (ao vivo) ----------
+    private fun memoKey(): String = variantUrls.firstOrNull() ?: directUrl
+
+    /** O canal não começou a tocar a tempo: desce de qualidade, se houver outra. */
+    private val startWatch = Runnable {
+        if (isFinishing || isDestroyed || !isLive || !pc.player.playWhenReady) return@Runnable
+        if (pc.player.playbackState != Player.STATE_READY) fallbackVariant()
+    }
+
+    private fun armStartWatch() {
+        ui.removeCallbacks(startWatch)
+        if (isLive && variantUrls.size > 1) ui.postDelayed(startWatch, LiveFallback.START_TIMEOUT_MS)
+    }
+
+    /** Passa para a próxima qualidade ainda não tentada deste canal. false = não há mais nenhuma. */
+    private fun fallbackVariant(): Boolean {
+        if (!isLive || variantUrls.size <= 1) return false
+        failedVariants += variantIdx
+        val next = LiveFallback.next(variantUrls.size, variantIdx, failedVariants) ?: return false
+        val from = variantLabels.getOrElse(variantIdx) { "" }
+        val to = variantLabels.getOrElse(next) { "" }
+        qualityMemo.forget(memoKey())
+        variantIdx = next
+        directUrl = variantUrls[next]
+        fellBack = true
+        retries = 0; triedCompat = false
+        pinnedStatus = null
+        ui.removeCallbacks(retryPlay)
+        showBadge("$from não abriu.\nTentando $to…".trim(), announce = true, ms = 5_000)
+        pc.play(directUrl, startPositionMs = C.TIME_UNSET)
+        armStartWatch()
+        return true
     }
 
     /** Filme retoma de onde estava; canal ao vivo volta à borda ao vivo (a posição antiga já saiu da janela). */
@@ -904,8 +948,17 @@ class PlayerActivity : FragmentActivity() {
         variantUrls = ch.variantUrls
         variantLabels = ch.variantLabels
         variantIdx = variantUrls.indexOf(directUrl).coerceAtLeast(0)
+        failedVariants.clear()
+        fellBack = false
+        // A melhor qualidade deste canal não abriu há pouco: começa direto na que funcionou.
+        qualityMemo.get(memoKey(), variantUrls.size, android.os.SystemClock.elapsedRealtime())?.let {
+            variantIdx = it
+            directUrl = variantUrls[it]
+            fellBack = true
+        }
         pc.setHttpHeaders(ch.userAgent?.ifBlank { null } ?: globalUserAgent, ch.referer)
         pc.play(directUrl, startPositionMs = startMs)
+        armStartWatch()
         settings.lastLiveChannel = LiveCatalog.keyOf(ch)
         Guide.request(ch.tvgId, ch.apiId)
     }
@@ -1197,11 +1250,16 @@ class PlayerActivity : FragmentActivity() {
     /** Troca para outro stream de qualidade do mesmo canal ao vivo. */
     private fun switchVariant(i: Int) {
         if (i !in variantUrls.indices || i == variantIdx) return
+        // Escolha manual: vale a partir de agora e apaga o que a troca automática tinha decidido.
+        qualityMemo.forget(memoKey())
+        failedVariants.clear()
+        fellBack = false
         variantIdx = i
         directUrl = variantUrls[i]
         retries = 0
         showBadge("Qualidade: ${variantLabels.getOrElse(i) { "" }}", announce = true)
         pc.play(directUrl, subtitles = subs, startPositionMs = if (isLive) C.TIME_UNSET else 0)
+        armStartWatch()
     }
 
     private fun mark(selected: Boolean) = if (selected) "● " else "○ "
@@ -1264,6 +1322,7 @@ class PlayerActivity : FragmentActivity() {
         const val EXTRA_START_MS = "start_ms"
         const val EXTRA_LIVE_HOME = "live_home"   // ao vivo aberto pela Home: lista de canais já aberta
 
+        private val qualityMemo = LiveFallback.Memo()   // sobrevive a fechar e reabrir o player
         private const val ZAP_TUNE_DELAY_MS = 300L       // espera antes de abrir conexão no canal novo
         private const val ZAP_REPEAT_MIN_MS = 150L       // intervalo mínimo entre trocas com a tecla segurada
         private const val NUMBER_CONFIRM_MS = 1_500L     // sem novo dígito, o número digitado é confirmado

@@ -37,14 +37,16 @@ object PlaybackErrors {
 
     fun isTransient(kind: Kind) = kind == Kind.NETWORK || kind == Kind.SERVER_BUSY
 
-    fun message(kind: Kind, httpCode: Int?): String {
+    fun message(kind: Kind, httpCode: Int?, live: Boolean = false): String {
         val code = httpCode?.let { " (HTTP $it)" }.orEmpty()
         return when (kind) {
             Kind.NETWORK -> "Sem resposta do servidor. Confira a internet ou tente de novo."
             Kind.SERVER_BUSY -> "O servidor do provedor está ocupado ou com problema$code. Tente de novo em instantes."
             Kind.DENIED -> "O servidor recusou o acesso$code. Pode ser limite de conexões (outro aparelho usando a conta), " +
                 "conta vencida ou bloqueio. Veja Configurações > Testar API."
-            Kind.NOT_FOUND -> "Este vídeo não está mais disponível no servidor$code."
+            Kind.NOT_FOUND ->
+                if (live) "Este canal está fora do ar no servidor$code. Tente outra qualidade ou outro canal."
+                else "Este vídeo não está mais disponível no servidor$code."
             Kind.UNSUPPORTED -> "Este arquivo está num formato que a TV não consegue abrir."
             Kind.OTHER -> "Não foi possível reproduzir."
         }

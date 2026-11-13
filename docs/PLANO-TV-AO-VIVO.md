@@ -141,6 +141,17 @@ reais o título e a descrição costumam vir em base64 (a documentação mostra 
    digitada em Configurações; com o login por usuário e senha ela fica vazia, e a falha é silenciosa. Resolvido na
    etapa 4 (programação sob demanda pela conta).
 
+## Retorno do usuário (TV real, v113)
+- Alguns canais mostram "não está mais disponível no servidor (HTTP 404)" e, às vezes, a fonte de melhor qualidade não
+  carrega; a qualidade inferior costuma funcionar. Pedido: se não abrir em ~10 s, trocar para a inferior.
+- Feito: `LiveFallback` (puro, testes JVM) + `PlayerActivity.fallbackVariant`. Falha definitiva (404, formato, acesso
+  negado), fim das tentativas de rede ou 10 s sem `STATE_READY` → próxima qualidade ainda não tentada do canal
+  (`variantUrls` vem da melhor para a pior); só depois de todas aparece a falha. A que funcionou fica lembrada por
+  30 min na memória do app (`qualityMemo`, chave = URL da melhor qualidade); escolha manual pelo MENU apaga a lembrança.
+  Canal com uma qualidade só continua como antes.
+- Não verificado: a origem do 404 (fonte fora do ar no provedor ou URL montada pelo app). Se um canal de qualidade única
+  der 404 na TV e abrir em outro app com a mesma conta, investigar a montagem da URL do ao vivo em `XtreamCatalog`.
+
 ## Verificação
 - `ANDROID_HOME=~/Library/Android/sdk gradle :app:testDebugUnitTest` e `gradle :app:assembleDebug`.
 - Neste Mac o JDK padrão (26) quebra o build do Android antes de compilar (`jlink`/`JdkImageTransform`). Comando que
