@@ -82,7 +82,13 @@ Não há emulador: o comportamento na TV é validado pelo usuário.
    frente (não na abertura nem no player), com Instalar / Depois / Pular esta versão (`AppSettings.skippedUpdate`), e o
    download tem janela de progresso, arquivo temporário e conferência de tamanho. Decisões puras em `UpdateLogic`
    (testes JVM). O "dois cliques" não foi reproduzido: a explicação é a mais provável pelo código.
-3. Detalhes de filme/série, selos na grade e TV ao vivo (etapas 3 e 4): ainda sem retorno.
+3. Detalhes e grades de Filmes/Séries (v112): aprovados pelo usuário. Um filme aberto em "Assistir legendado" tocou
+   dublado. Pela leitura, o detalhe manda a URL certa (a do item marcado LEG). Causa possível no app: o player prefere
+   áudio "pt" (`PlayerController`), então um arquivo legendado com dois áudios toca em português. Corrigido com
+   `EXTRA_SUBTITLED` (detalhe e série mandam; `SubtitledAudio`, puro e testado, escolhe o áudio não português e liga a
+   legenda pt uma vez por arquivo). NÃO confirmado: se o arquivo do servidor só tiver áudio em português, é erro do
+   provedor e o app não tem o que fazer (conferir em opções do player → áudio).
+4. TV ao vivo (etapas 3 e 4): ainda sem retorno.
 
 ## Decisões fora da spec (Etapa A)
 - **Séries da API não juntam dublado/legendado.** Cada `series_id` abre uma tela de episódios própria e a tela não sabe

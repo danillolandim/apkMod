@@ -69,6 +69,8 @@ class PlayerActivity : FragmentActivity() {
     private var retries = 0
     private var usingBackup = false
     private var isLive = false
+    private var subtitled = false          // versão legendada: áudio original + legenda em português
+    private var subtitledApplied = false   // já ajustou as faixas deste item (não briga com a escolha manual)
 
     private var directUrl: String = ""
     private var variantUrls: List<String> = emptyList()
@@ -175,6 +177,7 @@ class PlayerActivity : FragmentActivity() {
         logoUrl = intent.getStringExtra(EXTRA_LOGO).orEmpty()
         tvgId = intent.getStringExtra(EXTRA_TVG_ID).orEmpty()
         resumeKind = intent.getStringExtra(EXTRA_KIND).orEmpty()
+        subtitled = intent.getBooleanExtra(EXTRA_SUBTITLED, false)
         queueUrls = intent.getStringArrayListExtra(EXTRA_QUEUE_URLS) ?: emptyList()
         queueTitles = intent.getStringArrayListExtra(EXTRA_QUEUE_TITLES) ?: emptyList()
         queueIdx = 0
@@ -313,6 +316,7 @@ class PlayerActivity : FragmentActivity() {
             // Transição automática entre episódios (playlist nativa): atualiza
             // título/chave de retomada e marca o episódio anterior como visto.
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                subtitledApplied = false   // as faixas são de cada arquivo: o próximo episódio é ajustado de novo
                 if (queueUrls.size <= 1) return
                 val idx = pc.player.currentMediaItemIndex
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
@@ -338,6 +342,7 @@ class PlayerActivity : FragmentActivity() {
             }
 
             override fun onTracksChanged(tracks: Tracks) {
+                if (subtitled && !subtitledApplied && applySubtitledTracks()) return
                 val audio = pc.audioTracks().firstOrNull { it.isSelected }?.label
                 val text = pc.textTracks().firstOrNull { it.isSelected }?.label
                 val parts = listOfNotNull(
@@ -347,6 +352,25 @@ class PlayerActivity : FragmentActivity() {
                 if (parts.isNotEmpty()) announce(parts.joinToString(" • "))
             }
         })
+    }
+
+    /**
+     * Versão legendada num arquivo com mais de um áudio: troca o português (preferência padrão do player) pelo
+     * original e liga a legenda em português. Devolve true se mudou alguma faixa (vem outro onTracksChanged).
+     */
+    private fun applySubtitledTracks(): Boolean {
+        val audio = pc.audioTracks()
+        if (audio.isEmpty()) return false   // faixas ainda não chegaram
+        subtitledApplied = true
+        var changed = false
+        SubtitledAudio.originalTrack(audio.map { it.language }, audio.indexOfFirst { it.isSelected })?.let {
+            pc.selectTrack(audio[it]); changed = true
+        }
+        val text = pc.textTracks()
+        SubtitledAudio.portugueseSubtitle(text.map { it.language }, text.indexOfFirst { it.isSelected })?.let {
+            pc.selectTrack(text[it]); changed = true
+        }
+        return changed
     }
 
     private var triedCompat = false
@@ -1222,6 +1246,7 @@ class PlayerActivity : FragmentActivity() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_LOGO = "logo"
         const val EXTRA_TVG_ID = "tvg_id"
+        const val EXTRA_SUBTITLED = "subtitled"   // versão legendada: áudio original e legenda em português
         const val EXTRA_KIND = "kind"   // "movie" | "series" para a fileira "Continuar"
         const val EXTRA_QUEUE_URLS = "queue_urls"     // próximos episódios (autoplay)
         const val EXTRA_QUEUE_TITLES = "queue_titles"

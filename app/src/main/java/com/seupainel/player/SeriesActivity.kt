@@ -410,6 +410,7 @@ class SeriesActivity : FragmentActivity() {
             putExtra(PlayerActivity.EXTRA_TITLE, "$title — T${ep.season}E${ep.episode}")
             putExtra(PlayerActivity.EXTRA_LOGO, logo)
             putExtra(PlayerActivity.EXTRA_KIND, "series")
+            putExtra(PlayerActivity.EXTRA_SUBTITLED, ep.leg)
             putStringArrayListExtra(PlayerActivity.EXTRA_QUEUE_URLS, ArrayList(queue.map { it.channel.url }))
             putStringArrayListExtra(PlayerActivity.EXTRA_QUEUE_TITLES,
                 ArrayList(queue.map { "$title — T${it.season}E${it.episode}" }))
