@@ -325,7 +325,18 @@ class SearchActivity : FragmentActivity() {
         val gen = generation.incrementAndGet()
         statusView.text = "Buscando…"
         worker.execute {
-            val found = find(snap, q) { generation.get() != gen } ?: return@execute
+            // Exceção solta nesta thread mataria o app inteiro: vira mensagem na tela, com o motivo.
+            val found = try {
+                find(snap, q) { generation.get() != gen } ?: return@execute
+            } catch (e: Exception) {
+                runOnUiThread {
+                    if (gen == generation.get() && !isFinishing && !isDestroyed) {
+                        statusView.text = ""
+                        showMessage("A busca falhou", "${e.javaClass.simpleName}: ${e.message.orEmpty()}".take(160), retry = false)
+                    }
+                }
+                return@execute
+            }
             runOnUiThread { if (gen == generation.get() && !isFinishing && !isDestroyed) show(q, found) }
         }
     }
@@ -549,10 +560,11 @@ class SearchActivity : FragmentActivity() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val inflater = LayoutInflater.from(parent.context)
             val v = inflater.inflate(if (live) R.layout.item_search_channel else R.layout.item_poster, parent, false)
-            if (live) {
-                v.layoutParams = RecyclerView.LayoutParams(dp(156), dp(92))
-            } else {
-                v.layoutParams = RecyclerView.LayoutParams(dp(112), dp(168))
+            // Só ajusta o tamanho: o leanback faz cast dos LayoutParams do filho para o tipo dele
+            // (GridLayoutManager.LayoutParams, criado pelo inflate); trocar por RecyclerView.LayoutParams derruba o app.
+            v.layoutParams.width = dp(if (live) 156 else 112)
+            v.layoutParams.height = dp(if (live) 92 else 168)
+            if (!live) {
                 v.isFocusable = true
                 v.isClickable = true
                 (v as FrameLayout).foreground = ContextCompat.getDrawable(parent.context, R.drawable.search_card_focus)

@@ -66,6 +66,15 @@ Não há emulador: o comportamento na TV é validado pelo usuário.
 ## Status
 - [x] Etapa A — busca global · [x] Etapa B — detalhes e marcação de assistidos (código e testes JVM prontos; as duas etapas faltam validar na TV)
 
+## Retorno do usuário (TV real, v110)
+1. Busca: abre a tela, mas ao digitar as primeiras letras o app fecha e volta à tela de carga. Causa (achada por
+   leitura do bytecode do leanback 1.0.0, não reproduzida em aparelho): `CardAdapter.onCreateViewHolder` trocava os
+   LayoutParams do cartão por `RecyclerView.LayoutParams`; o `GridLayoutManager` do leanback não sobrescreve
+   `checkLayoutParams` e faz cast para `GridLayoutManager.LayoutParams` → `ClassCastException` no primeiro layout dos
+   resultados. Corrigido ajustando só largura/altura dos params criados pelo inflate. O índice não era o problema.
+   Além disso, exceção na thread da busca agora vira mensagem na tela ("A busca falhou" + motivo).
+2. Detalhes de filme/série, selos na grade e TV ao vivo (etapas 3 e 4): ainda sem retorno.
+
 ## Decisões fora da spec (Etapa A)
 - **Séries da API não juntam dublado/legendado.** Cada `series_id` abre uma tela de episódios própria e a tela não sabe
   fundir duas séries; então "Dark" e "Dark (LEG)" aparecem como dois itens, como nas listas. Filmes e episódios da lista
