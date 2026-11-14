@@ -41,4 +41,45 @@ class LiveFallbackTest {
         memo.put("", 1, now = 0)
         assertNull(memo.get("", count = 3, now = 10))
     }
+
+    private fun watch() = LiveFallback.StallWatch(timeoutMs = 8_000, calmMs = 30_000, maxReconnects = 3)
+
+    @Test fun `a channel that keeps moving is left alone`() {
+        val w = watch().apply { reset(0) }
+        for (s in 1..60) assertNull(w.tick(position = s * 1_000L, now = s * 1_000L, hasOtherQuality = true))
+    }
+
+    @Test fun `first stall reconnects and a second one right after goes down in quality`() {
+        val w = watch().apply { reset(0) }
+        assertNull(w.tick(5_000, now = 1_000, hasOtherQuality = true))
+        assertNull(w.tick(5_000, now = 8_000, hasOtherQuality = true))
+        assertEquals(LiveFallback.StallAction.RECONNECT, w.tick(5_000, now = 9_000, hasOtherQuality = true))
+        assertNull(w.tick(5_000, now = 16_000, hasOtherQuality = true))
+        assertEquals(LiveFallback.StallAction.NEXT_QUALITY, w.tick(5_000, now = 17_000, hasOtherQuality = true))
+    }
+
+    @Test fun `without another quality it reconnects a few times and then gives up`() {
+        val w = watch().apply { reset(0) }
+        w.tick(0, now = 0, hasOtherQuality = false)
+        assertEquals(LiveFallback.StallAction.RECONNECT, w.tick(0, now = 8_000, hasOtherQuality = false))
+        assertEquals(LiveFallback.StallAction.RECONNECT, w.tick(0, now = 16_000, hasOtherQuality = false))
+        assertEquals(LiveFallback.StallAction.RECONNECT, w.tick(0, now = 24_000, hasOtherQuality = false))
+        assertEquals(LiveFallback.StallAction.GIVE_UP, w.tick(0, now = 32_000, hasOtherQuality = false))
+    }
+
+    @Test fun `after playing calmly a new stall is treated as the first again`() {
+        val w = watch().apply { reset(0) }
+        w.tick(0, now = 0, hasOtherQuality = true)
+        assertEquals(LiveFallback.StallAction.RECONNECT, w.tick(0, now = 8_000, hasOtherQuality = true))
+        // Voltou e tocou 40 s sem travar.
+        for (s in 9..48) assertNull(w.tick(s * 1_000L, now = s * 1_000L, hasOtherQuality = true))
+        assertEquals(LiveFallback.StallAction.RECONNECT, w.tick(48_000, now = 56_000, hasOtherQuality = true))
+    }
+
+    @Test fun `paused time does not count as a stall`() {
+        val w = watch().apply { reset(0) }
+        w.tick(0, now = 0, hasOtherQuality = true)
+        w.touch(60_000)
+        assertNull(w.tick(0, now = 61_000, hasOtherQuality = true))
+    }
 }

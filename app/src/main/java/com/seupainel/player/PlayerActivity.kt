@@ -309,6 +309,7 @@ class PlayerActivity : FragmentActivity() {
                 if (state == Player.STATE_READY) {
                     retries = 0
                     ui.removeCallbacks(startWatch)
+                    if (isLive && !stallArmed) armStallWatch()
                     // A qualidade mais baixa abriu: lembra dela para não esperar de novo ao voltar a este canal.
                     if (isLive && fellBack) qualityMemo.put(memoKey(), variantIdx, android.os.SystemClock.elapsedRealtime())
                     // Com troca pendente a faixa já mostra o canal novo; a sintonia dele a atualiza.
@@ -438,8 +439,49 @@ class PlayerActivity : FragmentActivity() {
         if (isLive && variantUrls.size > 1) ui.postDelayed(startWatch, LiveFallback.START_TIMEOUT_MS)
     }
 
+    // ---------- Canal que travou no meio (ao vivo) ----------
+    private val stallWatch = LiveFallback.StallWatch()
+    private var stallArmed = false   // só vigia depois que o canal tocou; a abertura tem a regra dela (startWatch)
+
+    private fun armStallWatch() {
+        stallArmed = true
+        stallWatch.touch(android.os.SystemClock.elapsedRealtime())
+        ui.removeCallbacks(stallPoll)
+        ui.postDelayed(stallPoll, 1_000)
+    }
+
+    private val stallPoll = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed || !stallArmed) return
+            ui.postDelayed(this, 1_000)
+            val p = pc.player
+            val now = android.os.SystemClock.elapsedRealtime()
+            // Pausado, ou parado por erro (aí quem cuida é o recover): o tempo não conta.
+            if (!isLive || !p.playWhenReady || p.playbackState == Player.STATE_IDLE || p.playbackState == Player.STATE_ENDED) {
+                stallWatch.touch(now); return
+            }
+            val other = LiveFallback.next(variantUrls.size, variantIdx, failedVariants + variantIdx) != null
+            when (stallWatch.tick(p.currentPosition, now, other)) {
+                LiveFallback.StallAction.RECONNECT -> reconnectStalled()
+                LiveFallback.StallAction.NEXT_QUALITY -> if (!fallbackVariant(stalled = true)) reconnectStalled()
+                LiveFallback.StallAction.GIVE_UP -> {
+                    stallArmed = false
+                    showChannelBar(status = "O canal parou de responder. Aperte OK e escolha o canal de novo.", autoHide = false)
+                }
+                null -> Unit
+            }
+        }
+    }
+
+    /** O mesmo que escolher o canal de novo: reabre o endereço atual na borda ao vivo. */
+    private fun reconnectStalled() {
+        showBadge("O canal travou.\nReconectando…", announce = true, ms = 4_000)
+        ui.removeCallbacks(retryPlay)
+        retryPlay.run()
+    }
+
     /** Passa para a próxima qualidade ainda não tentada deste canal. false = não há mais nenhuma. */
-    private fun fallbackVariant(): Boolean {
+    private fun fallbackVariant(stalled: Boolean = false): Boolean {
         if (!isLive || variantUrls.size <= 1) return false
         failedVariants += variantIdx
         val next = LiveFallback.next(variantUrls.size, variantIdx, failedVariants) ?: return false
@@ -452,7 +494,9 @@ class PlayerActivity : FragmentActivity() {
         retries = 0; triedCompat = false
         pinnedStatus = null
         ui.removeCallbacks(retryPlay)
-        showBadge("$from não abriu.\nTentando $to…".trim(), announce = true, ms = 5_000)
+        showBadge("$from ${if (stalled) "travou" else "não abriu"}.\nTentando $to…".trim(), announce = true, ms = 5_000)
+        // Volta a vigiar travas quando a nova qualidade tocar; até lá vale o prazo de abertura.
+        stallArmed = false
         pc.play(directUrl, startPositionMs = C.TIME_UNSET)
         armStartWatch()
         return true
@@ -950,6 +994,8 @@ class PlayerActivity : FragmentActivity() {
         variantIdx = variantUrls.indexOf(directUrl).coerceAtLeast(0)
         failedVariants.clear()
         fellBack = false
+        stallArmed = false
+        stallWatch.reset(android.os.SystemClock.elapsedRealtime())
         // A melhor qualidade deste canal não abriu há pouco: começa direto na que funcionou.
         qualityMemo.get(memoKey(), variantUrls.size, android.os.SystemClock.elapsedRealtime())?.let {
             variantIdx = it
