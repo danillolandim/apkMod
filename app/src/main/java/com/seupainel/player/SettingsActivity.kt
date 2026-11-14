@@ -157,7 +157,10 @@ class SettingsActivity : FragmentActivity() {
     }
 
     private fun updateLines() = listOf(
-        Line("versão", Kind.INFO, value = { "Versão instalada: ${BuildConfig.VERSION_NAME}" }),
+        Line("versão", Kind.INFO, value = {
+            "Versão instalada: ${BuildConfig.VERSION_NAME}" +
+                if (DeviceProfile.of(this).low) " · modo econômico (aparelho com pouca memória)" else ""
+        }),
         toggle("Avisar quando houver versão nova", "Confere ao abrir o app e ao voltar para ele.", { app.autoUpdate }) {
             app.autoUpdate = it
         },

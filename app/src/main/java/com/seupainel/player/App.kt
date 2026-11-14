@@ -22,19 +22,22 @@ class App : Application(), ImageLoaderFactory {
      * por imagem, sem perda visível em pôster). Pôsteres do TMDB são imutáveis
      * pela URL, então ignoramos os cabeçalhos de cache e guardamos direto.
      */
-    override fun newImageLoader(): ImageLoader =
-        ImageLoader.Builder(this)
+    override fun newImageLoader(): ImageLoader {
+        // Aparelho com pouca memória: cache menor (ver DeviceProfile).
+        val limits = DeviceProfile.of(this)
+        return ImageLoader.Builder(this)
             .crossfade(true)
             .bitmapConfig(Bitmap.Config.RGB_565)
             .respectCacheHeaders(false)
-            .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.30).build() }
+            .memoryCache { MemoryCache.Builder(this).maxSizePercent(limits.imageMemoryPercent).build() }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("coil_posters"))
-                    .maxSizeBytes(300L * 1024 * 1024)   // 300 MB de pôsteres em disco
+                    .maxSizeBytes(limits.posterDiskBytes)   // 300 MB de pôsteres em disco (100 MB com pouca memória)
                     .build()
             }
             .build()
+    }
 
     override fun onCreate() {
         super.onCreate()

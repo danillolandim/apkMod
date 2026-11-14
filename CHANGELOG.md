@@ -1,6 +1,7 @@
 # Novidades
 
 ## Esta versão
+- Aparelhos com pouca memória (até 2 GB, como TV box mais antiga): o app passa a usar menos memória sozinho, guardando menos imagens e menos vídeo adiantado, para o sistema não fechá-lo nem engasgar. Nesses aparelhos, Configurações → Atualização mostra "modo econômico" ao lado da versão. Em TV com mais memória nada muda.
 - TV ao vivo: CH+/CH− (e as setas) agora trocam de canal dentro da categoria em que você escolheu o canal. Antes andavam pela lista "Todos", então um canal com a melhor qualidade em outra categoria (por exemplo 4K) tirava você da categoria em que estava. A lista de canais (OK) também abre nessa categoria, e ela fica lembrada ao voltar para a TV ao vivo. Digitar um número de canal de outra categoria passa o zapping para "Todos".
 - TV ao vivo: canal que trava no meio agora se recupera sozinho. Com a imagem parada por 8 segundos, o player reconecta no mesmo canal (o mesmo que escolher o canal de novo) e avisa "O canal travou. Reconectando…". Se travar de novo logo em seguida, passa para a qualidade seguinte ("FHD travou. Tentando HD…"). Canal com uma qualidade só tenta reconectar até 3 vezes antes de avisar que parou de responder. Antes a troca automática só valia para o canal que não abria.
 - Busca por voz dentro do app: a tecla "Falar" não abre mais a tela de voz do aparelho. A tecla vira "Ouvindo…" e o que você fala aparece no próprio campo da busca (na primeira vez a TV pede permissão de microfone). A tela de voz do aparelho fica só como reserva.

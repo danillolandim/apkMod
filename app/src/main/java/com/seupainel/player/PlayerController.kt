@@ -127,17 +127,19 @@ class PlayerController(
 
         // Buffer sob medida: LIVE prioriza baixa latência (zapping rápido);
         // VOD prioriza suavidade com buffer grande.
+        // Aparelho com pouca memória guarda menos vídeo (ver DeviceProfile).
+        val limits = DeviceProfile.of(context)
         val loadControl = when (mode) {
             // LIVE: começa a tocar rápido (zapping) e mantém um colchão maior
             // (cabo enche fácil), evitando engasgo em picos do provedor.
             Mode.LIVE -> DefaultLoadControl.Builder()
                 // 600ms p/ começar (zapping mais rápido); mantém colchão grande.
-                .setBufferDurationsMs(10_000, 50_000, 600, 2_000)
-                .setBackBuffer(30_000, true)   // rewind instantâneo em live
+                .setBufferDurationsMs(limits.liveMinBufferMs, limits.liveMaxBufferMs, 600, 2_000)
+                .setBackBuffer(limits.liveBackBufferMs, true)   // rewind instantâneo em live
             // VOD: buffer folgado (até 90s) — zero rebuffer sem pesar a memória
             // da TV com streams 4K de bitrate alto.
             Mode.VOD -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(25_000, 90_000, 1_500, 3_000)   // começa com 1,5 s de vídeo
+                .setBufferDurationsMs(limits.vodMinBufferMs, limits.vodMaxBufferMs, 1_500, 3_000)   // começa com 1,5 s de vídeo
         }
             .setPrioritizeTimeOverSizeThresholds(true) // começa a tocar antes
             .build()
@@ -150,7 +152,7 @@ class PlayerController(
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             // Pré-aquece o vídeo do PRÓXIMO item da playlist (Media3 1.6+): a
             // transição entre episódios (autoplay de séries) fica quase instantânea.
-            .experimentalSetEnableMediaCodecVideoRendererPrewarming(true)
+            .experimentalSetEnableMediaCodecVideoRendererPrewarming(limits.prewarmNextVideo)
 
         ExoPlayer.Builder(context)
             .setRenderersFactory(renderers)
