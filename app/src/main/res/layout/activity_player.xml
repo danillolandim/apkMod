@@ -13,6 +13,18 @@
         app:show_subtitle_button="true"
         app:use_controller="true" />
 
+    <!-- Celular, ao vivo (Device.isTv = falso): pega o toque no vídeo, que o PlayerView sem controlador não trata.
+         Fica abaixo de tudo o mais. Escondida e fora do foco na TV. -->
+    <View
+        android:id="@+id/touch_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:contentDescription="Mostrar ou esconder os controles"
+        android:focusable="false"
+        android:soundEffectsEnabled="false"
+        android:visibility="gone" />
+
     <!-- Indicador de qualidade/status: aparece 3s ao iniciar, mudar faixa, seek… -->
     <TextView
         android:id="@+id/badge"
@@ -169,6 +181,60 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <!-- Controles por toque (celular, Device.isTv = falso). Escondida e sem foco na TV. Ao vivo, um toque na tela a
+         mostra por 5 s; no filme ela acompanha o controlador do player e só traz Opções e Transmitir. -->
+    <LinearLayout
+        android:id="@+id/touch_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/channel_bar_bg"
+        android:descendantFocusability="blocksDescendants"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <!-- Só no ao vivo com lista de canais (sessão carregada) -->
+        <LinearLayout
+            android:id="@+id/tb_zap_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tb_channels"
+                style="@style/TouchBarButton"
+                android:text="Canais" />
+
+            <TextView
+                android:id="@+id/tb_prev"
+                style="@style/TouchBarButton"
+                android:contentDescription="Canal anterior"
+                android:text="‹ Canal" />
+
+            <TextView
+                android:id="@+id/tb_next"
+                style="@style/TouchBarButton"
+                android:contentDescription="Próximo canal"
+                android:text="Canal ›" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tb_options"
+            style="@style/TouchBarButton"
+            android:text="Opções" />
+
+        <TextView
+            android:id="@+id/tb_cast"
+            style="@style/TouchBarButton"
+            android:contentDescription="Transmitir para a TV"
+            android:drawableStart="@drawable/ic_cast"
+            android:text="Transmitir" />
+    </LinearLayout>
+
     <!-- Lista de canais sobre o vídeo (ao vivo): categorias + canais à esquerda; à direita, embaixo, a
          programação do canal em foco. O vídeo continua tocando por trás. -->
     <LinearLayout
@@ -179,6 +245,7 @@
         android:visibility="gone">
 
         <LinearLayout
+            android:id="@+id/live_left_panel"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="45"

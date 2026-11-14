@@ -150,6 +150,18 @@
         <item name="android:paddingBottom">9dp</item>
     </style>
 
+    <!-- Botão da barra de toque do player (celular): alvo de pelo menos 48dp, sem foco -->
+    <style name="TouchBarButton" parent="GhostButton">
+        <item name="android:layout_marginStart">3dp</item>
+        <item name="android:layout_marginEnd">3dp</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:focusable">false</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
+    </style>
+
     <!-- Pílula (temporada, dublado/legendado): ativa = fundo claro e texto no acento -->
     <style name="PillChip">
         <item name="android:layout_width">wrap_content</item>

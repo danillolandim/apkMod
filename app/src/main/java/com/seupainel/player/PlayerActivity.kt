@@ -7,9 +7,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.text.TextUtils
 import android.util.Rational
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -17,6 +20,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
@@ -53,6 +59,8 @@ import com.seupainel.player.playlist.XtreamCatalog
  *  - Ao vivo: zapping pelo controle (CH+/CH−, ↑/↓, número, último canal) com um único ExoPlayer, e lista de
  *    canais por cima do vídeo (OK). Sempre começa na borda ao vivo: não lê nem grava posição de retomada.
  *  - Acessibilidade: anúncios TalkBack e respeito às legendas do sistema.
+ *  - Celular (Device.isTv = falso): um toque mostra a barra de controles (canais, opções, transmitir) e a tela fica
+ *    em modo imersivo. Na TV nada disso existe: as views de toque ficam escondidas e as teclas seguem como sempre.
  */
 @OptIn(UnstableApi::class)
 class PlayerActivity : FragmentActivity() {
@@ -129,13 +137,25 @@ class PlayerActivity : FragmentActivity() {
     private val timerSteps = listOf(0, 15, 30, 60, 90)
     private var timerStep = 0
 
+    // Celular: controles por toque. Na TV (phone = false) nada disto é usado.
+    private var phone = false
+    private lateinit var touchLayer: View
+    private lateinit var touchBar: View
+    private lateinit var tbZapGroup: View
+    private var castPending = false   // abriu o painel de transmitir tocando: ao voltar, a imagem retoma
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_player)
+        phone = !Device.isTv(this)
         playerView = findViewById(R.id.player_view)
         hud = findViewById(R.id.hud)
         badge = findViewById(R.id.badge)
+        touchLayer = findViewById(R.id.touch_layer)
+        touchBar = findViewById(R.id.touch_bar)
+        tbZapGroup = findViewById(R.id.tb_zap_group)
+        enterImmersive()
         resume = ResumeStore(this)
         settings = AppSettings(this)
 
@@ -199,6 +219,7 @@ class PlayerActivity : FragmentActivity() {
         nextEpBar = findViewById(R.id.next_ep_bar)
         qualityBtn.setOnClickListener { showQualityPopup() }
         setupDock()
+        setupTouch()
 
         subs = SubtitleJson.decode(intent.getStringExtra(EXTRA_SUBTITLES_JSON))
             .toExternalList()
@@ -276,7 +297,11 @@ class PlayerActivity : FragmentActivity() {
         bind()
         // Reaplica sempre que os controles reaparecem (a view pode ser recriada).
         playerView.setControllerVisibilityListener(
-            PlayerView.ControllerVisibilityListener { if (it == View.VISIBLE) bind() }
+            PlayerView.ControllerVisibilityListener {
+                if (it == View.VISIBLE) bind()
+                // Celular, filme: Opções e Transmitir aparecem junto com o controlador
+                if (phone && !isLive) touchBar.visibility = if (it == View.VISIBLE && !inPip) View.VISIBLE else View.GONE
+            }
         )
     }
 
@@ -557,7 +582,11 @@ class PlayerActivity : FragmentActivity() {
         if (inPip) return
         if (isLive) Guide.request(tvgId, apiId)
         pinnedStatus = if (autoHide) null else status
-        val hint = if (variantUrls.size > 1) "OK: lista de canais  •  MENU: opções e qualidade" else "OK: lista de canais  •  MENU: opções"
+        val hint = when {
+            phone -> "Toque na tela para ver os controles"
+            variantUrls.size > 1 -> "OK: lista de canais  •  MENU: opções e qualidade"
+            else -> "OK: lista de canais  •  MENU: opções"
+        }
         val quality = if (variantUrls.size > 1) variantLabels.getOrElse(variantIdx) { "" } else null
         val number = zapper?.let { it.tuned + 1 }
         if (listOpen) {   // a lista cobre a faixa; closeList() a recoloca se houver erro fixo
@@ -684,6 +713,7 @@ class PlayerActivity : FragmentActivity() {
             closeList(restoreBar = false)
             hud.visibility = View.GONE; badge.visibility = View.GONE
             channelBar.visibility = View.GONE
+            hideTouchBar()
             playerView.hideController()
         } else {
             playerView.useController = !isLive
@@ -886,6 +916,7 @@ class PlayerActivity : FragmentActivity() {
         val z = zapper ?: return
         ui.removeCallbacks(hideChannelBar)
         channelBar.visibility = View.GONE
+        hideTouchBar()
         val playing = z.current
         panel.open(liveList, liveGroups, playing, zapGroup)
         if (!idleWaitsKey) armListIdle()
@@ -927,6 +958,100 @@ class PlayerActivity : FragmentActivity() {
         z.jumpTo(index)
         tune(index)
         panel.markPlaying(index)
+    }
+
+    // ---------- Toque (celular) ----------
+    // Só roda com phone = true. Na TV as views de toque ficam escondidas e nada abaixo é chamado.
+    private val hideTouchBarNow = Runnable { touchBar.visibility = View.GONE }
+
+    private fun setupTouch() {
+        if (!phone) return
+        // Os vãos entre os botões não podem "vazar" o toque para o vídeo (que esconderia a barra)
+        touchBar.apply { isClickable = true; isFocusable = false }
+        tbZapGroup.visibility = if (isLive && zapper != null) View.VISIBLE else View.GONE   // sem lista de canais, sem zapping
+        touchBar.findViewById<View>(R.id.tb_channels).setOnClickListener { hideTouchBar(); openList() }
+        touchBar.findViewById<View>(R.id.tb_prev).setOnClickListener { zapStep(-1, null); armTouchBarHide() }
+        touchBar.findViewById<View>(R.id.tb_next).setOnClickListener { zapStep(+1, null); armTouchBarHide() }
+        touchBar.findViewById<View>(R.id.tb_options).setOnClickListener { hideTouchBar(); openDock() }
+        touchBar.findViewById<View>(R.id.tb_cast).setOnClickListener {
+            hideTouchBar()
+            playerView.hideController()
+            CastScreen.show(this) { castPending = pc.player.playWhenReady }
+        }
+        touchLayer.setOnClickListener { onScreenTap() }
+        syncTouchLayer()
+    }
+
+    /** Toque no vídeo: fecha o que está aberto por cima; senão mostra ou esconde os controles. */
+    private fun onScreenTap() {
+        when {
+            inPip -> Unit
+            listOpen -> closeList()
+            dock.visibility == View.VISIBLE -> closeDock()
+            touchBar.visibility == View.VISIBLE -> hideTouchBar()
+            else -> showTouchBar()
+        }
+    }
+
+    /** Ao vivo: barra de controles por 5 s, mais a faixa do canal. Não aparece com a lista ou o dock abertos. */
+    private fun showTouchBar() {
+        if (!phone || !isLive || inPip || listOpen || dock.visibility == View.VISIBLE) return
+        touchBar.visibility = View.VISIBLE
+        // Erro fixo continua na faixa; troca de canal esperando sintonizar já tem a faixa dela na tela
+        if (pinnedStatus == null && zapper?.isTuned != false) showChannelBar()
+        armTouchBarHide()
+    }
+
+    private fun hideTouchBar() {
+        if (!phone) return
+        ui.removeCallbacks(hideTouchBarNow)
+        touchBar.visibility = View.GONE
+    }
+
+    private fun armTouchBarHide() {
+        ui.removeCallbacks(hideTouchBarNow)
+        ui.postDelayed(hideTouchBarNow, TOUCH_BAR_MS)
+    }
+
+    /**
+     * A camada que pega o toque cobre o vídeo no ao vivo; no filme o controlador do player já trata o toque, então ela
+     * só entra enquanto o dock está aberto (tocar fora dele fecha).
+     */
+    private fun syncTouchLayer() {
+        if (!phone) return
+        touchLayer.visibility = if (isLive || dock.visibility == View.VISIBLE) View.VISIBLE else View.GONE
+    }
+
+    /** Voltou do painel de transmitir (a tela parou e o player pausou): retoma o filme ou volta à borda ao vivo. */
+    private fun resumeAfterCast() {
+        castPending = false
+        if (isLive) {
+            ui.removeCallbacks(retryPlay)
+            retryPlay.run()
+            armStartWatch()
+        } else {
+            pc.player.play()
+        }
+    }
+
+    /** Também some a barra de navegação, para o vídeo (e a tela espelhada na TV) ocuparem tudo. */
+    private fun enterImmersive() {
+        if (!phone) return
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enterImmersive()   // as barras voltam depois de uma caixa de diálogo ou do painel de transmitir
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        // Mexer na lista de canais com o dedo também é atividade: sem isso ela fecha sozinha no meio da rolagem
+        if (phone && isLive && ev.actionMasked == MotionEvent.ACTION_DOWN && listOpen) armListIdle()
+        return super.dispatchTouchEvent(ev)
     }
 
     // ---------- Zapping (ao vivo) ----------
@@ -1127,11 +1252,29 @@ class PlayerActivity : FragmentActivity() {
         dockSpeed.setOnClickListener { cycleSpeed() }
         dockTimer.setOnClickListener { cycleTimer() }
         dockPip.setOnClickListener { closeDock(); enterPip() }
+        if (phone) compactDockForPhone()
+    }
+
+    /** Celular: sete itens de 104dp não cabem em 780dp de largura. Encolhe as folgas e limita rótulos longos. */
+    private fun compactDockForPhone() {
+        dock.apply { isClickable = true; isFocusable = false }   // tocar no vão entre itens não fecha o dock
+        val d = resources.displayMetrics.density
+        for (i in 0 until dock.childCount) {
+            (dock.getChildAt(i) as? TextView)?.apply {
+                minWidth = 0
+                maxWidth = (130 * d).toInt()
+                maxLines = 2
+                ellipsize = TextUtils.TruncateAt.END
+                setPadding((10 * d).toInt(), paddingTop, (10 * d).toInt(), paddingBottom)
+                (layoutParams as? ViewGroup.MarginLayoutParams)?.marginEnd = (6 * d).toInt()
+            }
+        }
     }
 
     private fun openDock() {
         closeList(restoreBar = false)
         playerView.hideController()
+        hideTouchBar()
         ui.removeCallbacks(hideChannelBar); channelBar.visibility = View.GONE
         dockSpeed.visibility = if (isLive) View.GONE else View.VISIBLE
         updateDock()
@@ -1143,13 +1286,14 @@ class PlayerActivity : FragmentActivity() {
                 dock.animate().translationY(0f).alpha(1f).setDuration(200).start()
             }
         }
+        syncTouchLayer()
         dockQuality.requestFocus()
     }
 
     private fun closeDock() {
         if (dock.visibility != View.VISIBLE) return
         dock.animate().translationY(dock.height.toFloat()).alpha(0f).setDuration(180)
-            .withEndAction { dock.visibility = View.GONE; dock.translationY = 0f; dock.alpha = 1f }.start()
+            .withEndAction { dock.visibility = View.GONE; dock.translationY = 0f; dock.alpha = 1f; syncTouchLayer() }.start()
     }
 
     private fun dockLabel(action: String, value: String) = "$action\n$value"
@@ -1341,6 +1485,12 @@ class PlayerActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         com.seupainel.player.net.Net.playbackActive = true   // trabalhos de fundo esperam
+        if (castPending) resumeAfterCast()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        castPending = false   // se o painel de transmitir não parou a tela, a imagem nunca pausou: nada a retomar
     }
 
     override fun onStop() {
@@ -1391,6 +1541,7 @@ class PlayerActivity : FragmentActivity() {
         private const val MAX_NUMBER_DIGITS = 4
         private const val LIST_IDLE_MS = 30_000L          // a lista de canais fecha sozinha sem tecla
         private const val PREVIEW_DELAY_MS = 800L         // foco parado num canal da lista: ele passa a tocar
+        private const val TOUCH_BAR_MS = 5_000L           // celular: a barra de controles some sozinha
 
         /** Player ao vivo no canal [ch] da [LiveSession], com a lista de canais aberta (entrada pela Home). */
         fun liveHomeIntent(context: android.content.Context, ch: LiveChannel) =

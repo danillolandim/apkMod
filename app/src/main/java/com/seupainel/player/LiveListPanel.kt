@@ -1,5 +1,6 @@
 package com.seupainel.player
 
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
@@ -20,6 +21,9 @@ import com.seupainel.player.playlist.LiveGroup
  * embaixo à direita. Só desenha e navega; quem sintoniza é o player, avisado por [onPick] com o índice do canal na
  * lista "Todos" (o mesmo número do zapping) e por [onFocus] a cada movimento do foco entre os canais (o player
  * decide se e quando mostrar o canal em foco).
+ *
+ * No celular (Device.isTv = falso) não há foco: tocar na categoria mostra os canais dela, tocar no canal sintoniza, e
+ * as linhas das categorias ganham a altura mínima de 48dp. Na TV nada disso muda.
  */
 class LiveListPanel(
     private val activity: FragmentActivity,
@@ -42,6 +46,7 @@ class LiveListPanel(
     private var shownGroup = -1
     private var playing = -1
     private val rows = RowAdapter()
+    private val phone = !Device.isTv(activity)
 
     val isOpen: Boolean get() = root.visibility == View.VISIBLE
 
@@ -57,7 +62,9 @@ class LiveListPanel(
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) = showGroup(position)
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
         }
-        groupsView.setOnItemClickListener { _, _, _, _ -> focusChannels() }
+        // Toque (ou OK) numa categoria: mostra os canais dela e leva o foco a eles. Na TV o foco já mostrou a
+        // categoria, então showGroup não faz nada de novo.
+        groupsView.setOnItemClickListener { _, _, position, _ -> showGroup(position); focusChannels() }
         channelsView.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 renderGuide(rows.liveIndexAt(position))
@@ -69,6 +76,11 @@ class LiveListPanel(
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
         }
         channelsView.setOnItemClickListener { _, _, position, _ -> rows.liveIndexAt(position)?.let(onPick) }
+        if (phone) {
+            // Os cantos vazios do painel e a grade de programação não podem "vazar" o toque para o vídeo, que fecha a lista
+            activity.findViewById<View>(R.id.live_left_panel).apply { isClickable = true; isFocusable = false }
+            guide.apply { isClickable = true; isFocusable = false }
+        }
     }
 
     /** Abre na categoria [startGroup], com o foco no canal [playingIndex] (índice na lista "Todos"). */
@@ -77,10 +89,9 @@ class LiveListPanel(
         this.groups = groups
         playing = playingIndex
         shownGroup = -1
-        groupsView.adapter = ArrayAdapter(
-            activity, R.layout.item_group, R.id.group_text,
-            groups.map { "${it.name}  (${it.indices.size})" },
-        )
+        val names = groups.map { "${it.name}  (${it.indices.size})" }
+        groupsView.adapter =
+            if (phone) PhoneGroupAdapter(names) else ArrayAdapter(activity, R.layout.item_group, R.id.group_text, names)
         root.visibility = View.VISIBLE
         selectGroup(startGroup.coerceIn(0, groups.lastIndex.coerceAtLeast(0)))
         focusChannels()
@@ -179,6 +190,19 @@ class LiveListPanel(
         guideNextLabel.visibility = guideNext.visibility
     }
 
+    /** Categorias no celular: a linha da TV tem uns 41dp; no toque o alvo precisa de pelo menos 48dp. */
+    private inner class PhoneGroupAdapter(names: List<String>) :
+        ArrayAdapter<String>(activity, R.layout.item_group, R.id.group_text, names) {
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val v = super.getView(position, convertView, parent)
+            (v as? TextView)?.apply {
+                minHeight = (TOUCH_MIN_DP * activity.resources.displayMetrics.density).toInt()
+                gravity = Gravity.CENTER_VERTICAL or Gravity.START
+            }
+            return v
+        }
+    }
+
     private inner class RowAdapter : BaseAdapter() {
         private var indices: List<Int> = emptyList()
         var playing = -1
@@ -235,5 +259,6 @@ class LiveListPanel(
         const val UPCOMING = 3
         const val GUIDE_REQUEST_DELAY_MS = 350L
         const val ROW_FALLBACK_DP = 56
+        const val TOUCH_MIN_DP = 48
     }
 }
