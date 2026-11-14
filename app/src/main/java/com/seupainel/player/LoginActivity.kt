@@ -102,7 +102,7 @@ class LoginActivity : FragmentActivity() {
         val typed = server.text.toString().trim().ifBlank { BuildConfig.DEFAULT_SERVER }
         val primary = ServerInput.parse(typed)
         if (primary == null) {
-            fail("Digite o endereço do servidor (DNS). Exemplo: http://servidor.com:8080")
+            fail("Digite o endereço do servidor (DNS). Exemplo: servidor.com:8080")
             setAdvanced(true); server.requestFocus(); return
         }
         val u = user.text.toString().trim().ifBlank { primary.user.orEmpty() }

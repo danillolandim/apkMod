@@ -28,6 +28,27 @@
         <item name="android:layout_marginTop">6dp</item>
     </style>
 
+    <!-- Formulário (tela de entrada): rótulo acima do campo; campo com 48dp, como manda o DESIGN.md -->
+    <style name="FormLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">@font/rajdhani_semibold</item>
+        <item name="android:textColor">@color/lf_text_2</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="FormField" parent="TvEditText">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:textSize">17sp</item>
+    </style>
+
     <!-- Item do dock do player (estilo dock do Mac) -->
     <style name="DockItem">
         <item name="android:layout_width">wrap_content</item>
