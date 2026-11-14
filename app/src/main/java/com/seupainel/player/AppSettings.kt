@@ -75,6 +75,11 @@ class AppSettings(context: Context) {
         get() = p.getString("last_live", "") ?: ""
         set(v) = p.edit().putString("last_live", v).apply()
 
+    /** Categoria em que o zapping estava (nome): ao voltar à TV ao vivo, CH+/CH− continuam nela. */
+    var lastLiveGroup: String
+        get() = p.getString("last_live_group", "") ?: ""
+        set(v) = p.edit().putString("last_live_group", v).apply()
+
     /** Papel de parede: chave de tema (ver WALLPAPERS) ou "custom". */
     var wallpaper: String
         get() = p.getString("wallpaper_lf", "landimflix") ?: "landimflix"

@@ -105,6 +105,7 @@ class PlayerActivity : FragmentActivity() {
 
     // Zapping (ao vivo). zapper nulo = canal único (P2P, ou sem LiveSession): comportamento anterior.
     private var zapper: LiveZapper? = null
+    private var zapGroup = 0   // categoria (índice em liveGroups) em que CH+/CH− andam: a de onde o canal foi escolhido
     private var liveList: List<LiveChannel> = emptyList()
     private var liveGroups: List<LiveGroup> = emptyList()
     private var livePanel: LiveListPanel? = null
@@ -159,6 +160,7 @@ class PlayerActivity : FragmentActivity() {
         if (isLive && directUrl.isNotBlank()) startZapSession()
         if (isLive) livePanel = LiveListPanel(this, onPick = { liveIndex ->
             ui.removeCallbacks(previewTune)
+            livePanel?.currentGroup?.let(::setZapGroup)
             closeList(restoreBar = false)
             zapTo(liveIndex, immediate = true)
         }, onFocus = ::armPreview)
@@ -885,7 +887,7 @@ class PlayerActivity : FragmentActivity() {
         ui.removeCallbacks(hideChannelBar)
         channelBar.visibility = View.GONE
         val playing = z.current
-        panel.open(liveList, liveGroups, playing, LiveCatalog.groupIndexOf(liveGroups, liveList[playing]))
+        panel.open(liveList, liveGroups, playing, zapGroup)
         if (!idleWaitsKey) armListIdle()
     }
 
@@ -921,6 +923,7 @@ class PlayerActivity : FragmentActivity() {
         if (!panel.isOpen || !panel.channelsHaveFocus) return@Runnable
         val index = panel.focusedChannel() ?: return@Runnable
         if (index == z.tuned) return@Runnable
+        setZapGroup(panel.currentGroup)
         z.jumpTo(index)
         tune(index)
         panel.markPlaying(index)
@@ -932,6 +935,7 @@ class PlayerActivity : FragmentActivity() {
         liveList = LiveSession.channels
         liveGroups = LiveSession.groups
         zapper = LiveZapper(liveList.size, index)
+        zapGroup = LiveCatalog.zapGroupOf(liveGroups, liveList, index, listOf(LiveSession.startGroup, settings.lastLiveGroup))
         val ch = liveList[index]
         apiId = ch.apiId
         // Aberto por uma lista sem as outras qualidades: o canal da sessão sabe todas.
@@ -943,7 +947,16 @@ class PlayerActivity : FragmentActivity() {
         settings.lastLiveChannel = LiveCatalog.keyOf(ch)
     }
 
-    /** CH+/CH−: [dir] > 0 vai ao próximo canal (dá a volta no fim da lista), < 0 ao anterior. */
+    private fun setZapGroup(group: Int) {
+        val g = liveGroups.getOrNull(group) ?: return
+        zapGroup = group
+        settings.lastLiveGroup = g.name
+    }
+
+    /**
+     * CH+/CH−: [dir] > 0 vai ao próximo canal, < 0 ao anterior, dentro da categoria em uso (dá a volta nas pontas).
+     * Sem categoria que contenha o canal atual, anda pela lista "Todos".
+     */
     private fun zapStep(dir: Int, event: KeyEvent?) {
         val z = zapper
         if (z == null) { showChannelBar(); return }   // canal único: não há para onde zapear
@@ -952,7 +965,8 @@ class PlayerActivity : FragmentActivity() {
         if (event != null && event.repeatCount > 0 && now - lastZapAt < ZAP_REPEAT_MIN_MS) return
         lastZapAt = now
         cancelNumber()
-        val index = (if (dir > 0) z.next() else z.prev()) ?: return
+        val index = liveGroups.getOrNull(zapGroup)?.step(z.current, dir)
+            ?: (if (dir > 0) z.next() else z.prev()) ?: return
         zapTo(index)
     }
 
@@ -962,6 +976,8 @@ class PlayerActivity : FragmentActivity() {
      */
     private fun zapTo(index: Int, immediate: Boolean = false) {
         if (liveList.getOrNull(index) == null) return
+        // Número digitado ou "último canal" levou a um canal de fora da categoria em uso: o zapping passa a "Todos".
+        if ((liveGroups.getOrNull(zapGroup)?.positionOf(index) ?: -1) < 0) setZapGroup(0)
         zapper?.jumpTo(index)
         previewChannelBar(index)
         if (listOpen) livePanel?.follow(index)

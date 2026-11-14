@@ -44,6 +44,9 @@ class LiveListPanel(
     private val rows = RowAdapter()
 
     val isOpen: Boolean get() = root.visibility == View.VISIBLE
+
+    /** Categoria que a lista está mostrando (índice em groups), ou -1 antes de abrir. */
+    val currentGroup: Int get() = shownGroup
     val groupsHaveFocus: Boolean get() = groupsView.hasFocus()
     val channelsHaveFocus: Boolean get() = channelsView.hasFocus()
 

@@ -2,6 +2,7 @@ package com.seupainel.player.playlist
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -44,5 +45,31 @@ class LiveGroupTest {
         LiveSession.clear()
         assertEquals(listOf("Todos"), LiveSession.groups.map { it.name })
         assertTrue(LiveSession.groups.single().indices.isEmpty())
+    }
+
+    @Test
+    fun `step anda dentro da categoria e da a volta nas pontas`() {
+        val g = LiveGroup("4K", listOf(7, 2, 40))
+        assertEquals(2, g.step(7, +1))
+        assertEquals(40, g.step(2, +1))
+        assertEquals(7, g.step(40, +1))
+        assertEquals(40, g.step(7, -1))
+        assertNull(g.step(99, +1))
+        assertNull(LiveGroup("Vazia", emptyList()).step(0, +1))
+    }
+
+    @Test
+    fun `zapping fica na categoria por onde a pessoa chegou e nao na da melhor qualidade`() {
+        fun ch(name: String, group: String) = LiveChannel(name, "http://x/$name", "", "", 0L, group, null, null, emptyList(), emptyList())
+        // O canal 1 tem a melhor qualidade em "4K", mas também está em "Esportes".
+        val channels = listOf(ch("a", "Esportes"), ch("b", "4K"), ch("c", "Esportes"))
+        val groups = listOf(
+            LiveGroup(LiveGroup.ALL, listOf(0, 1, 2)), LiveGroup("4K", listOf(1)), LiveGroup("Esportes", listOf(0, 1, 2)),
+        )
+        assertEquals(2, LiveCatalog.zapGroupOf(groups, channels, 1, listOf("Esportes")))
+        assertEquals(2, LiveCatalog.zapGroupOf(groups, channels, 1, listOf("", "esportes")))
+        // Sem pista, ou com uma categoria que não tem o canal: a do próprio canal.
+        assertEquals(1, LiveCatalog.zapGroupOf(groups, channels, 1, emptyList()))
+        assertEquals(2, LiveCatalog.zapGroupOf(groups, channels, 0, listOf("4K")))
     }
 }

@@ -1282,7 +1282,8 @@ class ChannelListActivity : FragmentActivity() {
         val section = LiveCatalog.sectionFor(live, apiOrderLive)
         val index = LiveCatalog.indexOfUrl(section.channels, chosen.url)
         if (index < 0) { LiveSession.clear(); return }
-        LiveSession.set(section.channels, index, LiveCatalog.groupsOf(section, store.favorites()))
+        // A subcategoria em que o canal foi escolhido: CH+/CH− do player andam dentro dela.
+        LiveSession.set(section.channels, index, LiveCatalog.groupsOf(section, store.favorites()), startGroup = currentSub.orEmpty())
     }
 
     /** Toca um canal ao vivo; se tiver várias qualidades, leva todas ao player. */

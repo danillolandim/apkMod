@@ -29,6 +29,17 @@ data class LiveGroup(val name: String, val indices: List<Int>) {
     /** Posição de um canal dentro desta categoria, ou -1 se ele não pertence a ela. */
     fun positionOf(liveIndex: Int): Int = indices.indexOf(liveIndex)
 
+    /**
+     * Vizinho de [liveIndex] dentro desta categoria ([dir] > 0 o próximo, < 0 o anterior), dando a volta nas
+     * pontas. null se o canal não pertence a ela: aí o zapping não tem como se orientar por esta categoria.
+     */
+    fun step(liveIndex: Int, dir: Int): Int? {
+        val pos = positionOf(liveIndex)
+        if (pos < 0) return null
+        val n = indices.size
+        return indices[((pos + (if (dir > 0) 1 else -1)) % n + n) % n]
+    }
+
     companion object {
         const val ALL = "Todos"
         const val FAVORITES = "Favoritos"
@@ -47,11 +58,20 @@ object LiveSession {
     var startIndex: Int = 0
         private set
 
+    /** Nome da categoria por onde a pessoa chegou ao canal ("" = não se sabe): o zapping fica dentro dela. */
+    var startGroup: String = ""
+        private set
+
     /** [groups] vem do [LiveCatalog]; sem ele a sessão tem só "Todos". */
-    fun set(list: List<LiveChannel>, index: Int, groups: List<LiveGroup> = listOf(LiveGroup(LiveGroup.ALL, list.indices.toList()))) {
+    fun set(
+        list: List<LiveChannel>, index: Int,
+        groups: List<LiveGroup> = listOf(LiveGroup(LiveGroup.ALL, list.indices.toList())),
+        startGroup: String = "",
+    ) {
         channels = list
         this.groups = groups
         startIndex = index
+        this.startGroup = startGroup
     }
 
     fun clear() = set(emptyList(), 0)

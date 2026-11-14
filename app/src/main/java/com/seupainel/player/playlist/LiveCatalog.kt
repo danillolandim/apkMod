@@ -115,6 +115,20 @@ object LiveCatalog {
     fun groupIndexOf(groups: List<LiveGroup>, ch: LiveChannel): Int =
         if (ch.group.isBlank()) 0 else groups.indexOfFirst { it.name == ch.group }.coerceAtLeast(0)
 
+    /**
+     * Categoria em que o zapping (CH+/CH−) anda: a primeira de [wanted] (nomes, por ordem de preferência) que
+     * existe e contém o canal; sem nenhuma, a do próprio canal. Um canal com qualidades em categorias diferentes
+     * (4K numa, HD noutra) continua na categoria por onde a pessoa chegou, e não na da melhor qualidade.
+     */
+    fun zapGroupOf(groups: List<LiveGroup>, channels: List<LiveChannel>, index: Int, wanted: List<String>): Int {
+        for (name in wanted) {
+            if (name.isBlank()) continue
+            val g = groups.indexOfFirst { it.name.equals(name.trim(), ignoreCase = true) }
+            if (g >= 0 && groups[g].positionOf(index) >= 0) return g
+        }
+        return channels.getOrNull(index)?.let { groupIndexOf(groups, it) } ?: 0
+    }
+
     /** Posição do canal que toca esta URL (a dele ou a de uma de suas qualidades), ou -1. */
     fun indexOfUrl(channels: List<LiveChannel>, url: String): Int =
         channels.indexOfFirst { it.url == url || url in it.variantUrls }
