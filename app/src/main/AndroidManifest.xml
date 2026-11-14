@@ -23,6 +23,19 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Botão "Transmitir" (celular): saber qual tela de espelhamento o aparelho tem -->
+        <intent>
+            <action android:name="android.settings.CAST_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.WIFI_DISPLAY_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="com.samsung.android.smartmirroring.CAST_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.WIRELESS_SETTINGS" />
+        </intent>
     </queries>
 
     <application

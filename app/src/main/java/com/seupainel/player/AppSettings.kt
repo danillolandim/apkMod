@@ -80,6 +80,11 @@ class AppSettings(context: Context) {
         get() = p.getString("last_live_group", "") ?: ""
         set(v) = p.edit().putString("last_live_group", v).apply()
 
+    /** Celular: a explicação do botão "Transmitir" (mesmo Wi-Fi, escolher a TV) já foi mostrada. */
+    var castHintSeen: Boolean
+        get() = p.getBoolean("cast_hint_seen", false)
+        set(v) = p.edit().putBoolean("cast_hint_seen", v).apply()
+
     /** Papel de parede: chave de tema (ver WALLPAPERS) ou "custom". */
     var wallpaper: String
         get() = p.getString("wallpaper_lf", "landimflix") ?: "landimflix"

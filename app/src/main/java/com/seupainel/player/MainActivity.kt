@@ -61,6 +61,14 @@ class MainActivity : FragmentActivity() {
         findViewById<ImageButton>(R.id.btn_search).setOnClickListener {
             if (!isConfigured()) askLogin() else startActivity(Intent(this, SearchActivity::class.java))
         }
+        // Espelhar na TV só faz sentido no celular; na TV o botão fica escondido e fora da ordem do foco
+        if (!Device.isTv(this)) {
+            findViewById<ImageButton>(R.id.btn_cast).apply {
+                visibility = View.VISIBLE
+                isFocusable = true
+                setOnClickListener { CastScreen.show(this@MainActivity) }
+            }
+        }
         findViewById<ImageButton>(R.id.btn_gear).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }

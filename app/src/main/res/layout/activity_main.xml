@@ -95,6 +95,20 @@
                 android:padding="10dp"
                 android:src="@drawable/ic_search" />
 
+            <!-- Só no celular (Device.isTv = falso): espelhar a tela na TV. Escondido e fora do foco na TV. -->
+            <ImageButton
+                android:id="@+id/btn_cast"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/card_bg"
+                android:contentDescription="Transmitir para a TV"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="false"
+                android:padding="12dp"
+                android:src="@drawable/ic_cast"
+                android:visibility="gone" />
+
             <ImageButton
                 android:id="@+id/btn_gear"
                 android:layout_width="44dp"
