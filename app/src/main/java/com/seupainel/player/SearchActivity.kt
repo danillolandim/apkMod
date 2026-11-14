@@ -1,11 +1,15 @@
 package com.seupainel.player
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -98,6 +102,17 @@ class SearchActivity : FragmentActivity() {
 
     private val searchNow = Runnable { runSearch() }
 
+    // Voz: o app escuta por conta própria e escreve no campo da busca. A tela de voz do sistema (com o campo
+    // "Search" dela) só entra quando o aparelho não deixa o app escutar.
+    private var recognizer: SpeechRecognizer? = null
+    private var listening = false
+    private var micReady = false
+    private var voiceKey: TextView? = null
+
+    private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) listen() else startSystemVoice()
+    }
+
     private val speech = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         val said = r.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.trim()
         if (r.resultCode == RESULT_OK && !said.isNullOrBlank()) {
@@ -137,7 +152,8 @@ class SearchActivity : FragmentActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (focusInRight()) focusKeyboard() else finish()
+                if (listening) stopListening()
+                else if (focusInRight()) focusKeyboard() else finish()
             }
         })
 
@@ -152,8 +168,15 @@ class SearchActivity : FragmentActivity() {
         listOf(movies, series).forEach { it.adapter.notifyDataSetChanged() }
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (listening) stopListening()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        recognizer?.destroy()
+        recognizer = null
         ui.removeCallbacksAndMessages(null)
         generation.incrementAndGet()
         worker.shutdownNow()
@@ -204,7 +227,7 @@ class SearchActivity : FragmentActivity() {
         addKey(last, 0, 2, "Espaço", null, "Espaço") { type(' ') }
         addKey(last, 2, 2, "Apagar", R.drawable.ic_backspace, "Apagar") { backspace() }
         addKey(last, 4, 2, "Limpar", null, "Limpar tudo") { setQuery("") }
-        if (voiceAvailable()) addKey(last + 1, 0, 6, "Falar", R.drawable.ic_mic, "Falar o nome") { startVoice() }
+        if (voiceAvailable()) voiceKey = addKey(last + 1, 0, 6, "Falar", R.drawable.ic_mic, "Falar o nome") { startVoice() } as TextView
     }
 
     private fun addKey(row: Int, col: Int, span: Int, label: String, icon: Int?, description: String, action: () -> Unit): View {
@@ -245,6 +268,7 @@ class SearchActivity : FragmentActivity() {
     }
 
     private fun setQuery(q: String) {
+        if (listening) stopListening()
         query = q
         queryView.text = q
         queryView.contentDescription = if (q.isEmpty()) "Campo de busca vazio" else "Busca: $q"
@@ -263,14 +287,117 @@ class SearchActivity : FragmentActivity() {
         .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
         .putExtra(RecognizerIntent.EXTRA_PROMPT, "Diga o que quer assistir")
 
-    private fun voiceAvailable() = speechIntent().resolveActivity(packageManager) != null
+    private fun canListenInApp() = SpeechRecognizer.isRecognitionAvailable(this)
 
+    private fun voiceAvailable() = canListenInApp() || speechIntent().resolveActivity(packageManager) != null
+
+    /** "Falar" de novo enquanto escuta cancela. */
     private fun startVoice() {
+        when {
+            listening -> stopListening()
+            !canListenInApp() -> startSystemVoice()
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> listen()
+            else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    /** A tela de voz do próprio aparelho: reserva para quando o app não consegue escutar sozinho. */
+    private fun startSystemVoice() {
         try {
             speech.launch(speechIntent())
         } catch (_: Exception) {
             Toast.makeText(this, "Este aparelho não tem reconhecimento de voz.", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun listen() {
+        try {
+            val r = recognizer ?: SpeechRecognizer.createSpeechRecognizer(this).also {
+                it.setRecognitionListener(voiceListener)
+                recognizer = it
+            }
+            listening = true
+            micReady = false
+            showListening(true)
+            r.startListening(
+                speechIntent()
+                    .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                    .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName),
+            )
+        } catch (_: Exception) {
+            endListening()
+            startSystemVoice()
+        }
+    }
+
+    private fun stopListening() {
+        recognizer?.cancel()
+        endListening()
+    }
+
+    private fun endListening() {
+        listening = false
+        showListening(false)
+    }
+
+    /** Enquanto escuta, o campo da busca mostra o que está sendo dito; ao parar, volta ao texto de antes. */
+    private fun showListening(on: Boolean) {
+        queryView.text = if (on) "" else query
+        queryView.hint = if (on) "Preparando o microfone…" else "Digite o nome…"
+        voiceKey?.let { key ->
+            key.text = if (on) "Ouvindo…" else "Falar"
+            key.contentDescription = if (on) "Ouvindo. Aperte para cancelar." else "Falar o nome"
+            key.compoundDrawables[0]?.setTint(ContextCompat.getColor(this, if (on) R.color.lf_accent else R.color.lf_text))
+        }
+    }
+
+    private fun firstHeard(b: Bundle?): String? =
+        b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+
+    private val voiceListener = object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) {
+            if (!listening) return
+            micReady = true
+            queryView.hint = "Fale agora…"
+            window.decorView.announceForAccessibility("Fale agora")
+        }
+
+        override fun onPartialResults(partialResults: Bundle?) {
+            if (listening) firstHeard(partialResults)?.let { queryView.text = it.take(MAX_QUERY) }
+        }
+
+        override fun onResults(results: Bundle?) {
+            if (!listening) return
+            endListening()
+            val said = firstHeard(results)
+            if (said == null) {
+                Toast.makeText(this@SearchActivity, "Não entendi. Tente de novo.", Toast.LENGTH_SHORT).show()
+                return
+            }
+            setQuery(said.take(MAX_QUERY))
+            ui.removeCallbacks(searchNow)
+            runSearch()
+        }
+
+        override fun onError(error: Int) {
+            if (!listening) return
+            val ready = micReady
+            endListening()
+            when {
+                error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+                    Toast.makeText(this@SearchActivity, "Não ouvi nada. Tente de novo.", Toast.LENGTH_SHORT).show()
+                // O microfone nem chegou a abrir: este aparelho não deixa o app escutar, usa a tela de voz dele.
+                !ready || error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> startSystemVoice()
+                else -> Toast.makeText(this@SearchActivity, "A voz falhou. Tente de novo.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        override fun onBeginningOfSpeech() {}
+        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onBufferReceived(buffer: ByteArray?) {}
+        override fun onEndOfSpeech() {}
+        override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 
     /** Teclado físico: letras, números e espaço digitam; Backspace apaga; SEARCH/microfone abre a voz. */
