@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import android.text.TextUtils
 import android.util.Rational
 import android.view.KeyEvent
@@ -14,6 +15,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -58,6 +60,8 @@ import com.seupainel.player.playlist.XtreamCatalog
  *  - HUD de diagnóstico (INFO/azul); menu de faixas (MENU/amarelo).
  *  - Ao vivo: zapping pelo controle (CH+/CH−, ↑/↓, número, último canal) com um único ExoPlayer, e lista de
  *    canais por cima do vídeo (OK). Sempre começa na borda ao vivo: não lê nem grava posição de retomada.
+ *  - Filme/série: barra própria estilo Netflix (vod_bar) no lugar do controlador do Media3. OK pausa/continua, ←/→
+ *    movem a linha na hora e o pulo só acontece ~700 ms depois da última tecla (VodScrub), ↓ e MENU abrem o dock.
  *  - Acessibilidade: anúncios TalkBack e respeito às legendas do sistema.
  *  - Celular (Device.isTv = falso): um toque mostra a barra de controles (canais, opções, transmitir) e a tela fica
  *    em modo imersivo. Na TV nada disso existe: as views de toque ficam escondidas e as teclas seguem como sempre.
@@ -144,6 +148,23 @@ class PlayerActivity : FragmentActivity() {
     private lateinit var tbZapGroup: View
     private var castPending = false   // abriu o painel de transmitir tocando: ao voltar, a imagem retoma
 
+    // Filme/série: barra própria. Ao vivo nada disto é usado (as views existem, escondidas).
+    private lateinit var vodBar: View
+    private lateinit var vodTitle: TextView
+    private lateinit var vodSubtitle: TextView
+    private lateinit var vodProgress: VodTimeBar
+    private lateinit var vodElapsed: TextView
+    private lateinit var vodRemaining: TextView
+    private lateinit var vodHint: TextView
+    private lateinit var vodState: ImageView
+    private lateinit var vodPulse: ImageView
+    private val scrub by lazy { VodScrub(seekStepMs()) }
+    private var vodOn = false                  // a barra está (ou está entrando) na tela
+    private var vodShowsPlay: Boolean? = null  // último ícone de estado desenhado (não redesenha a cada 500 ms)
+    private var lastVodAction = 0L             // a barra some 4 s depois daqui, se estiver tocando
+    private var lastOkAt = 0L
+    private var lastScrubKeyAt = 0L
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -162,11 +183,10 @@ class PlayerActivity : FragmentActivity() {
         isLive = intent.getBooleanExtra(EXTRA_IS_LIVE, false)
         pc = PlayerController(this, if (isLive) PlayerController.Mode.LIVE else PlayerController.Mode.VOD)
         pc.attach(playerView)
-        // Ao vivo não usa os controles de filme do Media3: eles roubam o foco e o canal muda pelo controle remoto.
-        playerView.useController = !isLive
+        // Nenhum dos dois usa o controlador do Media3: ele disputa as teclas com o onKeyDown daqui (a primeira tecla só o
+        // mostrava, o foco caía num botão e o OK não pausava). O filme tem a barra própria (vod_bar); o ao vivo, a faixa do canal.
+        playerView.useController = false
         playerView.contentDescription = getString(if (isLive) R.string.a11y_player_live else R.string.a11y_player)
-        playerView.controllerShowTimeoutMs = 4_000
-        wireOptionsGear()
         engine = App.engine(this)
 
         directUrl = intent.getStringExtra(EXTRA_DIRECT_URL).orEmpty()
@@ -218,6 +238,7 @@ class PlayerActivity : FragmentActivity() {
         qualityBtn = findViewById(R.id.quality_btn)
         nextEpBar = findViewById(R.id.next_ep_bar)
         qualityBtn.setOnClickListener { showQualityPopup() }
+        setupVodBar()
         setupDock()
         setupTouch()
 
@@ -280,31 +301,6 @@ class PlayerActivity : FragmentActivity() {
         })
     }
 
-    /** Faz a engrenagem do player (na tela) abrir o menu completo do app. */
-    private fun wireOptionsGear() {
-        fun bind() {
-            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.apply {
-                setOnClickListener { openDock() }
-                contentDescription = "Opções"
-            }
-            // A barra de tempo não deve capturar as setas (senão esfrega o vídeo
-            // quando o usuário só quer navegar); o seek é feito pelas setas via seekBy.
-            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_progress)?.apply {
-                isFocusable = false
-                isFocusableInTouchMode = false
-            }
-        }
-        bind()
-        // Reaplica sempre que os controles reaparecem (a view pode ser recriada).
-        playerView.setControllerVisibilityListener(
-            PlayerView.ControllerVisibilityListener {
-                if (it == View.VISIBLE) bind()
-                // Celular, filme: Opções e Transmitir aparecem junto com o controlador
-                if (phone && !isLive) touchBar.visibility = if (it == View.VISIBLE && !inPip) View.VISIBLE else View.GONE
-            }
-        )
-    }
-
     private fun setupListeners() {
         pc.player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -351,6 +347,7 @@ class PlayerActivity : FragmentActivity() {
             // título/chave de retomada e marca o episódio anterior como visto.
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 subtitledApplied = false   // as faixas são de cada arquivo: o próximo episódio é ajustado de novo
+                if (!isLive) cancelVodScrub()   // o alvo era do item anterior
                 if (queueUrls.size <= 1) return
                 val idx = pc.player.currentMediaItemIndex
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
@@ -364,6 +361,7 @@ class PlayerActivity : FragmentActivity() {
                 resumeKey = queueUrls.getOrElse(idx) { resumeKey }
                 directUrl = resumeKey
                 title = queueTitles.getOrElse(idx) { title }
+                bindVodTitle()
                 startMs = 0
                 hideNextEpBar()
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
@@ -708,15 +706,13 @@ class PlayerActivity : FragmentActivity() {
     override fun onPictureInPictureModeChanged(isInPip: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPip, newConfig)
         inPip = isInPip
-        playerView.useController = !isInPip && !isLive
         if (isInPip) {
             closeList(restoreBar = false)
             hud.visibility = View.GONE; badge.visibility = View.GONE
             channelBar.visibility = View.GONE
             hideTouchBar()
             playerView.hideController()
-        } else {
-            playerView.useController = !isLive
+            if (!isLive) { cancelVodScrub(); hideVodBar(animate = false) }
         }
     }
 
@@ -760,6 +756,8 @@ class PlayerActivity : FragmentActivity() {
         if (isLive && listOpen) return true
         // Com o dock aberto as setas navegam nele; fora isso, o ao vivo tem o mapa de teclas de TV.
         if (isLive && dock.visibility != View.VISIBLE) liveKeyDown(keyCode, event)?.let { return it }
+        // Filme/série: a barra própria trata OK, setas, ⏯, MENU e Voltar. O que ela não trata segue abaixo.
+        if (!isLive) vodKeyDown(keyCode, event)?.let { return it }
         val p = pc.player
         val controllerVisible = playerView.isControllerFullyVisible
         return when (keyCode) {
@@ -778,13 +776,12 @@ class PlayerActivity : FragmentActivity() {
             KeyEvent.KEYCODE_MEDIA_NEXT -> { seekBy(+10 * 60_000); true }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { seekBy(-10 * 60_000); true }
 
-            // Setas = avançar/voltar 10s (sempre, a menos que o dock esteja aberto).
-            // Com o dock fechado as setas NUNCA mexem na seekbar — elas são o seek.
+            // Ao vivo não chega aqui (liveKeyDown trata). Filme: as setas são do vodKeyDown; sobra o PiP.
             KeyEvent.KEYCODE_DPAD_RIGHT -> if (dock.visibility != View.VISIBLE) { seekBy(+seekStepMs()); true } else super.onKeyDown(keyCode, event)
             KeyEvent.KEYCODE_DPAD_LEFT -> if (dock.visibility != View.VISIBLE) { seekBy(-seekStepMs()); true } else super.onKeyDown(keyCode, event)
 
-            // OK: abre o dock de ações (qualidade, áudio, legenda…) no ao vivo E no VOD.
-            // Com o dock aberto, o OK seleciona o botão em foco.
+            // Dock aberto: o OK seleciona o botão em foco. Com a contagem do próximo episódio, pula. O OK do filme
+            // (pausar) e o do ao vivo (lista) são tratados antes, em vodKeyDown e liveKeyDown.
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> when {
                 dock.visibility == View.VISIBLE -> super.onKeyDown(keyCode, event)
                 // Contagem do próximo episódio visível: OK pula pro próximo agora.
@@ -1221,6 +1218,7 @@ class PlayerActivity : FragmentActivity() {
     private fun seekStepMs(): Long = settings.seekStepSec.coerceIn(5, 300) * 1000L
 
     private fun seekBy(deltaMs: Long) {
+        if (!isLive) { vodMove(repeat = 0) { scrub.jump(deltaMs) }; return }   // filme: passa pelo scrub
         if (isLive && !pc.player.isCurrentMediaItemSeekable) { showBadge("Ao vivo"); return }
         val p = pc.player
         val target = (p.currentPosition + deltaMs).coerceIn(0, p.duration.coerceAtLeast(0))
@@ -1233,6 +1231,221 @@ class PlayerActivity : FragmentActivity() {
         val s = ms / 1000; val h = s / 3600; val m = (s % 3600) / 60; val sec = s % 60
         return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%02d:%02d".format(m, sec)
     }
+
+    // ---------- Barra do filme/série (própria, estilo Netflix) ----------
+
+    private fun setupVodBar() {
+        vodBar = findViewById(R.id.vod_bar)
+        vodTitle = findViewById(R.id.vod_title)
+        vodSubtitle = findViewById(R.id.vod_subtitle)
+        vodProgress = findViewById(R.id.vod_progress)
+        vodElapsed = findViewById(R.id.vod_elapsed)
+        vodRemaining = findViewById(R.id.vod_remaining)
+        vodHint = findViewById(R.id.vod_hint)
+        vodState = findViewById(R.id.vod_state)
+        vodPulse = findViewById(R.id.vod_pulse)
+        if (isLive) return
+        bindVodTitle()
+    }
+
+    private val episodeTag = Regex("""T(\d+)E(\d+)""")
+
+    /** "Série — T1E3" vira título + "T1 · E3"; filme fica só com o título. */
+    private fun bindVodTitle() {
+        if (isLive) return
+        val tail = title.substringAfter(" — ", "").trim()
+        val episode = episodeTag.matchEntire(tail)?.let { "T${it.groupValues[1]} · E${it.groupValues[2]}" } ?: tail
+        vodTitle.text = title.substringBefore(" — ").trim().ifBlank { title }
+        vodSubtitle.text = episode
+        vodSubtitle.visibility = if (episode.isBlank()) View.GONE else View.VISIBLE
+    }
+
+    /**
+     * Teclas do filme/série. Devolve null para as que seguem o tratamento comum. Com o dock aberto não trata nada
+     * (as setas e o OK navegam nele). OK só age no primeiro toque (repeatCount 0): segurar não alterna a cada repetição.
+     */
+    private fun vodKeyDown(keyCode: Int, event: KeyEvent?): Boolean? {
+        if (inPip || dock.visibility == View.VISIBLE) return null
+        val repeat = event?.repeatCount ?: 0
+        val first = repeat == 0
+        val nextEpOn = nextEpBar.visibility == View.VISIBLE   // "Próximo em N": OK pula e Voltar cancela, como sempre
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                if (nextEpOn) return null
+                if (first) vodOk()
+            }
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> if (first) vodOk()
+            KeyEvent.KEYCODE_MEDIA_PLAY -> if (first) vodSetPlaying(true)
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> if (first) vodSetPlaying(false)
+
+            KeyEvent.KEYCODE_DPAD_LEFT -> vodMove(repeat) { scrub.step(-1, repeat) }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> vodMove(repeat) { scrub.step(+1, repeat) }
+            KeyEvent.KEYCODE_MEDIA_REWIND -> vodMove(repeat) { scrub.jump(-60_000) }
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> vodMove(repeat) { scrub.jump(+60_000) }
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> vodMove(repeat) { scrub.jump(-10 * 60_000) }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> vodMove(repeat) { scrub.jump(+10 * 60_000) }
+
+            KeyEvent.KEYCODE_DPAD_UP -> if (first) showVodBar()
+            // ↓ só abre o dock com a barra na tela; escondida, só a mostra
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (first) { if (vodOn) openDock() else showVodBar() }
+            KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_PROG_YELLOW, KeyEvent.KEYCODE_CAPTIONS -> if (first) openDock()
+
+            KeyEvent.KEYCODE_BACK -> return when {
+                nextEpOn -> null
+                scrub.isActive -> { cancelVodScrub(); refreshVodBar(); true }   // a bolinha volta para onde estava
+                vodOn -> { hideVodBar(); true }
+                else -> null   // sai do player
+            }
+            else -> return null
+        }
+        return true
+    }
+
+    /** OK / ⏯: com pulo pendente confirma o pulo; senão alterna pausar e continuar. */
+    private fun vodOk() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastOkAt < OK_DEBOUNCE_MS) return   // OK e ENTER chegando juntos contam uma vez
+        lastOkAt = now
+        if (scrub.isActive) { commitVodScrub(); showVodBar() } else vodSetPlaying(null)
+    }
+
+    /** [play] nulo alterna. Sempre mostra a barra; só pulsa e anuncia se o estado mudou. */
+    private fun vodSetPlaying(play: Boolean?) {
+        val p = pc.player
+        commitVodScrub()
+        val want = play ?: !p.playWhenReady
+        if (want != p.playWhenReady) {
+            if (want) p.play() else p.pause()
+            pulseVod(want)
+            announce(if (want) "Reproduzindo" else "Pausado")
+        }
+        showVodBar()
+    }
+
+    /**
+     * Move o alvo do scrub ([move] mexe no [scrub]) e mostra a barra. O pulo de verdade vem [SCRUB_COMMIT_MS] depois da
+     * última tecla. Tecla segurada que repete mais rápido que [SCRUB_REPEAT_MIN_MS] é ignorada.
+     */
+    private fun vodMove(repeat: Int, move: () -> Unit) {
+        val now = SystemClock.uptimeMillis()
+        if (repeat > 0 && now - lastScrubKeyAt < SCRUB_REPEAT_MIN_MS) return
+        lastScrubKeyAt = now
+        if (!scrub.isActive) pc.player.let { scrub.begin(it.currentPosition, it.duration) }
+        move()
+        ui.removeCallbacks(commitScrub)
+        ui.postDelayed(commitScrub, SCRUB_COMMIT_MS)
+        showVodBar()
+    }
+
+    private val commitScrub = Runnable { commitVodScrub(); refreshVodBar() }
+
+    private fun commitVodScrub() {
+        ui.removeCallbacks(commitScrub)
+        val target = scrub.commit() ?: return
+        pc.player.seekTo(target)
+        lastVodAction = SystemClock.uptimeMillis()   // a barra fica mais 4 s depois do pulo
+    }
+
+    private fun cancelVodScrub() {
+        ui.removeCallbacks(commitScrub)
+        scrub.cancel()
+    }
+
+    private fun showVodBar() {
+        if (isLive || inPip || dock.visibility == View.VISIBLE) return
+        lastVodAction = SystemClock.uptimeMillis()
+        if (!vodOn) {
+            vodOn = true
+            val wasVisible = vodBar.visibility == View.VISIBLE
+            vodBar.animate().cancel()
+            vodBar.visibility = View.VISIBLE
+            if (animationsOff()) {
+                vodBar.alpha = 1f; vodBar.translationY = 0f
+            } else {
+                if (!wasVisible) { vodBar.alpha = 0f; vodBar.translationY = dp(VOD_SLIDE_DP) }
+                vodBar.animate().alpha(1f).translationY(0f).setDuration(VOD_FADE_MS).start()
+            }
+            nextEpBar.translationY = -dp(VOD_CLEARANCE_DP)
+            ui.removeCallbacks(vodTick)
+            ui.postDelayed(vodTick, VOD_TICK_MS)
+        }
+        refreshVodBar()
+    }
+
+    private fun hideVodBar(animate: Boolean = true) {
+        if (isLive) return
+        vodOn = false
+        ui.removeCallbacks(vodTick)
+        nextEpBar.translationY = 0f
+        vodBar.animate().cancel()
+        if (!animate || animationsOff() || vodBar.visibility != View.VISIBLE) {
+            vodBar.visibility = View.GONE; vodBar.alpha = 1f; vodBar.translationY = 0f
+            return
+        }
+        vodBar.animate().alpha(0f).translationY(dp(VOD_SLIDE_DP)).setDuration(VOD_FADE_MS).withEndAction {
+            if (!vodOn) { vodBar.visibility = View.GONE; vodBar.alpha = 1f; vodBar.translationY = 0f }
+        }.start()
+    }
+
+    /** Atualiza a barra a cada 500 ms e a esconde 4 s depois da última ação, desde que esteja tocando. */
+    private val vodTick = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed || !vodOn) return
+            refreshVodBar()
+            val p = pc.player
+            val idle = SystemClock.uptimeMillis() - lastVodAction >= VOD_BAR_MS
+            // Pausado fica na tela; carregando também (a bolinha espera parada no alvo até o STATE_READY)
+            if (idle && !scrub.isActive && p.playWhenReady && p.playbackState == Player.STATE_READY) hideVodBar()
+            else ui.postDelayed(this, VOD_TICK_MS)
+        }
+    }
+
+    private fun refreshVodBar() {
+        if (isLive || !vodOn) return
+        val p = pc.player
+        val duration = p.duration
+        val scrubbing = scrub.isActive
+        val position = if (scrubbing) scrub.targetMs else p.currentPosition
+        vodProgress.scrubbing = scrubbing
+        vodProgress.setProgress(position, p.bufferedPosition, duration)
+        setIfChanged(vodElapsed, VodScrub.fmt(position))
+        setIfChanged(vodRemaining, VodScrub.fmtRemaining(position, duration))
+        val paused = !p.playWhenReady
+        if (vodShowsPlay != paused) {
+            vodShowsPlay = paused
+            vodState.setImageResource(if (paused) R.drawable.ic_play else R.drawable.ic_pause)
+            vodState.contentDescription = if (paused) "Pausado" else "Reproduzindo"
+        }
+        setIfChanged(vodHint, if (p.playbackState == Player.STATE_BUFFERING) "Carregando…" else VOD_HINT)
+    }
+
+    private fun setIfChanged(view: TextView, text: String) {
+        if (!view.text.contentEquals(text)) view.text = text
+    }
+
+    private val hidePulse = Runnable { vodPulse.visibility = View.GONE }
+
+    /** Ícone grande no centro por ~600 ms com fade, como a Netflix. [playing]: mostra ▶ se passou a tocar, ❚❚ se pausou. */
+    private fun pulseVod(playing: Boolean) {
+        vodPulse.animate().cancel()
+        ui.removeCallbacks(hidePulse)
+        vodPulse.setImageResource(if (playing) R.drawable.ic_play else R.drawable.ic_pause)
+        vodPulse.alpha = 1f; vodPulse.scaleX = 1f; vodPulse.scaleY = 1f
+        vodPulse.visibility = View.VISIBLE
+        if (animationsOff()) {
+            ui.postDelayed(hidePulse, VOD_PULSE_MS)
+        } else {
+            vodPulse.animate().alpha(0f).scaleX(1.15f).scaleY(1.15f)
+                .setStartDelay(VOD_PULSE_MS / 3).setDuration(VOD_PULSE_MS * 2 / 3)
+                .withEndAction { vodPulse.visibility = View.GONE }.start()
+        }
+    }
+
+    /** O usuário desligou as animações do sistema (Opções do desenvolvedor / Acessibilidade): nada se move. */
+    private fun animationsOff(): Boolean =
+        Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+
+    private fun dp(v: Float): Float = v * resources.displayMetrics.density
 
     // ---------- Menu (MENU / amarelo) ----------
     // ---------- Dock de ações (estilo dock do Mac) ----------
@@ -1275,6 +1488,7 @@ class PlayerActivity : FragmentActivity() {
         closeList(restoreBar = false)
         playerView.hideController()
         hideTouchBar()
+        if (!isLive) { commitVodScrub(); hideVodBar() }
         ui.removeCallbacks(hideChannelBar); channelBar.visibility = View.GONE
         dockSpeed.visibility = if (isLive) View.GONE else View.VISIBLE
         updateDock()
@@ -1542,6 +1756,16 @@ class PlayerActivity : FragmentActivity() {
         private const val LIST_IDLE_MS = 30_000L          // a lista de canais fecha sozinha sem tecla
         private const val PREVIEW_DELAY_MS = 800L         // foco parado num canal da lista: ele passa a tocar
         private const val TOUCH_BAR_MS = 5_000L           // celular: a barra de controles some sozinha
+        private const val VOD_BAR_MS = 4_000L             // filme: a barra some depois da última ação, se estiver tocando
+        private const val VOD_TICK_MS = 500L              // filme: de quanto em quanto a barra se atualiza
+        private const val VOD_FADE_MS = 180L              // filme: entrada e saída da barra
+        private const val VOD_PULSE_MS = 600L             // filme: o ícone grande pausar/continuar fica na tela
+        private const val VOD_SLIDE_DP = 16f              // filme: quanto a barra desliza ao entrar e sair
+        private const val VOD_CLEARANCE_DP = 132f         // filme: aviso do próximo episódio sobe para não cobrir a barra
+        private const val SCRUB_COMMIT_MS = 700L          // filme: o pulo de verdade vem depois da última tecla
+        private const val SCRUB_REPEAT_MIN_MS = 100L      // filme: tecla segurada não anda mais rápido que isto
+        private const val OK_DEBOUNCE_MS = 250L           // filme: caixa que manda OK e ENTER juntos não alterna duas vezes
+        private const val VOD_HINT = "↓ Áudio, legenda e mais"
 
         /** Player ao vivo no canal [ch] da [LiveSession], com a lista de canais aberta (entrada pela Home). */
         fun liveHomeIntent(context: android.content.Context, ch: LiveChannel) =

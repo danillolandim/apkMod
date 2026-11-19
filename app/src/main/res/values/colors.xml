@@ -13,4 +13,7 @@
     <color name="lf_text_3">#7A7B9F</color>
     <!-- lf_surface com 90% de opacidade: faixas e painéis sobre o vídeo -->
     <color name="lf_surface_scrim">#E6131320</color>
+    <!-- Linha de progresso do filme/série: trilho e parte já carregada (o progresso é lf_primary) -->
+    <color name="vod_track">#33FFFFFF</color>
+    <color name="vod_buffer">#66FFFFFF</color>
 </resources>

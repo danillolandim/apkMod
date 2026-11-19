@@ -10,10 +10,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:resize_mode="fit"
-        app:show_subtitle_button="true"
-        app:use_controller="true" />
+        app:use_controller="false" />
 
-    <!-- Celular, ao vivo (Device.isTv = falso): pega o toque no vídeo, que o PlayerView sem controlador não trata.
+    <!-- Celular (Device.isTv = falso): pega o toque no vídeo, que o PlayerView sem controlador não trata.
          Fica abaixo de tudo o mais. Escondida e fora do foco na TV. -->
     <View
         android:id="@+id/touch_layer"
@@ -24,6 +23,140 @@
         android:focusable="false"
         android:soundEffectsEnabled="false"
         android:visibility="gone" />
+
+    <!-- Barra do filme/série (estilo Netflix): título no topo, linha de progresso embaixo, degradês escuros em vez de
+         caixa sólida. Nada aqui recebe foco: na TV as teclas são tratadas pela Activity (onKeyDown). Escondida até uma
+         tecla (ou toque) chamá-la. clipChildren=false: o balão do tempo desenha acima da linha. -->
+    <FrameLayout
+        android:id="@+id/vod_bar"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:descendantFocusability="blocksDescendants"
+        android:focusable="false"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/vod_top"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:background="@drawable/vod_scrim_top"
+            android:orientation="vertical"
+            android:paddingStart="56dp"
+            android:paddingTop="28dp"
+            android:paddingEnd="56dp"
+            android:paddingBottom="56dp">
+
+            <TextView
+                android:id="@+id/vod_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/rajdhani_semibold"
+                android:maxLines="1"
+                android:textColor="@color/lf_text"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/vod_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/rajdhani_semibold"
+                android:maxLines="1"
+                android:textColor="@color/lf_text_2"
+                android:textSize="18sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Pulso no centro ao pausar ou continuar (só na TV; no celular o botão central mostra o estado) -->
+        <ImageView
+            android:id="@+id/vod_pulse"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_gravity="center"
+            android:background="@drawable/vod_pulse_bg"
+            android:importantForAccessibility="no"
+            android:padding="28dp"
+            android:src="@drawable/ic_pause"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/vod_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="@drawable/vod_scrim_bottom"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:paddingStart="56dp"
+            android:paddingTop="72dp"
+            android:paddingEnd="56dp"
+            android:paddingBottom="28dp">
+
+            <LinearLayout
+                android:id="@+id/vod_line_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Estado em ícone E em texto (contentDescription): "Pausado" / "Reproduzindo" -->
+                <ImageView
+                    android:id="@+id/vod_state"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:contentDescription="Reproduzindo"
+                    android:src="@drawable/ic_pause" />
+
+                <com.seupainel.player.VodTimeBar
+                    android:id="@+id/vod_progress"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    android:id="@+id/vod_remaining"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:fontFamily="@font/rajdhani_semibold"
+                    android:gravity="end"
+                    android:maxLines="1"
+                    android:minWidth="84dp"
+                    android:textColor="@color/lf_text"
+                    android:textSize="18sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/vod_elapsed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="44dp"
+                android:fontFamily="@font/rajdhani_semibold"
+                android:maxLines="1"
+                android:textColor="@color/lf_text"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/vod_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="44dp"
+                android:layout_marginTop="2dp"
+                android:maxLines="1"
+                android:text="↓ Áudio, legenda e mais"
+                android:textColor="@color/lf_text_2"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- Indicador de qualidade/status: aparece 3s ao iniciar, mudar faixa, seek… -->
     <TextView
