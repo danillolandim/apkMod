@@ -141,3 +141,55 @@ Celular:
 14. Tocar ▶/❚❚ pausa e continua; a barra não some pausada. Opções abre o dock; Transmitir esconde a barra.
 15. Com TalkBack: ⏪, ▶/❚❚ e ⏩ têm nome falado ("Voltar 10 segundos", "Pausar"…) e o estado é anunciado ("Pausado"/"Reproduzindo").
 16. Animações do sistema desligadas (Opções do desenvolvedor, escala 0): a barra entra e sai sem se mover.
+
+---
+
+# Parte 2: fileira de botões estilo Netflix (TV) — pedido 19/11/2026
+
+## Pedido
+"Monta a fileira de botão igual a Netflix": na barra do filme/série, uma fileira de botões embaixo da linha, que se
+navega pelo controle.
+
+## Desenho
+```
+  Título · T1 · E3
+  ━━━━━━━━━━━━━━━●──────────────────────────────  -1:02:15
+  32:10
+  [ ❚❚ ]   [ Áudio e legendas ]   [ Próximo episódio ]   [ Mais opções ]
+```
+- Botões: **▶/❚❚** (só ícone, ~56×48dp), **Áudio e legendas** (ícone + texto), **Próximo episódio** (só em série com
+  próximo item: `pc.player.hasNextMediaItem()`; atualizar visibilidade em `onMediaItemTransition`), **Mais opções**
+  (ícone de engrenagem `ic_gear` + texto). Altura 48dp, raio 10dp, espaço 12dp.
+- Visual pelo DESIGN.md: fundo translúcido escuro (`lf_surface_scrim`/sem fundo), **selecionado = anel `lf_accent` 2dp +
+  `lf_surface_hi`**, sem escala, texto `lf_text`. Novo drawable com `state_selected` (não `state_focused`).
+- A dica "↓ Áudio, legenda e mais" sai; o lugar dela fica só para "Carregando…" (escondida quando não está carregando).
+- Celular: a fileira **não aparece** (já tem ⏪ ▶/❚❚ ⏩ e a touch_bar com Opções). Tudo atrás de `!phone`.
+
+## Foco "virtual" (decisão técnica)
+Nada na barra recebe foco do Android (continua `blocksDescendants`). A Activity guarda o modo e o índice:
+`vodRowIdx = -1` → modo **linha**; `0..n-1` → modo **fileira**, botão selecionado (`isSelected = true` só nele, e
+`announce()` do nome para o TalkBack). Evita a briga de foco que derrubou o controlador do Media3.
+
+## Teclas (filme/série, TV)
+| Tecla | Barra escondida | Modo linha | Modo fileira |
+|---|---|---|---|
+| OK | play/pause + mostra a barra (linha) | play/pause (no scrub: confirma) | aciona o botão selecionado |
+| ⏯ PLAY PAUSE | play/pause | play/pause | play/pause |
+| ← → | mostra + scrub | scrub | anda entre os botões (para nas pontas, sem dar a volta) |
+| ↓ | mostra a barra **já na fileira, no ▶/❚❚** | vai para a fileira, no ▶/❚❚ | nada |
+| ↑ | mostra a barra (linha) | nada | volta para a linha |
+| MENU / amarelo / CC | dock | dock | dock |
+| Voltar | sai do player | no scrub: cancela; senão esconde | volta para a linha |
+- Ao esconder a barra (4 s sem ação tocando, Voltar, dock, PiP), o modo volta para linha.
+- No modo fileira as teclas também contam como ação (a barra não some enquanto o usuário navega).
+- "Próximo em N" na tela: OK e Voltar continuam com a prioridade deles (pular / cancelar), como hoje.
+- Ações: ▶/❚❚ = `vodSetPlaying(null)` (o ícone do botão segue o estado); Áudio e legendas = abre o dock com o foco em
+  `dock_audio` (`openDock(focus = dockAudio)`); Próximo episódio = `hideNextEpBar(); seekToNextMediaItem()`;
+  Mais opções = `openDock()`.
+- O ícone pequeno ▶/❚❚ à esquerda da linha sai na TV (o botão da fileira mostra o estado). No celular já está escondido.
+
+## Etapas
+5. Fileira + foco virtual + mapa de teclas + CHANGELOG ("Esta versão") + atualizar a lista de testes acima. Um commit.
+
+## Regras
+As mesmas da parte 1: ao vivo intocado, celular intocado (exceto não mostrar a fileira), build/testes verdes com JDK 21.
