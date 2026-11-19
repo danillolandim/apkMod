@@ -132,6 +132,43 @@ class VodScrubTest {
         assertEquals(0L, VodScrub(10_000L).jump(+60_000))
     }
 
+    // ---------- arrastar com o dedo (celular) ----------
+
+    @Test
+    fun `moveTo vai direto ao ponto e respeita os limites`() {
+        val s = scrub()
+        assertEquals(45 * min, s.moveTo(45 * min))
+        assertEquals(0L, s.moveTo(-5_000))
+        assertEquals(2 * hour, s.moveTo(5 * hour))
+    }
+
+    @Test
+    fun `moveTo sem begin nao faz nada`() {
+        assertEquals(0L, VodScrub(10_000L).moveTo(30 * min))
+    }
+
+    @Test
+    fun `depois de arrastar o cancel ainda volta ao inicio`() {
+        val s = scrub()
+        s.moveTo(90 * min)
+        assertEquals(10 * min, s.cancel())
+    }
+
+    @Test
+    fun `moveTo e step se combinam`() {
+        val s = scrub()
+        s.moveTo(30 * min)
+        assertEquals(30 * min + 10_000, s.step(+1, 0))
+        assertEquals(30 * min + 10_000, s.commit())
+    }
+
+    @Test
+    fun `moveTo com duracao desconhecida limita so em zero`() {
+        val s = VodScrub(10_000L).apply { begin(5_000, -1) }
+        assertEquals(10 * hour, s.moveTo(10 * hour))
+        assertEquals(0L, s.moveTo(-1))
+    }
+
     // ---------- duração desconhecida ----------
 
     @Test

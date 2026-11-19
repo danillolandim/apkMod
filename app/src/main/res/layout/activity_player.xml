@@ -83,6 +83,89 @@
             android:src="@drawable/ic_pause"
             android:visibility="gone" />
 
+        <!-- Celular (Device.isTv = falso): voltar N s, pausar/continuar e avançar N s no centro. Alvos de 64 e 72dp.
+             Escondido na TV. O número do pulo é o das Configurações (Pulo das setas), escrito pelo código. -->
+        <LinearLayout
+            android:id="@+id/vod_center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <FrameLayout
+                android:id="@+id/vod_back_btn"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="Voltar 10 segundos"
+                android:focusable="false">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_replay" />
+
+                <TextView
+                    android:id="@+id/vod_back_n"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/rajdhani_bold"
+                    android:importantForAccessibility="no"
+                    android:paddingTop="5dp"
+                    android:text="10"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/vod_play_btn"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginStart="28dp"
+                android:layout_marginEnd="28dp"
+                android:background="@drawable/vod_btn_bg"
+                android:clickable="true"
+                android:contentDescription="Pausar"
+                android:focusable="false"
+                android:padding="20dp"
+                android:src="@drawable/ic_pause" />
+
+            <FrameLayout
+                android:id="@+id/vod_fwd_btn"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="Avançar 10 segundos"
+                android:focusable="false">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_forward" />
+
+                <TextView
+                    android:id="@+id/vod_fwd_n"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/rajdhani_bold"
+                    android:importantForAccessibility="no"
+                    android:paddingTop="5dp"
+                    android:text="10"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp" />
+            </FrameLayout>
+        </LinearLayout>
+
         <LinearLayout
             android:id="@+id/vod_bottom"
             android:layout_width="match_parent"
@@ -315,7 +398,7 @@
     </LinearLayout>
 
     <!-- Controles por toque (celular, Device.isTv = falso). Escondida e sem foco na TV. Ao vivo, um toque na tela a
-         mostra por 5 s; no filme ela acompanha o controlador do player e só traz Opções e Transmitir. -->
+         mostra por 5 s; no filme ela acompanha a barra própria (vod_bar) e só traz Opções e Transmitir. -->
     <LinearLayout
         android:id="@+id/touch_bar"
         android:layout_width="wrap_content"

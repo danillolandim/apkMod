@@ -35,6 +35,12 @@ class VodScrub(private val baseStepMs: Long) {
         return targetMs
     }
 
+    /** Arrastar com o dedo (celular): leva o alvo direto a [ms]. */
+    fun moveTo(ms: Long): Long {
+        if (active) targetMs = clamp(ms)
+        return targetMs
+    }
+
     /** Confirma: devolve o alvo e encerra. Null se não havia scrub. */
     fun commit(): Long? {
         if (!active) return null

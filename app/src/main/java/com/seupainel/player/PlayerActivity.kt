@@ -63,8 +63,9 @@ import com.seupainel.player.playlist.XtreamCatalog
  *  - Filme/série: barra própria estilo Netflix (vod_bar) no lugar do controlador do Media3. OK pausa/continua, ←/→
  *    movem a linha na hora e o pulo só acontece ~700 ms depois da última tecla (VodScrub), ↓ e MENU abrem o dock.
  *  - Acessibilidade: anúncios TalkBack e respeito às legendas do sistema.
- *  - Celular (Device.isTv = falso): um toque mostra a barra de controles (canais, opções, transmitir) e a tela fica
- *    em modo imersivo. Na TV nada disso existe: as views de toque ficam escondidas e as teclas seguem como sempre.
+ *  - Celular (Device.isTv = falso): um toque mostra a barra de controles (ao vivo: canais, opções, transmitir; filme: a
+ *    barra própria com ⏪N ▶/❚❚ N⏩, linha arrastável e Opções/Transmitir) e a tela fica em modo imersivo. Na TV nada
+ *    disso existe: as views de toque ficam escondidas e as teclas seguem como sempre.
  */
 @OptIn(UnstableApi::class)
 class PlayerActivity : FragmentActivity() {
@@ -150,6 +151,10 @@ class PlayerActivity : FragmentActivity() {
 
     // Filme/série: barra própria. Ao vivo nada disto é usado (as views existem, escondidas).
     private lateinit var vodBar: View
+    private lateinit var vodTop: View
+    private lateinit var vodBottom: View
+    private lateinit var vodCenter: View
+    private lateinit var vodPlayBtn: ImageView
     private lateinit var vodTitle: TextView
     private lateinit var vodSubtitle: TextView
     private lateinit var vodProgress: VodTimeBar
@@ -972,11 +977,12 @@ class PlayerActivity : FragmentActivity() {
         touchBar.findViewById<View>(R.id.tb_options).setOnClickListener { hideTouchBar(); openDock() }
         touchBar.findViewById<View>(R.id.tb_cast).setOnClickListener {
             hideTouchBar()
+            if (!isLive) hideVodBar(animate = false)
             playerView.hideController()
             CastScreen.show(this) { castPending = pc.player.playWhenReady }
         }
         touchLayer.setOnClickListener { onScreenTap() }
-        syncTouchLayer()
+        touchLayer.visibility = View.VISIBLE   // ao vivo e filme: um toque no vídeo mostra ou esconde os controles
     }
 
     /** Toque no vídeo: fecha o que está aberto por cima; senão mostra ou esconde os controles. */
@@ -985,6 +991,7 @@ class PlayerActivity : FragmentActivity() {
             inPip -> Unit
             listOpen -> closeList()
             dock.visibility == View.VISIBLE -> closeDock()
+            !isLive -> if (vodOn) { commitVodScrub(); hideVodBar() } else showVodBar()   // a touch_bar vai junto com a barra
             touchBar.visibility == View.VISIBLE -> hideTouchBar()
             else -> showTouchBar()
         }
@@ -1008,15 +1015,6 @@ class PlayerActivity : FragmentActivity() {
     private fun armTouchBarHide() {
         ui.removeCallbacks(hideTouchBarNow)
         ui.postDelayed(hideTouchBarNow, TOUCH_BAR_MS)
-    }
-
-    /**
-     * A camada que pega o toque cobre o vídeo no ao vivo; no filme o controlador do player já trata o toque, então ela
-     * só entra enquanto o dock está aberto (tocar fora dele fecha).
-     */
-    private fun syncTouchLayer() {
-        if (!phone) return
-        touchLayer.visibility = if (isLive || dock.visibility == View.VISIBLE) View.VISIBLE else View.GONE
     }
 
     /** Voltou do painel de transmitir (a tela parou e o player pausou): retoma o filme ou volta à borda ao vivo. */
@@ -1236,6 +1234,10 @@ class PlayerActivity : FragmentActivity() {
 
     private fun setupVodBar() {
         vodBar = findViewById(R.id.vod_bar)
+        vodTop = findViewById(R.id.vod_top)
+        vodBottom = findViewById(R.id.vod_bottom)
+        vodCenter = findViewById(R.id.vod_center)
+        vodPlayBtn = findViewById(R.id.vod_play_btn)
         vodTitle = findViewById(R.id.vod_title)
         vodSubtitle = findViewById(R.id.vod_subtitle)
         vodProgress = findViewById(R.id.vod_progress)
@@ -1246,6 +1248,53 @@ class PlayerActivity : FragmentActivity() {
         vodPulse = findViewById(R.id.vod_pulse)
         if (isLive) return
         bindVodTitle()
+        if (phone) setupVodTouch()
+    }
+
+    /** Celular: margens menores, botões no centro (alvos >= 48dp) e a linha arrastável. Só roda com phone = true. */
+    private fun setupVodTouch() {
+        val side = dp(24f).toInt()
+        vodTop.setPadding(side, dp(84f).toInt(), side, dp(40f).toInt())   // abaixo da touch_bar (Opções e Transmitir)
+        vodBottom.setPadding(side, vodBottom.paddingTop, side, dp(16f).toInt())
+        vodState.visibility = View.GONE   // o botão do centro mostra o estado
+        vodHint.visibility = View.GONE    // as Opções estão na touch_bar
+        (vodProgress.layoutParams as LinearLayout.LayoutParams).apply { height = dp(48f).toInt(); marginStart = 0 }
+        (vodElapsed.layoutParams as ViewGroup.MarginLayoutParams).marginStart = dp(9f).toInt()   // alinha com o início do trilho
+        vodCenter.visibility = View.VISIBLE
+
+        val stepSec = seekStepMs() / 1000
+        findViewById<TextView>(R.id.vod_back_n).text = stepSec.toString()
+        findViewById<TextView>(R.id.vod_fwd_n).text = stepSec.toString()
+        findViewById<View>(R.id.vod_back_btn).apply {
+            contentDescription = "Voltar $stepSec segundos"
+            setOnClickListener { vodMove(repeat = 0) { scrub.jump(-seekStepMs()) } }   // toques seguidos somam e viram um pulo só
+        }
+        findViewById<View>(R.id.vod_fwd_btn).apply {
+            contentDescription = "Avançar $stepSec segundos"
+            setOnClickListener { vodMove(repeat = 0) { scrub.jump(+seekStepMs()) } }
+        }
+        vodPlayBtn.setOnClickListener { vodSetPlaying(null) }
+
+        vodProgress.touchEnabled = true
+        vodProgress.listener = object : VodTimeBar.Listener {
+            override fun onScrubStart(fraction: Float) = vodDrag(fraction)
+            override fun onScrubMove(fraction: Float) = vodDrag(fraction)
+            override fun onScrubStop(fraction: Float, canceled: Boolean) {
+                if (canceled) cancelVodScrub() else { vodDrag(fraction); commitVodScrub() }   // soltar = pulo
+                showVodBar()
+            }
+        }
+    }
+
+    /** Dedo na linha: o alvo acompanha o dedo. Sem pulo adiado: quem confirma é soltar. */
+    private fun vodDrag(fraction: Float) {
+        val p = pc.player
+        val duration = p.duration
+        if (duration <= 0) return
+        if (!scrub.isActive) scrub.begin(p.currentPosition, duration)
+        ui.removeCallbacks(commitScrub)
+        scrub.moveTo((fraction * duration).toLong())
+        showVodBar()
     }
 
     private val episodeTag = Regex("""T(\d+)E(\d+)""")
@@ -1366,6 +1415,7 @@ class PlayerActivity : FragmentActivity() {
                 vodBar.animate().alpha(1f).translationY(0f).setDuration(VOD_FADE_MS).start()
             }
             nextEpBar.translationY = -dp(VOD_CLEARANCE_DP)
+            if (phone) { ui.removeCallbacks(hideTouchBarNow); touchBar.visibility = View.VISIBLE }   // Opções e Transmitir
             ui.removeCallbacks(vodTick)
             ui.postDelayed(vodTick, VOD_TICK_MS)
         }
@@ -1377,6 +1427,7 @@ class PlayerActivity : FragmentActivity() {
         vodOn = false
         ui.removeCallbacks(vodTick)
         nextEpBar.translationY = 0f
+        hideTouchBar()
         vodBar.animate().cancel()
         if (!animate || animationsOff() || vodBar.visibility != View.VISIBLE) {
             vodBar.visibility = View.GONE; vodBar.alpha = 1f; vodBar.translationY = 0f
@@ -1415,6 +1466,8 @@ class PlayerActivity : FragmentActivity() {
             vodShowsPlay = paused
             vodState.setImageResource(if (paused) R.drawable.ic_play else R.drawable.ic_pause)
             vodState.contentDescription = if (paused) "Pausado" else "Reproduzindo"
+            vodPlayBtn.setImageResource(if (paused) R.drawable.ic_play else R.drawable.ic_pause)
+            vodPlayBtn.contentDescription = if (paused) "Reproduzir" else "Pausar"   // o botão diz o que ele faz; o estado é anunciado
         }
         setIfChanged(vodHint, if (p.playbackState == Player.STATE_BUFFERING) "Carregando…" else VOD_HINT)
     }
@@ -1427,6 +1480,7 @@ class PlayerActivity : FragmentActivity() {
 
     /** Ícone grande no centro por ~600 ms com fade, como a Netflix. [playing]: mostra ▶ se passou a tocar, ❚❚ se pausou. */
     private fun pulseVod(playing: Boolean) {
+        if (phone) return   // no celular o botão do centro já mostra o estado
         vodPulse.animate().cancel()
         ui.removeCallbacks(hidePulse)
         vodPulse.setImageResource(if (playing) R.drawable.ic_play else R.drawable.ic_pause)
@@ -1500,14 +1554,13 @@ class PlayerActivity : FragmentActivity() {
                 dock.animate().translationY(0f).alpha(1f).setDuration(200).start()
             }
         }
-        syncTouchLayer()
         dockQuality.requestFocus()
     }
 
     private fun closeDock() {
         if (dock.visibility != View.VISIBLE) return
         dock.animate().translationY(dock.height.toFloat()).alpha(0f).setDuration(180)
-            .withEndAction { dock.visibility = View.GONE; dock.translationY = 0f; dock.alpha = 1f; syncTouchLayer() }.start()
+            .withEndAction { dock.visibility = View.GONE; dock.translationY = 0f; dock.alpha = 1f }.start()
     }
 
     private fun dockLabel(action: String, value: String) = "$action\n$value"
