@@ -29,6 +29,9 @@ progresso que anda conforme você age."
 | Voltar | sai do player (como hoje) | durante scrub: cancela e volta a bolinha; senão esconde a barra |
 | ⏩ ⏪ ⏭ ⏮ | continuam como hoje, mas passam pelo mesmo scrub (alvo + pulo adiado) e mostram a barra |
 
+> **Parte 2 (mais abaixo) muda ↓, ↑, OK e Voltar na TV:** o ↓ não abre mais o dock, desce para uma fileira de botões.
+> A tabela abaixo vale para o modo "linha"; a da Parte 2 é a que manda.
+
 - Barra some 4 s depois da última ação **se estiver tocando**. Pausado, fica na tela.
 - Próximo episódio: com o aviso "Próximo em N" na tela, OK continua pulando para o próximo e Voltar cancela (prioridade
   sobre a barra, como hoje).
@@ -119,21 +122,32 @@ Testes em `app/src/test/.../VodScrubTest.kt`: limites, aceleração, cancelar, d
 
 ## Testes para fazer (sem emulador: só na TV e no celular de verdade)
 TV, filme:
-1. Abrir um filme: toca sem barra. **OK** pausa: ❚❚ grande some em ~0,6 s e a barra fica na tela com ▶ pequeno. **OK** de
-   novo: continua e a barra some 4 s depois. Trocar por ⏯ do controle (se tiver) e conferir o mesmo.
+1. Abrir um filme: toca sem barra. **OK** pausa: ❚❚ grande some em ~0,6 s e a barra fica na tela, com o botão ▶/❚❚ da
+   fileira mostrando ▶. **OK** de novo: continua (o botão volta a ❚❚) e a barra some 4 s depois. Trocar por ⏯ do controle
+   (se tiver) e conferir o mesmo.
 2. **→** (e **←**): a linha anda na hora com o balão do tempo; ~0,7 s depois da última tecla o vídeo pula. Segurar →
-   acelera (10 s, 30 s, 1 min). Ao pular aparece "Carregando…" no lugar da dica até voltar a tocar.
+   acelera (10 s, 30 s, 1 min). Ao pular aparece "Carregando…" ao lado do tempo até voltar a tocar.
 3. Durante o scrub: **OK** confirma na hora; **Voltar** cancela e a bolinha volta ao lugar (a barra fica).
-4. Barra escondida: **←/→** já mostram a barra e movem; **↑** e **↓** só mostram. Com a barra: **↓** abre o dock; **MENU**
-   abre o dock mesmo com a barra escondida. Dock aberto: setas/OK navegam nele e **Voltar** fecha.
-5. **Voltar** com a barra esconde a barra; sem barra, sai do player. Pausado, a barra não some sozinha.
+4. Barra escondida: **←/→** já mostram a barra e movem a linha; **↑** só mostra a barra; **↓** mostra a barra **já na
+   fileira, com o ▶/❚❚ roxo**. **MENU** abre o dock mesmo com a barra escondida. Dock aberto: setas/OK navegam nele e
+   **Voltar** fecha.
+4b. Fileira de botões (com a barra na linha, **↓** desce): o botão escolhido fica roxo e os outros cinza-claro, **sem anel e
+   sem fundo**. **←/→** andam entre os botões e param nas pontas (não dão a volta). **OK** no ▶/❚❚ pausa e continua (o
+   ícone troca); em **Áudio e legendas** abre o dock com o foco em Áudio; em **Mais opções** abre o dock em Qualidade.
+   **↑** ou **Voltar** leva de volta à linha (a bolinha volta a responder a ←/→). Navegar nos botões mantém a barra na tela;
+   4 s sem tecla tocando, ela some e, ao voltar com qualquer tecla, está em modo linha. Conferir se o roxo do botão
+   escolhido é fácil de ver de longe.
+5. **Voltar**: na fileira volta para a linha; na linha esconde a barra; sem barra, sai do player. Pausado, a barra não some
+   sozinha.
 6. Se a TV box mandar OK duas vezes (DPAD_CENTER + ENTER): o OK deve pausar/continuar **uma** vez só.
 7. Teclas ⏪ ⏩ ⏮ ⏭ (se existirem): andam 1 min / 10 min pela mesma linha.
-8. Série: título e "T1 · E3" no topo; nos últimos 10 s o "Próximo em N" aparece acima da barra, **OK** pula, **Voltar**
-   cancela. Trocar de episódio pelo autoplay atualiza o título.
+8. Série: título e "T1 · E3" no topo; a fileira mostra **Próximo episódio** (e no último episódio ele não aparece); **OK**
+   nele pula para o próximo e o título muda. Nos últimos 10 s o "Próximo em N" aparece acima da barra, **OK** pula,
+   **Voltar** cancela. Trocar de episódio pelo autoplay atualiza o título e a fileira. Em filme, a fileira tem só 3 botões.
 9. PiP (verde): a barra some e nada reage. Ao voltar da PiP, a barra continua escondida.
 10. Foto da barra **pausada** e da barra **no meio de um scrub** (para conferir o visual).
-11. **Ao vivo: nada mudou** (OK abre a lista, CH+/CH−, número, MENU/OK longo abrem o dock).
+11. **Ao vivo: nada mudou** (OK abre a lista, CH+/CH−, número, MENU/OK longo abrem o dock). No celular a fileira não
+    aparece e a barra é a de antes.
 
 Celular:
 12. Toque no vídeo mostra a barra com Opções/Transmitir no alto, ⏪10 ▶/❚❚ 10⏩ no centro e a linha embaixo; novo toque esconde.
@@ -157,12 +171,15 @@ navega pelo controle.
   32:10
   [ ❚❚ ]   [ Áudio e legendas ]   [ Próximo episódio ]   [ Mais opções ]
 ```
-- Botões: **▶/❚❚** (só ícone, ~56×48dp), **Áudio e legendas** (ícone + texto), **Próximo episódio** (só em série com
-  próximo item: `pc.player.hasNextMediaItem()`; atualizar visibilidade em `onMediaItemTransition`), **Mais opções**
-  (ícone de engrenagem `ic_gear` + texto). Altura 48dp, raio 10dp, espaço 12dp.
-- Visual pelo DESIGN.md: fundo translúcido escuro (`lf_surface_scrim`/sem fundo), **selecionado = anel `lf_accent` 2dp +
-  `lf_surface_hi`**, sem escala, texto `lf_text`. Novo drawable com `state_selected` (não `state_focused`).
-- A dica "↓ Áudio, legenda e mais" sai; o lugar dela fica só para "Carregando…" (escondida quando não está carregando).
+- Botões: **▶/❚❚** (só ícone, ~56×48dp), **Áudio e legendas** (`ic_subtitles` + texto), **Próximo episódio** (`ic_skip_next`
+  + texto; só em série com próximo item: `pc.player.hasNextMediaItem()`; atualizado em `onMediaItemTransition` e a cada
+  500 ms da barra), **Mais opções** (engrenagem `ic_gear` + texto). Altura 48dp, espaço 12dp.
+- Visual (decisão do Danillo, 19/11/2026, **no lugar do anel do DESIGN.md**): **sem anel e sem fundo, em nenhum estado**.
+  O botão escolhido só muda de cor: ícone + texto `lf_accent` (opacidade total); os outros `lf_text_2` a 70% (`lf_text_2_dim`).
+  Sem escala. Lista de cores `res/color/vod_row_content.xml` com `state_selected` (texto e `tint` do ícone); o
+  `isSelected` vai no contêiner do botão e passa para o ícone e o texto.
+- A dica "↓ Áudio, legenda e mais" sai; "Carregando…" aparece **ao lado do tempo decorrido** (mesma linha, para a barra não
+  mudar de altura) e fica escondido quando não está carregando.
 - Celular: a fileira **não aparece** (já tem ⏪ ▶/❚❚ ⏩ e a touch_bar com Opções). Tudo atrás de `!phone`.
 
 ## Foco "virtual" (decisão técnica)
@@ -189,7 +206,19 @@ Nada na barra recebe foco do Android (continua `blocksDescendants`). A Activity 
 - O ícone pequeno ▶/❚❚ à esquerda da linha sai na TV (o botão da fileira mostra o estado). No celular já está escondido.
 
 ## Etapas
-5. Fileira + foco virtual + mapa de teclas + CHANGELOG ("Esta versão") + atualizar a lista de testes acima. Um commit.
+5. [x] Fileira + foco virtual + mapa de teclas + CHANGELOG ("Esta versão") + atualizar a lista de testes acima. Um commit.
+
+## Como ficou e desvios do desenho (Parte 2)
+- Lógica pura em `VodRow.kt` (quais botões existem, ← → parando nas pontas, `remap` quando o "Próximo episódio" aparece ou
+  some e o botão escolhido tem de continuar o mesmo) com `VodRowTest.kt`.
+- Teclas ⏪ ⏩ ⏮ ⏭ na fileira: saem da fileira (voltam ao modo linha) e movem o scrub, para a seleção e o alvo do pulo não
+  aparecerem juntos. ← → só andam na primeira batida (segurar não faz nada a mais).
+- ↓ na linha com um pulo pendente confirma o pulo antes de descer. ⏯ / PLAY / PAUSE na fileira não saem dela.
+- Se o botão escolhido some (último episódio começa com "Próximo episódio" escolhido), a escolha fica no índice mais próximo
+  (Mais opções).
+- O aviso "Próximo em N" sobe 170dp na TV (a barra ficou mais alta com a fileira); no celular continua 132dp.
+- O ícone pequeno de estado à esquerda da linha agora é `gone` no layout; a linha começa na borda, alinhada ao tempo.
+- No celular ↓ continua abrindo o dock com a barra na tela, como antes (a fileira não existe lá).
 
 ## Regras
 As mesmas da parte 1: ao vivo intocado, celular intocado (exceto não mostrar a fileira), build/testes verdes com JDK 21.

@@ -195,13 +195,14 @@
                     android:layout_width="28dp"
                     android:layout_height="28dp"
                     android:contentDescription="Reproduzindo"
-                    android:src="@drawable/ic_pause" />
+                    android:src="@drawable/ic_pause"
+                    android:visibility="gone" />
 
                 <com.seupainel.player.VodTimeBar
                     android:id="@+id/vod_progress"
                     android:layout_width="0dp"
                     android:layout_height="36dp"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="0dp"
                     android:layout_weight="1"
                     android:importantForAccessibility="no" />
 
@@ -218,26 +219,155 @@
                     android:textSize="18sp" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/vod_elapsed"
+            <!-- Tempo decorrido; "Carregando…" fica ao lado (só aparece enquanto o vídeo carrega) para a barra não pular de altura -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="44dp"
-                android:fontFamily="@font/rajdhani_semibold"
-                android:maxLines="1"
-                android:textColor="@color/lf_text"
-                android:textSize="18sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/vod_hint"
-                android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/vod_elapsed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="9dp"
+                    android:fontFamily="@font/rajdhani_semibold"
+                    android:maxLines="1"
+                    android:textColor="@color/lf_text"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/vod_hint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:maxLines="1"
+                    android:text="Carregando…"
+                    android:textColor="@color/lf_text_2"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Fileira de botões (só na TV; o código a mostra). O ícone do ▶/❚❚ recua 7dp para alinhar com o início do trilho. Foco "virtual": ninguém aqui recebe foco do Android, a
+                 Activity marca o escolhido com isSelected e ele só muda de cor (sem anel e sem fundo, ver color/vod_row_content).
+                 isSelected no contêiner passa para o ícone e o texto dentro dele. -->
+            <LinearLayout
+                android:id="@+id/vod_row"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="44dp"
-                android:layout_marginTop="2dp"
-                android:maxLines="1"
-                android:text="↓ Áudio, legenda e mais"
-                android:textColor="@color/lf_text_2"
-                android:textSize="14sp" />
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/vod_row_play"
+                    android:layout_width="56dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="-7dp"
+                    android:contentDescription="Pausar"
+                    android:focusable="false"
+                    android:paddingStart="16dp"
+                    android:paddingTop="12dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="12dp"
+                    android:src="@drawable/ic_pause"
+                    android:tint="@color/vod_row_content" />
+
+                <LinearLayout
+                    android:id="@+id/vod_row_audio"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="12dp"
+                    android:contentDescription="Áudio e legendas"
+                    android:focusable="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_subtitles"
+                        android:tint="@color/vod_row_content" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/rajdhani_semibold"
+                        android:importantForAccessibility="no"
+                        android:maxLines="1"
+                        android:text="Áudio e legendas"
+                        android:textColor="@color/vod_row_content"
+                        android:textSize="18sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/vod_row_next"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="12dp"
+                    android:contentDescription="Próximo episódio"
+                    android:focusable="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_skip_next"
+                        android:tint="@color/vod_row_content" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/rajdhani_semibold"
+                        android:importantForAccessibility="no"
+                        android:maxLines="1"
+                        android:text="Próximo episódio"
+                        android:textColor="@color/vod_row_content"
+                        android:textSize="18sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/vod_row_more"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="12dp"
+                    android:contentDescription="Mais opções"
+                    android:focusable="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_gear"
+                        android:tint="@color/vod_row_content" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/rajdhani_semibold"
+                        android:importantForAccessibility="no"
+                        android:maxLines="1"
+                        android:text="Mais opções"
+                        android:textColor="@color/vod_row_content"
+                        android:textSize="18sp" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
