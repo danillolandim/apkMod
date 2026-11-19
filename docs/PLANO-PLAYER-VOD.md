@@ -219,6 +219,9 @@ Nada na barra recebe foco do Android (continua `blocksDescendants`). A Activity 
 - O aviso "Próximo em N" sobe 170dp na TV (a barra ficou mais alta com a fileira); no celular continua 132dp.
 - O ícone pequeno de estado à esquerda da linha agora é `gone` no layout; a linha começa na borda, alinhada ao tempo.
 - No celular ↓ continua abrindo o dock com a barra na tela, como antes (a fileira não existe lá).
+- O dock de opções (`player_dock`, estilo `DockItem`; vale também para o ao vivo) segue o mesmo visual por decisão do Danillo:
+  sem anel e sem fundo, o item em foco (foco de verdade do Android) só muda de cor (`color/dock_item_text`: foco `lf_accent`,
+  os outros `lf_text_2_dim`). `card_bg.xml` não mudou (outras telas usam).
 
 ## Regras
 As mesmas da parte 1: ao vivo intocado, celular intocado (exceto não mostrar a fileira), build/testes verdes com JDK 21.

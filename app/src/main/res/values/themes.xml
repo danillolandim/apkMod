@@ -49,13 +49,13 @@
         <item name="android:textSize">17sp</item>
     </style>
 
-    <!-- Item do dock do player (estilo dock do Mac) -->
+    <!-- Item do dock do player (estilo dock do Mac). Sem anel e sem fundo: o item em foco só muda de cor (color/dock_item_text). -->
     <style name="DockItem">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginEnd">10dp</item>
         <item name="android:minWidth">104dp</item>
-        <item name="android:background">@drawable/card_bg</item>
+        <item name="android:background">@android:color/transparent</item>
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
         <item name="android:defaultFocusHighlightEnabled">false</item>
@@ -65,7 +65,7 @@
         <item name="android:paddingTop">14dp</item>
         <item name="android:paddingBottom">14dp</item>
         <item name="android:fontFamily">@font/rajdhani_semibold</item>
-        <item name="android:textColor">@color/card_text</item>
+        <item name="android:textColor">@color/dock_item_text</item>
         <item name="android:textSize">15sp</item>
         <item name="android:lineSpacingExtra">2dp</item>
     </style>

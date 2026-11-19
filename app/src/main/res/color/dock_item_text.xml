@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Item do dock do player: sem anel e sem fundo, o item em foco só muda de cor. O dock usa foco de verdade (focused);
+     pressed mantém o retorno ao tocar no celular e selected vale se o item for marcado no código. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="@color/lf_accent" />
+    <item android:state_pressed="true" android:color="@color/lf_accent" />
+    <item android:state_selected="true" android:color="@color/lf_accent" />
+    <item android:color="@color/lf_text_2_dim" />
+</selector>

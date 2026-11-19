@@ -16,6 +16,6 @@
     <!-- Linha de progresso do filme/série: trilho e parte já carregada (o progresso é lf_primary) -->
     <color name="vod_track">#33FFFFFF</color>
     <color name="vod_buffer">#66FFFFFF</color>
-    <!-- Fileira de botões do filme/série: botão sem destaque = lf_text_2 a 70% (o escolhido é lf_accent, ver color/vod_row_content) -->
+    <!-- Item sem destaque da fileira de botões do filme/série e do dock do player = lf_text_2 a 70% (o escolhido é lf_accent, ver color/vod_row_content e color/dock_item_text) -->
     <color name="lf_text_2_dim">#B3B5B6C9</color>
 </resources>
