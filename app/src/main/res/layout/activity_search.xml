@@ -68,6 +68,26 @@
                     android:textColor="@color/lf_text"
                     android:textColorHint="@color/lf_text_3"
                     android:textSize="24sp" />
+
+                <!-- Celular: campo de verdade, com o teclado do próprio aparelho. Escondido na TV. -->
+                <EditText
+                    android:id="@+id/s_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@null"
+                    android:fontFamily="@font/rajdhani_semibold"
+                    android:gravity="center_vertical"
+                    android:hint="Digite o nome…"
+                    android:imeOptions="actionSearch|flagNoExtractUi|flagNoFullscreen"
+                    android:importantForAutofill="no"
+                    android:inputType="text|textNoSuggestions"
+                    android:maxLength="40"
+                    android:singleLine="true"
+                    android:textColor="@color/lf_text"
+                    android:textColorHint="@color/lf_text_3"
+                    android:textCursorDrawable="@null"
+                    android:textSize="22sp"
+                    android:visibility="gone" />
             </FrameLayout>
 
             <GridLayout
@@ -77,6 +97,22 @@
                 android:layout_marginTop="10dp"
                 android:clipChildren="false"
                 android:columnCount="6" />
+
+            <!-- Celular: microfone no lugar da tecla "Falar" do teclado da TV -->
+            <TextView
+                android:id="@+id/s_mic"
+                style="@style/SearchKey"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="10dp"
+                android:contentDescription="Falar o nome"
+                android:drawableStart="@drawable/ic_mic"
+                android:drawablePadding="6dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="Falar"
+                android:textSize="15sp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <!-- Direita: situação e resultados -->

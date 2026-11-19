@@ -12,6 +12,10 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.KeyEvent
 import android.view.LayoutInflater
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import androidx.core.widget.doAfterTextChanged
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -78,6 +82,9 @@ class SearchActivity : FragmentActivity() {
     private var loadError: String? = null
     private var lastKey: View? = null
     private var keyboardStart: View? = null
+    // Celular: campo de texto com o teclado do aparelho no lugar da grade de teclas (que não cabe em 360dp)
+    private var phone = false
+    private var input: EditText? = null
 
     private lateinit var queryView: TextView
     private lateinit var statusView: TextView
@@ -146,9 +153,10 @@ class SearchActivity : FragmentActivity() {
         series = section(R.id.sec_series, R.id.title_series, R.id.row_series, live = false)
         live = section(R.id.sec_live, R.id.title_live, R.id.row_live, live = true)
 
-        buildKeyboard()
+        phone = !Device.isTv(this)
+        if (phone) setupPhoneInput() else buildKeyboard()
         showIdle()
-        keyboardStart?.requestFocus()
+        if (phone) input?.let { showSoftKeyboard(it) } else keyboardStart?.requestFocus()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -230,6 +238,49 @@ class SearchActivity : FragmentActivity() {
         if (voiceAvailable()) voiceKey = addKey(last + 1, 0, 6, "Falar", R.drawable.ic_mic, "Falar o nome") { startVoice() } as TextView
     }
 
+    /** Celular: o campo vira o [queryView], o teclado da tela some e o microfone ganha um botão próprio. */
+    private fun setupPhoneInput() {
+        keys.visibility = View.GONE
+        queryView.visibility = View.GONE
+        val field = findViewById<EditText>(R.id.s_input).apply {
+            visibility = View.VISIBLE
+            // O texto que o próprio app escreve (setQuery, voz) volta igual a [query] e é ignorado aqui
+            doAfterTextChanged { e ->
+                val t = e?.toString().orEmpty()
+                if (!listening && t != query) setQuery(t.take(MAX_QUERY))
+            }
+            setOnEditorActionListener { v, action, _ ->
+                if (action != EditorInfo.IME_ACTION_SEARCH) return@setOnEditorActionListener false
+                hideSoftKeyboard(v)
+                ui.removeCallbacks(searchNow)
+                runSearch()
+                true
+            }
+        }
+        input = field
+        queryView = field
+        (recentHint as? TextView)?.text = "Toque e segure uma busca para apagá-la."
+        if (voiceAvailable()) voiceKey = findViewById<TextView>(R.id.s_mic).apply {
+            visibility = View.VISIBLE
+            compoundDrawablesRelative[0]?.mutate()?.setTint(ContextCompat.getColor(context, R.color.lf_text))
+            setOnClickListener { hideSoftKeyboard(field); startVoice() }
+        }
+    }
+
+    private fun showSoftKeyboard(v: View) {
+        v.requestFocus()
+        v.post { getSystemService(InputMethodManager::class.java)?.showSoftInput(v, InputMethodManager.SHOW_IMPLICIT) }
+    }
+
+    private fun hideSoftKeyboard(v: View) {
+        getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(v.windowToken, 0)
+    }
+
+    /** Celular: depois que o app troca o texto do campo, o cursor vai para o fim (senão fica no começo). */
+    private fun cursorToEnd() {
+        input?.let { it.setSelection(it.length()) }
+    }
+
     private fun addKey(row: Int, col: Int, span: Int, label: String, icon: Int?, description: String, action: () -> Unit): View {
         val key = TextView(this, null, 0, R.style.SearchKey).apply {
             text = label
@@ -271,6 +322,7 @@ class SearchActivity : FragmentActivity() {
         if (listening) stopListening()
         query = q
         queryView.text = q
+        cursorToEnd()
         queryView.contentDescription = if (q.isEmpty()) "Campo de busca vazio" else "Busca: $q"
         ui.removeCallbacks(searchNow)
         if (q.isBlank()) {
@@ -344,11 +396,12 @@ class SearchActivity : FragmentActivity() {
     /** Enquanto escuta, o campo da busca mostra o que está sendo dito; ao parar, volta ao texto de antes. */
     private fun showListening(on: Boolean) {
         queryView.text = if (on) "" else query
+        if (!on) cursorToEnd()
         queryView.hint = if (on) "Preparando o microfone…" else "Digite o nome…"
         voiceKey?.let { key ->
             key.text = if (on) "Ouvindo…" else "Falar"
             key.contentDescription = if (on) "Ouvindo. Aperte para cancelar." else "Falar o nome"
-            key.compoundDrawables[0]?.setTint(ContextCompat.getColor(this, if (on) R.color.lf_accent else R.color.lf_text))
+            (key.compoundDrawablesRelative[0] ?: key.compoundDrawables[0])?.setTint(ContextCompat.getColor(this, if (on) R.color.lf_accent else R.color.lf_text))
         }
     }
 
@@ -416,6 +469,7 @@ class SearchActivity : FragmentActivity() {
     // ---------- foco ----------
 
     private fun focusKeyboard() {
+        input?.let { it.requestFocus(); return }
         (lastKey ?: keyboardStart)?.requestFocus()
     }
 
